@@ -2,7 +2,7 @@ import React from 'react';
 import { Snackbar, Alert } from '@mui/material';
 import useNotificationStore from '../store/notificationStore';
 
-export default function Notification() {
+export default function NotificationBell() {
   const { open, message, severity, closeNotification } = useNotificationStore();
 
   return (

@@ -6,4 +6,6 @@ body {
   background: #18181b;
   min-height: 100vh;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
 }

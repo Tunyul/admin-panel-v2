@@ -15,4 +15,11 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+
+## [v1.3] - 2025-09-16
+### Changed
+- Dashboard/root page benar-benar kosong (clean)
+- Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
+- Perbaikan struktur routes dan pemisahan pages/components
+
 Lanjutkan catatan perubahan di bawah ini untuk versi berikutnya.
