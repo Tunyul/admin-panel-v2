@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #18181b;
+  min-height: 100vh;
+  overflow: hidden;
+}
