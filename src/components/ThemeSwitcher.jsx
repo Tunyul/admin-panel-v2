@@ -1,23 +1,63 @@
-import React from 'react';
-import { Switch } from '@mui/material';
+import React, { useRef, useEffect } from 'react';
 import useThemeStore from '../store/themeStore';
+import ThemeSwitchAnim from './ThemeSwitchAnim';
 
 export default function ThemeSwitcher() {
-  const { darkMode, toggleTheme } = useThemeStore();
+	const { darkMode, toggleTheme } = useThemeStore();
+	const ref = useRef();
 
-  React.useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+	useEffect(() => {
+		if (ref.current) {
+			ref.current.animate([
+				{
+					background: darkMode
+						? 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)'
+						: 'linear-gradient(90deg, #232946 10%, #f472b6 100%)',
+					boxShadow: darkMode
+						? '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a'
+						: '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946',
+				},
+				{
+					background: darkMode
+						? 'linear-gradient(90deg, #232946 10%, #f472b6 100%)'
+						: 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)',
+					boxShadow: darkMode
+						? '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946'
+						: '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a',
+				}
+			], {
+				duration: 400,
+				fill: 'forwards',
+				easing: 'cubic-bezier(.4,0,.2,1)'
+			});
+		}
+	}, [darkMode]);
 
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-gray-700 dark:text-gray-300">Light</span>
-      <Switch checked={darkMode} onChange={toggleTheme} />
-      <span className="text-gray-700 dark:text-gray-300">Dark</span>
-    </div>
-  );
+	return (
+		<div
+			ref={ref}
+			onClick={toggleTheme}
+			style={{
+				width: 120,
+				height: 50,
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				borderRadius: 999,
+				boxShadow: darkMode
+					? '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946'
+					: '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a',
+				background: darkMode
+					? 'linear-gradient(90deg, #232946 10%, #f472b6 100%)'
+					: 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)',
+				position: 'relative',
+				overflow: 'hidden',
+				cursor: 'pointer',
+				userSelect: 'none',
+				transition: 'none',
+			}}
+		>
+			<ThemeSwitchAnim />
+		</div>
+	);
 }

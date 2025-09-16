@@ -38,4 +38,11 @@ All notable changes to this project will be documented in this file.
 	- Pencarian
 	- Padding kanan pada fitur header
 
+
+## [v1.3.8] - 2025-09-16
+### Changed
+- Modularisasi ThemeSwitcher: animasi, ikon matahari, dan bulan dipisah ke file/komponen terpisah (ThemeSwitchAnim, ThemeSwitchMoon, ThemeSwitchSun)
+- Penghapusan seluruh animasi transisi moon-to-sun dan sun-to-moon, sekarang hanya render moon statis di kiri (dark) atau sun statis di kanan (light)
+- Perbaikan error import/export, error runtime, dan error boundary
+
 Lanjutkan catatan perubahan di bawah ini untuk versi berikutnya.

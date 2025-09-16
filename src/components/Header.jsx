@@ -84,38 +84,16 @@ export default function Header() {
           }}>
             <NotificationBell />
           </Box>
-          <Box sx={{
-            bgcolor: '#232946',
-            borderRadius: 2,
-            p: 1,
-            boxShadow: '0 0 8px #f472b6cc',
-            display: 'flex',
-            alignItems: 'center',
-            transition: 'box-shadow 0.2s',
-            '&:hover': { boxShadow: '0 0 16px #3b82f6cc' },
-          }}>
-            <ThemeSwitcher />
-          </Box>
-          <Box sx={{
-            bgcolor: '#232946',
-            borderRadius: 2,
-            p: 1,
-            boxShadow: '0 0 8px #fbbf24cc',
-            display: 'flex',
-            alignItems: 'center',
-            transition: 'box-shadow 0.2s',
-            '&:hover': { boxShadow: '0 0 16px #f472b6cc' },
-          }}>
-            <LogoutButton />
-          </Box>
+          <ThemeSwitcher />
+          <LogoutButton />
         </Box>
         <style>{`
           .animate-glow {
             animation: glow 1.5s ease-in-out infinite alternate;
           }
           @keyframes glow {
-            from { text-shadow: 0 0 12px #fbbf24, 0 0 32px #3b82f6; }
-            to { text-shadow: 0 0 24px #f472b6, 0 0 48px #fbbf24; }
+            from { text-shadow: 0 0 12px #4c8129ff, 0 0 32px #f63b3bff; }
+            to { text-shadow: 0 0 24px #b700ffff, 0 0 48px #ff0000ff; }
           }
         `}</style>
       </Paper>
