@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TextField, Button, Box, Typography, Paper, Avatar, CircularProgress, Card, CardContent } from '@mui/material';
 import axios from 'axios';
 import useNotificationStore from '../store/notificationStore';
@@ -9,6 +10,7 @@ export default function Login({ onLogin }) {
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(false);
 	const { showNotification } = useNotificationStore();
+	const navigate = useNavigate();
 
 	const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -19,10 +21,13 @@ export default function Login({ onLogin }) {
 			const res = await axios.post('http://192.168.69.104:3000/api/auth/login', form);
 			localStorage.setItem('token', res.data.token);
 			showNotification('Login sukses!', 'success');
-			if (onLogin) onLogin();
+			setTimeout(() => {
+				setLoading(false);
+				navigate('/');
+				if (onLogin) onLogin();
+			}, 900);
 		} catch (err) {
 			showNotification('Login gagal! Periksa email/password.', 'error');
-		} finally {
 			setLoading(false);
 		}
 	};

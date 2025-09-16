@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import MainLayout from './layouts/MainLayout'
-import Dashboard from './components/Dashboard'
+import Dashboard from './pages/Dashboard'
 import Notification from './components/Notification'
 import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
@@ -22,9 +22,6 @@ function App() {
           element={
             <PrivateRoute>
               <MainLayout>
-                <div className="flex justify-end mb-4">
-                  <LogoutButton />
-                </div>
                 <Dashboard />
               </MainLayout>
             </PrivateRoute>
