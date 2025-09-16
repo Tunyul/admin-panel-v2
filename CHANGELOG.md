@@ -22,4 +22,20 @@ All notable changes to this project will be documented in this file.
 - Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
 - Perbaikan struktur routes dan pemisahan pages/components
 
+
+## [v1.3.5] - 2025-09-16
+
+- Update: Header kini tanpa padding untuk tampilan lebih clean dan minimalis.
+
+---
+
+## [v1.3.2] - 2025-09-16
+### Added
+- Header dengan fitur:
+	- Logout
+	- Theme switcher (dark/light)
+	- Notifikasi
+	- Pencarian
+	- Padding kanan pada fitur header
+
 Lanjutkan catatan perubahan di bawah ini untuk versi berikutnya.
