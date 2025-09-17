@@ -104,3 +104,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Polishing and small UX improvements around customers table and dialogs
+
+---
+
+## [v1.6] - 2025-09-17
+### Added
+- Halaman dan tabel Payments: CRUD dasar, tampilan serupa Customers, validasi input, dan detail lazy-load
+- Halaman dan tabel Piutangs: CRUD dasar, penyesuaian ke skema DB (id_piutang, id_customer, jumlah_piutang, tanggal_piutang, status, keterangan), validasi, dan detail lazy-load
+
+### Changed
+- Perbaikan dan pembersihan komponen Products dan beberapa perbaikan import/exports
+- Build dan validasi produksi dilakukan untuk memastikan tidak ada error sintaks
