@@ -27,11 +27,17 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.3.2] - 2025-09-16
 ### Added
-- Header dengan fitur:
   - Logout
-  - Theme switcher (dark/light)
+
+---
+
+## [v1.6.5] - 2025-09-18
+### Changed
+- Fixed layout issues so header and sidebar remain fixed while only main content scrolls.
+- Removed unexpected bottom/overflow space in main content and unified responsive padding across pages.
+- Made tables responsive and added safe wrappers to avoid horizontal overflow on narrow screens.
+- Minor visual polish: consistent card shadows and adjusted header/sidebar styles.
   - Notifikasi
-  - Pencarian
   - Padding kanan pada fitur header
 
 ---
