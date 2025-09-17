@@ -36,7 +36,7 @@ export default function Header() {
             filter: 'drop-shadow(0 0 8px #fbbf24cc)',
           }}
         >
-          ✨ CS Bot Admin ✨
+          ehe
         </h1>
         <Box display="flex" alignItems="center" gap={2.5} sx={{ pr: 4 }}>
           <TextField

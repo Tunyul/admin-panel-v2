@@ -46,7 +46,6 @@ All notable changes to this project will be documented in this file.
 - Perbaikan error import/export, error runtime, dan error boundary
 
 
-## [v1.4] - 2025-09-17
 ### Changed
 - Layout utama: header di paling atas, sidebar di bawah header (bukan fixed/overlay)
 - Sidebar dan header kini transparan (tanpa background)
@@ -56,3 +55,13 @@ All notable changes to this project will be documented in this file.
 - Perbaikan duplikasi header di dashboard
 - Sidebar menggunakan MUI List, bukan Drawer
 - Penyesuaian warna, padding, dan struktur agar lebih clean dan minimalis
+
+
+## [v1.5] - 2025-09-17
+### Changed
+- Default theme sekarang dark/malam (ThemeSwitcher default gelap)
+- Sidebar: font diganti ke modern sans-serif (Poppins, Inter, Arial)
+- Sidebar: warna neon lebih soft, tiap menu warna berbeda
+- Sidebar: tanpa margin, padding, border, shadow, background
+- Sidebar: semua tombol kotak, tanpa rounded, tanpa gradient
+- Layout dan UI lebih clean, modern, responsif
