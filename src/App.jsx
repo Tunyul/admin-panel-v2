@@ -29,11 +29,18 @@ function App() {
           path="/*"
           element={
             <PrivateRoute>
-              <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Header />
-                <div style={{ display: 'flex', flex: 1, minHeight: 0, height: '100%' }}>
+                <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', overflow: 'auto' }}>
                   <Sidebar />
-                  <div style={{ flex: 1, padding: '24px', background: 'none', minHeight: 0, overflow: 'auto' }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: window.innerWidth < 600 ? '8px 8px 0 8px' : '24px 24px 0 24px',
+                      height: '100%',
+                      maxWidth: 'clamp(100%, 96vw, 1200px)',
+                    }}
+                  >
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/orders" element={<Orders />} />

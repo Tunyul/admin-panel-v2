@@ -19,6 +19,7 @@ export default function Sidebar() {
   const menu = [
     { label: 'Dashboard', path: '/', icon: <DashboardIcon />, color: '#ffe066' }, // kuning soft
     { label: 'Orders', path: '/orders', icon: <ListAltIcon />, color: '#60a5fa' }, // biru soft
+    { label: 'Products', path: '/products', icon: <PaymentIcon />, color: '#34d399' }, // hijau soft (gunakan PaymentIcon, bisa diganti)
     { label: 'Customers', path: '/customers', icon: <PeopleIcon />, color: '#f9a8d4' }, // pink soft
     { label: 'Payments', path: '/payments', icon: <PaymentIcon />, color: '#67e8f9' }, // cyan soft
     { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon />, color: '#c4b5fd' }, // ungu soft
