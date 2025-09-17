@@ -115,3 +115,14 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Perbaikan dan pembersihan komponen Products dan beberapa perbaikan import/exports
 - Build dan validasi produksi dilakukan untuk memastikan tidak ada error sintaks
+
+---
+
+## [v1.6.2] - 2025-09-18
+### Added
+- Dashboard layout: a1/a2 split (overview + finances on left, activity on right)
+- Three compact dashboard charts (Omzet, Orders grouped bars, Payments)
+
+### Changed
+- Adjusted main content padding and activity panel sizing
+
