@@ -1,13 +1,8 @@
-## [v1.5.2] - 2025-09-17
-### Changed
-- Main content: maxWidth responsif (clamp), padding kiri-kanan responsif
-- Scroll dashboard dan main content diperbaiki (tidak terpotong, selalu muncul jika konten banyak)
-- Tinggi main content selalu sama dengan sidebar
-- Penambahan card fitur baru di dashboard
-- Perbaikan layout dan UI agar lebih proporsional di semua ukuran layar
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+---
 
 ## [v1.2] - 2025-09-16
 ### Added
@@ -22,29 +17,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-
 ## [v1.3] - 2025-09-16
 ### Changed
 - Dashboard/root page benar-benar kosong (clean)
 - Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
 - Perbaikan struktur routes dan pemisahan pages/components
 
-
-## [v1.3.5] - 2025-09-16
-
-- Update: Header kini tanpa padding untuk tampilan lebih clean dan minimalis.
-
 ---
 
 ## [v1.3.2] - 2025-09-16
 ### Added
 - Header dengan fitur:
-	- Logout
-	- Theme switcher (dark/light)
-	- Notifikasi
-	- Pencarian
-	- Padding kanan pada fitur header
+  - Logout
+  - Theme switcher (dark/light)
+  - Notifikasi
+  - Pencarian
+  - Padding kanan pada fitur header
 
+---
+
+## [v1.3.5] - 2025-09-16
+### Changed
+- Header kini tanpa padding untuk tampilan lebih clean dan minimalis.
+
+---
 
 ## [v1.3.8] - 2025-09-16
 ### Changed
@@ -52,7 +48,9 @@ All notable changes to this project will be documented in this file.
 - Penghapusan seluruh animasi transisi moon-to-sun dan sun-to-moon, sekarang hanya render moon statis di kiri (dark) atau sun statis di kanan (light)
 - Perbaikan error import/export, error runtime, dan error boundary
 
+---
 
+## [v1.4] - 2025-09-17
 ### Changed
 - Layout utama: header di paling atas, sidebar di bawah header (bukan fixed/overlay)
 - Sidebar dan header kini transparan (tanpa background)
@@ -63,6 +61,7 @@ All notable changes to this project will be documented in this file.
 - Sidebar menggunakan MUI List, bukan Drawer
 - Penyesuaian warna, padding, dan struktur agar lebih clean dan minimalis
 
+---
 
 ## [v1.5] - 2025-09-17
 ### Changed
@@ -72,3 +71,14 @@ All notable changes to this project will be documented in this file.
 - Sidebar: tanpa margin, padding, border, shadow, background
 - Sidebar: semua tombol kotak, tanpa rounded, tanpa gradient
 - Layout dan UI lebih clean, modern, responsif
+
+---
+
+## [v1.5.2] - 2025-09-17
+### Changed
+- Main content: maxWidth responsif (clamp), padding kiri-kanan responsif
+- Scroll dashboard dan main content diperbaiki (tidak terpotong, selalu muncul jika konten banyak)
+- Tinggi main content selalu sama dengan sidebar
+- Penambahan card fitur baru di dashboard
+- Perbaikan layout dan UI agar lebih proporsional di semua ukuran layar
+- Sidebar: warna neon lebih soft, tiap menu warna berbeda
