@@ -1,66 +1,63 @@
-import React from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, Avatar } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import PeopleIcon from '@mui/icons-material/People';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import PaymentIcon from '@mui/icons-material/Payment';
-import { Link, useLocation } from 'react-router-dom';
 
-const navItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Customers', icon: <PeopleIcon />, path: '/customers' },
-  { text: 'Products', icon: <ShoppingCartIcon />, path: '/products' },
-  { text: 'Orders', icon: <AssignmentIcon />, path: '/orders' },
-  { text: 'Piutangs', icon: <AssignmentIcon />, path: '/piutangs' },
-  { text: 'Payments', icon: <PaymentIcon />, path: '/payments' },
-];
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import PeopleIcon from '@mui/icons-material/People';
+import PaymentIcon from '@mui/icons-material/Payment';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+
 
 export default function Sidebar() {
   const location = useLocation();
+  const menu = [
+    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+    { label: 'Orders', path: '/orders', icon: <ListAltIcon /> },
+    { label: 'Customers', path: '/customers', icon: <PeopleIcon /> },
+    { label: 'Payments', path: '/payments', icon: <PaymentIcon /> },
+    { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon /> },
+  ];
   return (
-    <Drawer
-      variant="permanent"
-      PaperProps={{
-        sx: {
-          backgroundColor: '#18181b',
-          color: '#fff',
-          width: 240,
-          borderRight: 'none',
-        },
+    <Box
+      sx={{
+        width: 220,
+  background: 'none',
+  color: '#fff',
+  height: '100%',
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
       }}
     >
-      <div className="flex flex-col items-center py-8">
-        <Avatar src="https://randomuser.me/api/portraits/men/32.jpg" sx={{ width: 64, height: 64, mb: 2 }} />
-        <div className="font-bold text-lg mb-1">Ghulam</div>
-        <div className="text-xs text-gray-400 mb-6">Product Designer</div>
-      </div>
       <List>
-        {navItems.map((item) => (
-          <ListItem
-            button
-            key={item.text}
-            component={Link}
-            to={item.path}
-            sx={{
-              mb: 1,
-              borderRadius: 2,
-              backgroundColor:
-                location.pathname === item.path ? 'rgba(59,130,246,0.15)' : 'transparent',
-              color: location.pathname === item.path ? '#3b82f6' : '#fff',
-              '&:hover': {
-                backgroundColor: 'rgba(59,130,246,0.10)',
-                color: '#3b82f6',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ color: location.pathname === item.path ? '#3b82f6' : '#fff' }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} />
+        {menu.map((item) => (
+          <ListItem key={item.path} disablePadding>
+            <ListItemButton
+              component={Link}
+              to={item.path}
+              selected={location.pathname === item.path}
+              sx={{
+                '&.Mui-selected': {
+                  background: '#23232b',
+                  color: '#fbbf24',
+                },
+                '&:hover': {
+                  background: '#23232b',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </Drawer>
+    </Box>
   );
 }

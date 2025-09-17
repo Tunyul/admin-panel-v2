@@ -45,4 +45,14 @@ All notable changes to this project will be documented in this file.
 - Penghapusan seluruh animasi transisi moon-to-sun dan sun-to-moon, sekarang hanya render moon statis di kiri (dark) atau sun statis di kanan (light)
 - Perbaikan error import/export, error runtime, dan error boundary
 
-Lanjutkan catatan perubahan di bawah ini untuk versi berikutnya.
+
+## [v1.4] - 2025-09-17
+### Changed
+- Layout utama: header di paling atas, sidebar di bawah header (bukan fixed/overlay)
+- Sidebar dan header kini transparan (tanpa background)
+- Sidebar tanpa padding top, tanpa background, tanpa border
+- Main content (konten kanan) tanpa background (mengikuti parent)
+- Struktur flex row/column diperbaiki agar layout responsif dan konsisten
+- Perbaikan duplikasi header di dashboard
+- Sidebar menggunakan MUI List, bukan Drawer
+- Penyesuaian warna, padding, dan struktur agar lebih clean dan minimalis

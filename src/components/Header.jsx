@@ -16,7 +16,7 @@ export default function Header() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          bgcolor: '#181A20',
+          bgcolor: 'transparent',
           borderRadius: 0,
           boxShadow: 'none',
           mt: 0,
