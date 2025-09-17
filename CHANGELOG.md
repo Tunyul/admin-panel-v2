@@ -74,7 +74,6 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v1.5.2] - 2025-09-17
 ### Changed
 - Main content: maxWidth responsif (clamp), padding kiri-kanan responsif
 - Scroll dashboard dan main content diperbaiki (tidak terpotong, selalu muncul jika konten banyak)
@@ -82,3 +81,13 @@ All notable changes to this project will be documented in this file.
 - Penambahan card fitur baru di dashboard
 - Perbaikan layout dan UI agar lebih proporsional di semua ukuran layar
 - Sidebar: warna neon lebih soft, tiap menu warna berbeda
+
+---
+
+## [v1.5.3] - 2025-09-17
+### Changed
+- Perbaikan scroll vertikal main content/dashboard agar selalu muncul
+- Area ungu (overflow) di bawah dashboard dihilangkan (flex dan minHeight diperbaiki)
+- Padding kanan dan bawah pada main content diatur agar konten tidak menempel ke tepi/scrollbar
+- Card "Fitur Baru" dihapus dari dashboard
+- Layout dashboard lebih proporsional dan responsif di semua ukuran layar

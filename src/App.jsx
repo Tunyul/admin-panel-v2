@@ -29,16 +29,20 @@ function App() {
           path="/*"
           element={
             <PrivateRoute>
-              <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <Header />
-                <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', overflow: 'auto' }}>
+                <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', minHeight: 0 }}>
                   <Sidebar />
                   <div
                     style={{
                       flex: 1,
-                      padding: window.innerWidth < 600 ? '8px 8px 0 8px' : '24px 24px 0 24px',
-                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: window.innerWidth < 600 ? '8px 8px 24px 8px' : '24px 52px 32px 24px',
                       maxWidth: 'clamp(100%, 96vw, 1200px)',
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                      minHeight: 0,
                     }}
                   >
                     <Routes>

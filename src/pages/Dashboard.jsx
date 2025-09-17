@@ -60,12 +60,14 @@ export default function Dashboard() {
     <Box
       sx={{
         width: '100%',
-        minHeight: '100vh',
+        maxWidth: '100%',
+        flex: 1,
+        minHeight: 0,
         p: { xs: 1, md: 2 },
         display: 'flex',
         flexDirection: 'column',
         gap: 3,
-        overflowY: 'auto',
+        pb: { xs: 12, md: 18 },
       }}
     >
       <style>{scrollbarStyle}</style>
@@ -108,24 +110,6 @@ export default function Dashboard() {
         </List>
       </Paper>
 
-      {/* Fitur Baru */}
-      <Paper elevation={0} sx={{ mt: 2, p: 3, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 16px #f472b633', color: '#fff', maxWidth: 420 }}>
-        <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: '#f472b6', letterSpacing: 1 }}>
-          Fitur Baru
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#fff', mb: 1 }}>
-          - Export data ke Excel/CSV
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#fff', mb: 1 }}>
-          - Integrasi notifikasi WhatsApp
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#fff', mb: 1 }}>
-          - Dashboard mobile friendly
-        </Typography>
-        <Typography variant="body2" sx={{ color: '#e5e7eb', mt: 2 }}>
-          *Fitur baru akan terus dikembangkan sesuai kebutuhan bisnis Anda.
-        </Typography>
-      </Paper>
     </Box>
   );
 }
