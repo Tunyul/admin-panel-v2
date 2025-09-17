@@ -91,3 +91,16 @@ All notable changes to this project will be documented in this file.
 - Padding kanan dan bawah pada main content diatur agar konten tidak menempel ke tepi/scrollbar
 - Card "Fitur Baru" dihapus dari dashboard
 - Layout dashboard lebih proporsional dan responsif di semua ukuran layar
+
+---
+
+## [v1.5.5] - 2025-09-17
+### Added
+- Customers page: full CRUD wiring with API integration (list, detail, create, update, delete)
+  - Table with always-visible headers and in-table empty state
+  - Lazy-loaded customer details on row expand
+  - Add/Edit dialog with validation (nama & no_hp required)
+  - MUI confirmation dialog for delete
+
+### Changed
+- Polishing and small UX improvements around customers table and dialogs
