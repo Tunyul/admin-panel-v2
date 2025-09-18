@@ -50,6 +50,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.6.8] - 2025-09-18
+### Changed
+- Dashboard charts: each chart now rendered as its own themed card with neon shadow, rounded corners, and hover elevation.
+- Quick Actions: tiles converted to accessible, full-card clickable buttons with neon accents, keyboard activation (Enter/Space), and focus styles.
+- Visual polish: chart card styling updated to match `StatCard` neon theme.
+
+
 ## [v1.3.5] - 2025-09-16
 ### Changed
 - Header kini tanpa padding untuk tampilan lebih clean dan minimalis.

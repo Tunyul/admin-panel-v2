@@ -18,7 +18,7 @@ const scrollbarStyle = `
 
 import React, { useEffect, useState, Suspense } from 'react';
 import StatCard from '../components/StatCard';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, CircularProgress, Button, ButtonBase } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
@@ -32,10 +32,60 @@ import { getPayments } from '../api/payments';
 import { getPiutangs } from '../api/piutangs';
 import { getOrders } from '../api/orders';
 import useLoadingStore from '../store/loadingStore';
+import useNotificationStore from '../store/notificationStore';
+import Tooltip from '@mui/material/Tooltip';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import { useNavigate } from 'react-router-dom';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 
 // Dummy data
 import PaymentsIcon from '@mui/icons-material/Payment';
 import InventoryIcon from '@mui/icons-material/Inventory';
+
+// Inline neon button used for Quick Actions — small, friendly, modern neon style
+function ButtonNeon({ children, startIcon, sx, variantColor = 'blue', pill = true, ...rest }) {
+  const colorMap = {
+    blue: { glow: '96,165,250', bg: 'rgba(40,40,55,0.6)' },
+    yellow: { glow: '255,224,102', bg: 'rgba(50,40,35,0.6)' },
+    pink: { glow: '236,72,153', bg: 'rgba(45,30,45,0.6)' },
+    teal: { glow: '20,184,166', bg: 'rgba(20,40,40,0.6)' },
+  };
+  const pick = colorMap[variantColor] || colorMap.blue;
+  return (
+    <Button
+      startIcon={startIcon}
+      {...rest}
+      sx={{
+        color: '#fff',
+        borderRadius: pill ? 999 : 1,
+        px: pill ? 2 : 1.5,
+        py: pill ? 0.8 : 0.6,
+        textTransform: 'none',
+        fontWeight: 600,
+        fontSize: 14,
+        boxShadow: `0 8px 26px rgba(${pick.glow},0.08), 0 0 22px rgba(${pick.glow},0.06) inset`,
+        background: `linear-gradient(135deg, ${pick.bg}, rgba(20,20,30,0.6))`,
+        border: `1px solid rgba(${pick.glow},0.08)`,
+        transition: 'transform 160ms cubic-bezier(.2,.9,.2,1), box-shadow 160ms ease',
+        '&:hover': {
+          transform: 'translateY(-2px) scale(1.02)',
+          boxShadow: `0 14px 36px rgba(${pick.glow},0.22), 0 0 34px rgba(${pick.glow},0.14) inset`,
+          background: `linear-gradient(135deg, ${pick.bg}, rgba(10,10,15,0.78))`,
+        },
+        '& .MuiButton-startIcon': {
+          marginRight: 10,
+          color: `rgba(${pick.glow},0.95)`,
+          fontSize: 18,
+        },
+        ...sx,
+      }}
+    >
+      {children}
+    </Button>
+  );
+}
 
 const DEFAULT_STATS = [
   { key: 'sales', title: 'Penjualan', value: '—', icon: <TrendingUpIcon />, color: 'bg-yellow-400' },
@@ -66,6 +116,8 @@ const aktivitas = [
 export default function Dashboard() {
   if (process.env.NODE_ENV !== 'production') console.time('Dashboard:render');
   const [stats, setStats] = useState(DEFAULT_STATS);
+  const notify = useNotificationStore((s) => s.showNotification);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState({ customers: true, products: true, payments: true, piutangs: true, orders: true });
 
   // Shared card min width so Group A and Group B align consistently
@@ -106,6 +158,47 @@ export default function Dashboard() {
     // GROUP_B_DEFAULTS is static here; intentionally ignore exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Quick Actions handlers
+  const refreshCounts = async () => {
+    try {
+      useLoadingStore.getState().start();
+      notify('Refreshing counts…', 'info');
+      const [cP, pP, payP, piuP, oP] = await Promise.all([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
+      const mapLen = (r) => (Array.isArray(r?.data?.data) ? r.data.data.length : (r?.data?.length || '—'));
+      setStats((prev) => prev.map((s) => {
+        if (s.key === 'customers') return { ...s, value: mapLen(cP) };
+        if (s.key === 'products') return { ...s, value: mapLen(pP) };
+        if (s.key === 'payments') return { ...s, value: mapLen(payP) };
+        if (s.key === 'piutangs') return { ...s, value: mapLen(piuP) };
+        if (s.key === 'orders') return { ...s, value: mapLen(oP) };
+        return s;
+      }));
+      notify('Counts updated', 'success');
+    } catch (err) {
+      notify('Failed to refresh counts', 'error');
+    } finally {
+      useLoadingStore.getState().done();
+    }
+  };
+
+  const exportStatsCsv = () => {
+    const rows = stats.map((s) => ({ key: s.key, title: s.title, value: s.value }));
+    const csv = ['key,title,value', ...rows.map(r => `${r.key},"${r.title}",${r.value}`)].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dashboard-stats.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('CSV exported', 'success');
+  };
+
+  const goProducts = () => navigate('/products');
+  const goOrders = () => navigate('/orders');
 
   useEffect(() => {
   // Fetch customers count
@@ -208,8 +301,10 @@ export default function Dashboard() {
               </Box>
             </Box>
 
-            {/* a1-finance (below overview) */}
-            <Box>
+                {/* Duplicate Quick Actions removed (kept under Finances & Orders) */}
+
+                {/* a1-finance (below overview) */}
+                <Box>
               <Typography sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Finances & Orders</Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch', width: '100%' }}>
                 {stats.filter(s => groupBKeys.includes(s.key)).map((stat) => (
@@ -219,15 +314,68 @@ export default function Dashboard() {
                 ))}
               </Box>
             </Box>
+
+                {/* Quick Actions — moved here under Finances & Orders */}
+                <Box sx={{ mt: 1, mb: 1 }}>
+                  <Box sx={{ p: 2, borderRadius: 3, color: '#fff', width: '100%' }}>
+                    <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                      {[
+                        { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => notify('Open new order (not wired)', 'info') },
+                        { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => notify('Open add customer (not wired)', 'info') },
+                        { key: 'record-payment', title: 'Record Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => notify('Open record payment (not wired)', 'info') },
+                        { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
+                        { key: 'export', title: 'Export CSV', icon: <FileDownloadIcon />, color: 'blue', onClick: exportStatsCsv },
+                        { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
+                        { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
+                      ].map((b) => {
+                        const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
+                        const accent = accentMap[b.color] || '#3b82f6';
+                        return (
+                          <ButtonBase
+                            key={b.key}
+                            onClick={b.onClick}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.onClick(); } }}
+                            aria-label={`Quick action ${b.title}`}
+                            focusRipple
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1.5,
+                              p: 2,
+                              bgcolor: '#232946',
+                              borderRadius: '18px',
+                              width: '100%',
+                              textAlign: 'left',
+                              justifyContent: 'flex-start',
+                              border: '1px solid rgba(255,255,255,0.02)',
+                              boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`,
+                              transition: 'box-shadow 0.18s, transform 0.18s',
+                              '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px #00000066`, transform: 'translateY(-6px)' },
+                              '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `${accent}15`, color: accent, boxShadow: `0 6px 18px ${accent}10` }}>
+                              {b.icon}
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography sx={{ color: '#fff', fontWeight: 700 }}>{b.title}</Typography>
+                            </Box>
+                          </ButtonBase>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Box>
           </Box>
 
-          {/* a2: right column - Aktivitas Terbaru */}
-          <Box sx={{ gridColumn: { xs: '1', md: '2' } }}>
-            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 16px #60a5fa33', color: '#fff', width: { xs: '100%', md: 300 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* a2: right column - Aktivitas Terbaru + separate Quick Actions & System */}
+          <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
+            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 16px #60a5fa33', color: '#fff', display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: '#60a5fa', letterSpacing: 1 }}>
                 Aktivitas Terbaru
               </Typography>
-              <Box sx={{ overflowY: 'auto', maxHeight: { md: 360 } }}>
+              <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
                 <List>
                   {aktivitas.map((item, idx) => (
                     <ListItem key={idx} sx={{ py: 1 }}>
@@ -236,25 +384,19 @@ export default function Dashboard() {
                   ))}
                 </List>
               </Box>
-              {/* Quick Actions */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
-                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                  <Box sx={{ bgcolor: '#232946', p: 1, borderRadius: 1, cursor: 'pointer', boxShadow: '0 4px 10px #00000055' }}>New Order</Box>
-                  <Box sx={{ bgcolor: '#232946', p: 1, borderRadius: 1, cursor: 'pointer', boxShadow: '0 4px 10px #00000055' }}>Add Customer</Box>
-                  <Box sx={{ bgcolor: '#232946', p: 1, borderRadius: 1, cursor: 'pointer', boxShadow: '0 4px 10px #00000055' }}>Record Payment</Box>
-                </Box>
-              </Box>
-              {/* System Info */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: '#60e7c6', fontWeight: 700, mb: 1 }}>System</Typography>
-                <Typography sx={{ color: '#fff', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.5</Typography>
-              </Box>
+            </Paper>
+
+            {/* Quick Actions removed from here (moved under Overview) */}
+
+            {/* System Info - separate card */}
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 12px #00000033', color: '#fff' }}>
+              <Typography variant="subtitle2" sx={{ color: '#60e7c6', fontWeight: 700, mb: 1 }}>System</Typography>
+              <Typography sx={{ color: '#fff', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.6</Typography>
             </Paper>
           </Box>
 
           {/* Chart row: lazy-loaded charts to reduce initial parse */}
-          <Suspense fallback={<div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading charts…</div>}>
+          <Suspense fallback={<div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading charts…</div>}>
             <DashboardCharts salesData={salesData} ordersStatusData={ordersStatusData} />
           </Suspense>
         </Box>
