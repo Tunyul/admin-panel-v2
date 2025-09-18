@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://192.168.69.104:3000";
+// Prefer explicit env var; fall back to the current host on port 3000 (useful for dev setups)
+const defaultHost = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'localhost';
+const baseURL = import.meta.env.VITE_API_BASE_URL || `http://${defaultHost}:3000`;
 
 const client = axios.create({
   baseURL,

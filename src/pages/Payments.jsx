@@ -17,12 +17,14 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  MenuItem,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
 
 import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment } from '../api/payments';
+import { verifyPayment } from '../api/payments';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
 
@@ -35,10 +37,23 @@ export default function Payments() {
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+  const [verifyConfirm, setVerifyConfirm] = useState({ open: false, id: null, loading: false, data: null, form: {} });
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
   const { showNotification } = useNotificationStore();
+
+  // reuse the same dark-mode TextField styles used in OrderDialog
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: 'rgba(255,255,255,0.02)',
+      color: '#fff',
+      '& fieldset': { borderColor: 'rgba(148,163,184,0.12)' },
+      '&:hover fieldset': { borderColor: '#60a5fa' },
+      '&.Mui-focused fieldset': { borderColor: '#60a5fa', boxShadow: '0 0 0 6px rgba(96,165,250,0.04)' },
+    },
+    '& .MuiInputLabel-root': { color: '#60a5fa' },
+  };
 
   const reloadPayments = () => {
     setLoading(true);
@@ -117,6 +132,64 @@ export default function Payments() {
   };
   const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
 
+  const handleVerify = (id) => {
+    setVerifyConfirm({ open: true, id, loading: true, data: null, form: {} });
+    // fetch detail to prefill form and show bukti preview
+    useLoadingStore.getState().start();
+    getPaymentById(id)
+      .then((res) => {
+        const details = res?.data?.data || res?.data || {};
+        setVerifyConfirm({ open: true, id, loading: false, data: details, form: { nominal: details.nominal, tipe: details.tipe } });
+      })
+      .catch(() => {
+        setVerifyConfirm({ open: true, id, loading: false, data: null, form: {} });
+        showNotification('Gagal memuat data payment untuk verifikasi', 'error');
+      })
+      .finally(() => useLoadingStore.getState().done());
+  };
+
+  const cancelVerify = () => setVerifyConfirm({ open: false, id: null, loading: false, data: null, form: {} });
+
+  const handleVerifyFormChange = (e) => setVerifyConfirm((s) => ({ ...s, form: { ...s.form, [e.target.name]: e.target.value } }));
+
+  const confirmVerify = () => {
+    const id = verifyConfirm.id;
+    if (!id) return cancelVerify();
+    setVerifyConfirm((s) => ({ ...s, loading: true }));
+    // mark global busy
+    useLoadingStore.getState().start();
+    const payload = {
+      nominal: verifyConfirm.form.nominal != null ? Number(verifyConfirm.form.nominal) : verifyConfirm.data?.nominal || 0,
+      tipe: verifyConfirm.form.tipe || verifyConfirm.data?.tipe || null,
+    };
+    // Validate according to DB schema: nominal NOT NULL and tipe must be one of 'dp'|'pelunasan'
+    if (!payload.nominal || Number(payload.nominal) <= 0) {
+      showNotification('Nominal harus lebih dari 0', 'error');
+      setVerifyConfirm((s) => ({ ...s, loading: false }));
+      useLoadingStore.getState().done();
+      return;
+    }
+    if (!payload.tipe || (payload.tipe !== 'dp' && payload.tipe !== 'pelunasan')) {
+      showNotification('Tipe payment harus dipilih (dp atau pelunasan)', 'error');
+      setVerifyConfirm((s) => ({ ...s, loading: false }));
+      useLoadingStore.getState().done();
+      return;
+    }
+    verifyPayment(id, payload)
+      .then(() => {
+        showNotification('Payment verified', 'success');
+        cancelVerify();
+        reloadPayments();
+      })
+      .catch(() => {
+        showNotification('Gagal memverifikasi payment', 'error');
+        setVerifyConfirm((s) => ({ ...s, loading: false }));
+      })
+      .finally(() => {
+        useLoadingStore.getState().done();
+      });
+  };
+
   const handleExpandWithDetails = (id) => {
     const willExpand = expanded !== id;
     setExpanded(willExpand ? id : null);
@@ -189,6 +262,7 @@ export default function Payments() {
                     <TableCell>
                       <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
                       <IconButton color="error" onClick={() => handleDelete(row.id_payment || row.id)}><DeleteIcon /></IconButton>
+                      <Button variant="outlined" size="small" sx={{ ml: 1 }} onClick={() => handleVerify(row.id_payment || row.id)}>Verify</Button>
                       <IconButton color="info" onClick={() => handleExpandWithDetails(row.id_payment || row.id)}><InfoIcon /></IconButton>
                     </TableCell>
                   </TableRow>
@@ -253,6 +327,80 @@ export default function Payments() {
         <DialogActions>
           <Button onClick={cancelDelete}>Batal</Button>
           <Button onClick={confirmDelete} color="error" variant="contained">Hapus</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={verifyConfirm.open} onClose={cancelVerify} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)', width: { xs: '94%', sm: '640px' }, maxWidth: '960px' } }}>
+        <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>Verifikasi payment</DialogTitle>
+        <DialogContent>
+          {verifyConfirm.loading ? (
+            <Typography sx={{ color: '#60a5fa' }}>Loading...</Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+              <Box sx={{ minWidth: 220, flex: '0 0 220px' }}>
+                {verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file || verifyConfirm.data?.bukti ? (
+                  <Box component="a" href={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} target="_blank" rel="noopener noreferrer">
+                    <Box component="img" src={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} alt="Bukti pembayaran" sx={{ width: '100%', borderRadius: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }} />
+                  </Box>
+                ) : (
+                  <Typography sx={{ color: '#cbd5e1', fontStyle: 'italic' }}>Tidak ada bukti</Typography>
+                )}
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Detail Pembayaran</Typography>
+                <TextField
+                  margin="dense"
+                  name="nominal"
+                  label="Nominal"
+                  type="number"
+                  fullWidth
+                  value={verifyConfirm.form.nominal != null ? verifyConfirm.form.nominal : (verifyConfirm.data?.nominal ?? '')}
+                  onChange={handleVerifyFormChange}
+                  sx={inputSx}
+                  InputProps={{
+                    sx: { color: '#fff' },
+                    // hide native number input spinner controls
+                    inputProps: { inputMode: 'numeric' },
+                    sx: {
+                      '& input[type=number]': { MozAppearance: 'textfield' },
+                      '& input[type=number]::-webkit-outer-spin-button': { WebkitAppearance: 'none', margin: 0 },
+                      '& input[type=number]::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
+                      color: '#fff',
+                    },
+                  }}
+                  InputLabelProps={{ sx: { color: '#60a5fa' } }}
+                />
+
+                <TextField
+                  select
+                  margin="dense"
+                  name="tipe"
+                  label="Tipe"
+                  fullWidth
+                  value={verifyConfirm.form.tipe || verifyConfirm.data?.tipe || ''}
+                  onChange={handleVerifyFormChange}
+                  SelectProps={{
+                    MenuProps: { PaperProps: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } } },
+                  }}
+                  sx={inputSx}
+                  InputProps={{ sx: { color: '#fff' } }}
+                  InputLabelProps={{ sx: { color: '#fbbf24' } }}
+                >
+                  <MenuItem value="">(pilih)</MenuItem>
+                  <MenuItem value="dp">dp</MenuItem>
+                  <MenuItem value="pelunasan">pelunasan</MenuItem>
+                </TextField>
+                <Typography sx={{ color: '#cbd5e1', mt: 1 }}>No Transaksi: {verifyConfirm.data?.no_transaksi || '-'}</Typography>
+                <Typography sx={{ color: '#cbd5e1' }}>No HP: {verifyConfirm.data?.no_hp || '-'}</Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={cancelVerify} disabled={verifyConfirm.loading} sx={{ color: '#fff' }}>Batal</Button>
+          <Button onClick={confirmVerify} variant="contained" disabled={verifyConfirm.loading} sx={{ bgcolor: '#34d399', color: '#052e16', fontWeight: 700 }}>
+            {verifyConfirm.loading ? 'Processing...' : 'Verifikasi'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

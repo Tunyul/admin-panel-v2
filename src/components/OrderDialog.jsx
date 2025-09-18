@@ -134,12 +134,45 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
     const customer = selectedCustomer || form.customer;
     const customerId = customer?.id_customer || customer?.id || null;
     if (!customerId) return showNotification('Customer belum valid', 'error');
-    const payload = { customer_id: customerId, tanggal_order: new Date().toISOString(), total_bayar: computeTotal(), catatan: form.catatan || null };
+    // Map frontend fields to backend API expected fields.
+    // API expects `id_customer` (snake_case) and prefers date strings like YYYY-MM-DD for `tanggal_order`.
+    // Build payload in the shape requested by the API examples.
+    // Use id_customer if we have a selected customer, otherwise send no_hp.
+    // order_details should be an array of { id_product, qty } using product id and quantity.
+    const payloadOrderDate = new Date().toISOString().split('T')[0];
+
+    const aggregated = aggregateLines();
+    // Use `id_produk` to match backend model (OrderDetail.id_produk)
+    const order_details = aggregated.map((ag) => {
+      const prod = productsList.find((p) => String(p.id_produk || p.id) === String(ag.produk_id));
+      const id_produk = prod?.id_produk || prod?.id || (Number(ag.produk_id) || null);
+      // include both names to be compatible with different backend expectations
+      return { id_produk, id_product: id_produk, qty: Number(ag.quantity) || 0 };
+    }).filter((d) => d.id_produk != null && d.qty > 0);
+
+    const payload = {
+      // optional date if the API uses it; keeping it shouldn't hurt
+      tanggal_order: payloadOrderDate,
+      ...(customerId ? { id_customer: customerId } : { no_hp: selectedCustomer?.phone || form.customer_phone || null }),
+      order_details,
+      // keep total and notes as optional extras
+      total_bayar: computeTotal(),
+      catatan: form.catatan || null,
+    };
+
     const op = form.id_order ? updateOrder(form.id_order, payload) : apiCreateOrder(payload);
+
     op.then((res) => {
       const created = res?.data?.data || res?.data || {};
       const orderId = created.id_order || created.id || null;
       if (!orderId) throw new Error('Order id not returned');
+
+      // If we already sent order_details in the create payload, assume backend created details.
+      // Otherwise (legacy fallback) create them individually.
+      if (payload.order_details && payload.order_details.length > 0) {
+        return orderId;
+      }
+
       const promises = orderLines.map((line) => {
         const prod = productsList.find((p) => String(p.id_produk || p.id) === String(line.produk_id));
         const harga = prod?.harga_per_pcs || prod?.harga_per_m2 || 0;
@@ -219,7 +252,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                 if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                 const raw = (nv || '').trim();
                 const digits = (raw.match(/\d/g) || []).length;
-                const phoneLike = digits >= 3 && /^[+\d\s()\-]+$/.test(raw);
+                const phoneLike = digits >= 3 && /^[+\d\s()-]+$/.test(raw);
                 if (phoneLike) {
                   searchDebounceRef.current = setTimeout(() => {
                     getCustomersByPhone(raw).then((res) => {
