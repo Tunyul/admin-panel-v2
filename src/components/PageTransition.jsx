@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, Fade, Backdrop, CircularProgress, useTheme } from '@mui/material';
+import useLoadingStore from '../store/loadingStore';
 
 export default function PageTransition({ children, pathname }) {
   const theme = useTheme();
   const [showLoader, setShowLoader] = useState(false);
   const [activePath, setActivePath] = useState(pathname);
+  const busy = useLoadingStore((s) => s.busy);
   const timeoutRef = useRef(null);
   const safetyRef = useRef(null);
   const lastPathRef = useRef(pathname);
@@ -48,7 +50,7 @@ export default function PageTransition({ children, pathname }) {
         {children}
       </Box>
 
-      {showLoader && (
+  {showLoader && busy === 0 && (
         <Box
           role="presentation"
           sx={{

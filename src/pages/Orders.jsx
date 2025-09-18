@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Button,
+  Autocomplete,
   Table,
   TableBody,
   TableCell,
@@ -22,83 +23,36 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { getOrders, createOrder, updateOrder, deleteOrder } from '../api/orders';
-import { getOrderDetailsByOrderId } from '../api/orderDetail';
+import { getOrderDetailsByOrderId, createOrderDetail } from '../api/orderDetail';
+import { getProducts } from '../api/products';
+import { getCustomers, createCustomer, getCustomerById, getCustomersByPhone } from '../api/customers';
+import OrdersTable from '../components/OrdersTable';
+import OrderDialog from '../components/OrderDialog';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
 
-const OrderRow = React.memo(function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
-  return (
-    <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
-        <TableCell sx={{ color: '#fff' }}>{row.no_transaksi || '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.customer?.nama || '-'}</TableCell>
-        <TableCell sx={{ color: '#ffe066' }}>{row.tanggal_order ? new Date(row.tanggal_order).toLocaleString('id-ID') : '-'}</TableCell>
-        <TableCell>
-          <Chip label={row.status_urgensi || '-'} size="small" sx={{ bgcolor: row.status_urgensi === 'urgent' ? '#f87171' : '#60a5fa', color: '#fff', fontWeight: 700 }} />
-        </TableCell>
-        <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>{row.total_bayar ? `Rp${Number(row.total_bayar).toLocaleString('id-ID')}` : '-'}</TableCell>
-        <TableCell>
-          <Chip label={row.status_bayar || '-'} size="small" sx={{ bgcolor: row.status_bayar === 'lunas' ? '#34d399' : '#fbbf24', color: '#232946', fontWeight: 700 }} />
-        </TableCell>
-        <TableCell sx={{ color: '#60a5fa' }}>{row.tanggal_jatuh_tempo ? new Date(row.tanggal_jatuh_tempo).toLocaleDateString('id-ID') : '-'}</TableCell>
-        <TableCell>
-          <Chip label={row.status_order || '-'} size="small" sx={{ bgcolor: row.status_order === 'proses' ? '#60a5fa' : '#a78bfa', color: '#fff', fontWeight: 700 }} />
-        </TableCell>
-        <TableCell>
-          <Chip label={row.status || '-'} size="small" sx={{ bgcolor: row.status === 'pending' ? '#fbbf24' : row.status === 'proses' ? '#60a5fa' : row.status === 'selesai' ? '#34d399' : '#f87171', color: '#232946', fontWeight: 700 }} />
-        </TableCell>
-        <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(row.id_order)}><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(row.id_order)}><InfoIcon /></IconButton>
-        </TableCell>
-      </TableRow>
+// Reuse same custom scrollbar style used in Dashboard so modals match theme
+const scrollbarStyle = `
+  ::-webkit-scrollbar {
+    width: 10px;
+    background: #232946;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(120deg, #ffe066 30%, #60a5fa 70%);
+    border-radius: 8px;
+    box-shadow: 0 0 8px #fbbf24cc;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(120deg, #fbbf24 30%, #3b82f6 70%);
+  }
+`;
 
-      <TableRow>
-        <TableCell colSpan={10} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
-          <Collapse in={expanded === row.id_order} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Order Details</Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Produk</TableCell>
-                    <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Qty</TableCell>
-                    <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Harga Satuan</TableCell>
-                    <TableCell sx={{ color: '#a78bfa', fontWeight: 700 }}>Subtotal</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {(detailsMap[row.id_order] || row.details || []).map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell sx={{ color: '#fff' }}>{d.produk?.nama || '-'}</TableCell>
-                      <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>{d.quantity || '-'}</TableCell>
-                      <TableCell sx={{ color: '#ffe066' }}>{d.harga_satuan ? `Rp${Number(d.harga_satuan).toLocaleString('id-ID')}` : '-'}</TableCell>
-                      <TableCell sx={{ color: '#a78bfa' }}>{d.subtotal_item ? `Rp${Number(d.subtotal_item).toLocaleString('id-ID')}` : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {detailsLoading[row.id_order] && (
-                    <TableRow>
-                      <TableCell colSpan={4} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>
-                        Loading details...
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-              {row.catatan && (
-                <Typography variant="body2" sx={{ color: '#fbbf24', mt: 2 }}>
-                  Catatan: {row.catatan}
-                </Typography>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
-});
+// ...inline OrderRow moved to components/OrdersTable.jsx
 
 function Orders() {
   const [data, setData] = useState([]);
@@ -106,52 +60,211 @@ function Orders() {
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [productsList, setProductsList] = useState([]);
+  const [customersList, setCustomersList] = useState([]);
+  const [customersMap, setCustomersMap] = useState({});
+  const [orderLines, setOrderLines] = useState([]);
+  const [step, setStep] = useState('customer'); // 'customer' | 'items' | 'summary'
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
   const { showNotification } = useNotificationStore();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleOpen = useCallback((item = {}) => { setForm(item || {}); setDialogOpen(true); }, []);
+  const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); }, []);
 
   const reloadOrders = useCallback(() => {
     setLoading(true);
     useLoadingStore.getState().start();
     return getOrders()
       .then((res) => {
-        const orders = res?.data?.data || res?.data || [];
-        setData(Array.isArray(orders) ? orders : []);
-        setError(null);
-      })
-      .catch((err) => {
-        if (err?.response?.status === 404) {
-          setData([]);
-          setError('Data order tidak ditemukan.');
-        } else {
-          setError('Gagal memuat data orders');
+        // helpful debug in development: show raw response to help map shapes
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.debug('[reloadOrders] response:', res);
         }
-      })
-      .finally(() => {
-        setLoading(false);
-        useLoadingStore.getState().done();
-      });
+        // accept several common shapes: { data: [...] } or { data: { data: [...] } } or { orders: [...] }
+        const maybe = res && res.data ? (res.data.data || res.data.orders || res.data.items || res.data) : null;
+        const orders = Array.isArray(maybe) ? maybe : (Array.isArray(res?.data) ? res.data : []);
+        setData(orders);
+        setError(null);
+            // fetch customers for orders which only contain id_customer
+            try {
+              const arr = Array.isArray(orders) ? orders : [];
+              const ids = Array.from(new Set(arr.map((o) => o.id_customer).filter(Boolean)));
+              ids.forEach((id) => {
+                // if we don't have the customer cached, try to fetch it
+                if (customersMap[id]) return;
+                try {
+                  getCustomerById(id)
+                    .then((res) => {
+                      const c = res?.data?.data || res?.data || null;
+                      if (c) setCustomersMap((m) => ({ ...m, [id]: c }));
+                    })
+                    .catch(() => {});
+                } catch (e) {
+                  // ignore per-customer fetch errors
+                }
+              });
+            } catch (e) {
+              // ignore
+            }
+          })
+          .catch((err) => {
+            setError(err?.message || err || 'Failed to load orders');
+          })
+          .finally(() => {
+            setLoading(false);
+            useLoadingStore.getState().done();
+          });
   }, []);
 
   useEffect(() => {
+    getProducts()
+      .then((res) => {
+        const items = res?.data?.data || res?.data || [];
+        setProductsList(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setProductsList([]));
+    getCustomers()
+      .then((res) => {
+        const items = res?.data?.data || res?.data || [];
+        setCustomersList(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setCustomersList([]));
+  }, []);
+
+  // load orders when the page mounts (same pattern as other list pages)
+  useEffect(() => {
     reloadOrders();
   }, [reloadOrders]);
-  const handleOpen = useCallback((item = {}) => { setForm(item); setOpen(true); }, []);
+
+  useEffect(() => {
+    // when opening add dialog, initialize order lines if creating
+    if (open && !form.id_order) setOrderLines([{ produk_id: null, quantity: 1 }]);
+  }, [open]);
   const handleClose = useCallback(() => setOpen(false), []);
   const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
-  const handleSave = () => {
-    const payload = { ...form };
-    const op = form.id_order ? updateOrder(form.id_order, payload) : createOrder(payload);
+  const handleLineChange = (index, key, value) => {
+    setOrderLines((lines) => {
+      const copy = [...lines];
+      copy[index] = { ...copy[index], [key]: value };
+      return copy;
+    });
+  };
+  const addLine = () => setOrderLines((l) => ([...l, { produk_id: null, quantity: 1 }]));
+  const removeLine = (index) => setOrderLines((l) => l.filter((_, i) => i !== index));
+  const incrementQuantity = (index) => setOrderLines((lines) => {
+    const copy = [...lines];
+    copy[index] = { ...copy[index], quantity: (Number(copy[index].quantity) || 0) + 1 };
+    return copy;
+  });
+  const decrementQuantity = (index) => setOrderLines((lines) => {
+    const copy = [...lines];
+    const newQty = (Number(copy[index].quantity) || 0) - 1;
+    copy[index] = { ...copy[index], quantity: newQty > 0 ? newQty : 0 };
+    return copy;
+  });
+  const computeLineSubtotal = (line) => {
+    const prod = productsList.find((p) => p.id_produk === Number(line.produk_id) || p.id === Number(line.produk_id));
+    const harga = prod?.harga_per_pcs || prod?.harga_per_m2 || 0;
+    const qty = Number(line.quantity) || 0;
+    return harga * qty;
+  };
+  const computeTotal = () => orderLines.reduce((s, l) => s + computeLineSubtotal(l), 0);
+  const formatCurrency = (v) => {
+    const n = Number(v) || 0;
+    return `Rp${n.toLocaleString('id-ID')}`;
+  };
+
+  // Aggregate order lines by produk_id for a cleaner summary (merge duplicates)
+  const aggregateLines = () => {
+    const map = {};
+    for (const l of orderLines) {
+      const pid = String(l.produk_id || '');
+      if (!pid) continue;
+      const qty = Number(l.quantity) || 0;
+      if (!map[pid]) map[pid] = { produk_id: pid, quantity: qty };
+      else map[pid].quantity = (Number(map[pid].quantity) || 0) + qty;
+    }
+    return Object.values(map);
+  };
+  // customer search: try local then backend by phone
+  const searchCustomer = (name, phone) => {
+    // first local search
+    let found = null;
+    if (phone) {
+      const p = customersList.find((c) => (c.phone === phone || c.no_hp === phone));
+      if (p) found = p;
+    }
+    if (!found && name) {
+      const p2 = customersList.find((c) => (String(c.nama || c.name).toLowerCase() === String(name).toLowerCase()));
+      if (p2) found = p2;
+    }
+    if (found) return Promise.resolve(found);
+    // fallback to backend phone search if phone provided
+    if (phone) {
+      return getCustomersByPhone(phone).then((res) => {
+        const items = res?.data?.data || res?.data || [];
+        if (Array.isArray(items) && items.length) return items[0];
+        return null;
+      }).catch(() => null);
+    }
+    return Promise.resolve(null);
+  };
+
+  // create order + details (final confirmation)
+  const handleConfirm = () => {
+    if (!selectedCustomer && !form.customer_name) {
+      showNotification('Pilih atau buat customer terlebih dahulu', 'error');
+      return;
+    }
+    const customer = selectedCustomer || form.customer;
+    const customerId = customer?.id_customer || customer?.id || null;
+    if (!customerId) {
+      showNotification('Customer belum valid', 'error');
+      return;
+    }
+    const orderPayload = {
+      // backend will create no_transaksi automatically
+      customer_id: customerId,
+      tanggal_order: form.tanggal_order || new Date().toISOString(),
+      total_bayar: computeTotal(),
+      catatan: form.catatan || null,
+    };
+    const op = form.id_order ? updateOrder(form.id_order, orderPayload) : createOrder(orderPayload);
     op
-      .then(() => {
-        showNotification('Saved', 'success');
-        handleClose();
-        // refresh list
-        reloadOrders();
+      .then((res) => {
+        const created = res?.data?.data || res?.data || {};
+        const orderId = created.id_order || created.id || null;
+        if (!orderId) throw new Error('Order id not returned');
+        const detailPromises = orderLines.map((line) => {
+          const prod = productsList.find((p) => p.id_produk === Number(line.produk_id) || p.id === Number(line.produk_id));
+          const harga = prod?.harga_per_pcs || prod?.harga_per_m2 || 0;
+          const qty = Number(line.quantity) || 0;
+          const detailPayload = {
+            order_id: orderId,
+            produk_id: prod?.id_produk || prod?.id || null,
+            quantity: qty,
+            harga_satuan: harga,
+            subtotal_item: harga * qty,
+          };
+          return createOrderDetail(detailPayload);
+        });
+        return Promise.all(detailPromises);
       })
-      .catch(() => {
-        showNotification('Gagal menyimpan order', 'error');
+      .then(() => {
+        showNotification('Order dibuat', 'success');
+        handleClose();
+        setStep('customer');
+        setSelectedCustomer(null);
+        reloadOrders().then(() => setDetailsMap({}));
+      })
+      .catch((err) => {
+        console.error(err);
+        showNotification('Gagal membuat order', 'error');
       });
   };
   const handleDelete = useCallback((id_order) => {
@@ -164,6 +277,59 @@ function Orders() {
         showNotification('Gagal menghapus order', 'error');
       });
   }, [reloadOrders, showNotification]);
+  // handlers for customer step buttons
+  const handleCustomerProceed = () => {
+    if (selectedCustomer) { setStep('items'); showNotification('Customer dipilih', 'success'); return; }
+    const name = form.customer_name;
+    const phone = form.customer_phone;
+    searchCustomer(name, phone).then((found) => {
+      if (found) {
+        setSelectedCustomer(found);
+        setForm((f) => ({ ...f, customer_name: found.nama || found.name, customer_phone: found.phone || found.no_hp }));
+        showNotification('Customer ditemukan', 'success');
+        setStep('items');
+      } else {
+        showNotification('Customer tidak ditemukan. Tekan Create Customer untuk membuat baru', 'info');
+      }
+    });
+  };
+  const handleCustomerCreate = () => {
+    const name = form.customer_name || '';
+    if (!name) return showNotification('Nama customer wajib untuk membuat baru', 'error');
+    const payload = { nama: name, phone: form.customer_phone || null };
+    createCustomer(payload).then((res) => {
+      const cust = res?.data?.data || res?.data || payload;
+      setSelectedCustomer(cust);
+      setCustomersList((s) => ([...(s || []), cust]));
+      showNotification('Customer dibuat', 'success');
+      setStep('items');
+    }).catch(() => showNotification('Gagal membuat customer', 'error'));
+  };
+
+  // back handler: if coming from summary, reset customer inputs; otherwise just step back
+  const handleBack = () => {
+    if (step === 'summary') {
+      // reset customer info when returning from summary per request
+      setSelectedCustomer(null);
+      setForm((f) => ({ ...f, customer_name: '', customer_phone: '' }));
+      setOrderLines((l) => l); // keep product lines when returning? do not reset lines
+      setStep('customer');
+      return;
+    }
+    if (step === 'items') {
+      setStep('customer');
+      return;
+    }
+  };
+
+  const itemsValid = () => {
+    if (!orderLines || !orderLines.length) return false;
+    for (const ln of orderLines) {
+      if (!ln.produk_id) return false;
+      if ((Number(ln.quantity) || 0) <= 0) return false;
+    }
+    return true;
+  };
   // expansion handled via handleExpandWithDetails
 
   const handleExpandWithDetails = useCallback((id_order) => {
@@ -188,13 +354,14 @@ function Orders() {
   if (_loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress color="inherit" />
+        <CircularProgress color="secondary" size={56} />
       </Box>
     );
   }
 
   return (
   <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+      <style>{scrollbarStyle}</style>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Orders
@@ -210,60 +377,21 @@ function Orders() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>No Transaksi</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Customer</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Tanggal Order</TableCell>
-              <TableCell sx={{ color: '#a78bfa', fontWeight: 700 }}>Status Urgensi</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Total Bayar</TableCell>
-              <TableCell sx={{ color: '#fbbf24', fontWeight: 700 }}>Status Bayar</TableCell>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>Jatuh Tempo</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Status Order</TableCell>
-              <TableCell sx={{ color: '#a78bfa', fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {data && data.length > 0 ? (
-              data.map((row) => (
-                <OrderRow
-                  key={row.id_order}
-                  row={row}
-                  expanded={expanded}
-                  detailsMap={detailsMap}
-                  detailsLoading={detailsLoading}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={10} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>
-                  Belum ada data order.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          </Table>
+          <OrdersTable
+            data={data}
+            expanded={expanded}
+            detailsMap={detailsMap}
+            detailsLoading={detailsLoading}
+            onOpen={handleOpen}
+            onDelete={handleDelete}
+            onExpand={handleExpandWithDetails}
+            productsList={productsList}
+            customersMap={customersMap}
+          />
         </Box>
         <Box className="table-bottom-space" />
       </Paper>
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
-        <DialogTitle sx={{ color: '#ffe066', fontWeight: 700, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>{form.id_order ? 'Edit Order' : 'Add Order'}</DialogTitle>
-        <DialogContent>
-          <TextField autoFocus margin="dense" name="no_transaksi" label="No Transaksi" type="text" fullWidth value={form.no_transaksi || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#ffe066' } }} />
-          <TextField margin="dense" name="customer" label="Customer" type="text" fullWidth value={form.customer?.nama || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#60a5fa' } }} />
-          <TextField margin="dense" name="total_bayar" label="Total Bayar" type="number" fullWidth value={form.total_bayar || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#f472b6' } }} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff', fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3, fontFamily: 'Poppins, Inter, Arial, sans-serif', '&:hover': { bgcolor: '#ffd60a', color: '#232946' } }}>Save</Button>
-        </DialogActions>
-      </Dialog>
+      <OrderDialog open={dialogOpen} onClose={handleDialogClose} productsList={productsList} customersList={customersList} onCreated={() => { reloadOrders(); }} />
     </Box>
   );
 }
