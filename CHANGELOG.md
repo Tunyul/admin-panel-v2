@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.7.0] - 2025-09-18
+### Added
+- Release notes placeholder: minor fixes and improvements.
+### Changed
+- Bumped package version to `v1.7.0`.
+
+
 ## [v1.6.9] - 2025-09-18
 ### Added
 - New `Setup` page (3-step setup wizard) and a `Setup` entry in the sidebar.
