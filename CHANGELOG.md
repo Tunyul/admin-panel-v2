@@ -19,12 +19,12 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.7.2] - 2025-09-18
 ### Added
-- Deploy: atomic deploy script `scripts/deploy_atomic.sh` and `deploy/README_ATOMIC.md` for zero-downtime local updates (symlink swap strategy).
-- Payments: verify modal image preview and editable fields for `nominal` and `tipe` in the Payments page.
-- Orders: clickable WhatsApp (wa.me) links and WA icon in the Orders table phone column.
 ### Changed
-- API: frontend payments wrapper updated to use documented PUT `/api/payments/{id}` for updates and added helpers for `/order/{id}`, `/customer/{id}`, `/update-by-transaksi`, and `/update-by-phone`.
 
+## [v1.7.3] - 2025-09-18
+### Fixed
+- Payments: removed duplicate `sx` key in the verify modal TextField which could cause style overrides and build warnings.
+- Lint: cleaned up unused variables and hook dependency handling to reduce ESLint warnings.
 
 
 ## [v1.6.9] - 2025-09-18
