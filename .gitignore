@@ -1,4 +1,11 @@
-# Logs
+# Ignore documentation folder (contains PDFs and docs not for repository)
+doc/
+
+# Node/Vite typical ignores
+node_modules/
+dist/
+.env
+.DS_Store# Logs
 logs
 *.log
 npm-debug.log*
