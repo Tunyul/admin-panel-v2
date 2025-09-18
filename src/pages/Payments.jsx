@@ -358,15 +358,15 @@ export default function Payments() {
                   onChange={handleVerifyFormChange}
                   sx={inputSx}
                   InputProps={{
-                    sx: { color: '#fff' },
-                    // hide native number input spinner controls
-                    inputProps: { inputMode: 'numeric' },
+                    // Merge styling and numeric input tweaks into a single `sx` object and keep inputProps
                     sx: {
+                      color: '#fff',
                       '& input[type=number]': { MozAppearance: 'textfield' },
                       '& input[type=number]::-webkit-outer-spin-button': { WebkitAppearance: 'none', margin: 0 },
                       '& input[type=number]::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
-                      color: '#fff',
                     },
+                    // hide native number input spinner controls and set inputMode
+                    inputProps: { inputMode: 'numeric' },
                   }}
                   InputLabelProps={{ sx: { color: '#60a5fa' } }}
                 />
