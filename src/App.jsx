@@ -10,7 +10,7 @@ const Products = React.lazy(() => import('./pages/Products'))
 const Customers = React.lazy(() => import('./pages/Customers'))
 const Payments = React.lazy(() => import('./pages/Payments'))
 const Piutangs = React.lazy(() => import('./pages/Piutangs'))
-import SetupWizard from './pages/SetupWizard'
+const SetupWizard = React.lazy(() => import('./pages/SetupWizard'))
 import Notification from './components/Notification'
 import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
@@ -67,6 +67,7 @@ function App() {
                             <Route path="/customers" element={<Customers />} />
                             <Route path="/payments" element={<Payments />} />
                             <Route path="/piutangs" element={<Piutangs />} />
+                            <Route path="/setup" element={<SetupWizard />} />
                           </Routes>
                         </Suspense>
                       </PageTransition>

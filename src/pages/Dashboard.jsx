@@ -16,7 +16,7 @@ const scrollbarStyle = `
 `;
 
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useRef } from 'react';
 import StatCard from '../components/StatCard';
 import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, CircularProgress, Button, ButtonBase } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -39,6 +39,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useNavigate } from 'react-router-dom';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import QuickActionModals from '../components/QuickActionModals';
 
 // Dummy data
 import PaymentsIcon from '@mui/icons-material/Payment';
@@ -174,13 +175,29 @@ export default function Dashboard() {
         if (s.key === 'orders') return { ...s, value: mapLen(oP) };
         return s;
       }));
-      notify('Counts updated', 'success');
     } catch (err) {
       notify('Failed to refresh counts', 'error');
     } finally {
       useLoadingStore.getState().done();
     }
   };
+
+  // Lazy-mount wrapper for heavy charts — uses IntersectionObserver to defer rendering
+  function ChartLazyMount({ children }) {
+    const ref = useRef(null);
+    const [inView, setInView] = useState(false);
+
+    useEffect(() => {
+      if (!ref.current) return;
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) setInView(true); });
+      }, { rootMargin: '300px' });
+      obs.observe(ref.current);
+      return () => obs.disconnect();
+    }, [ref]);
+
+    return <div ref={ref}>{inView ? children : <div style={{ height: 240 }} />}</div>;
+  }
 
   const exportStatsCsv = () => {
     const rows = stats.map((s) => ({ key: s.key, title: s.title, value: s.value }));
@@ -317,17 +334,18 @@ export default function Dashboard() {
 
                 {/* Quick Actions — moved here under Finances & Orders */}
                 <Box sx={{ mt: 1, mb: 1 }}>
-                  <Box sx={{ p: 2, borderRadius: 3, color: '#fff', width: '100%' }}>
+                  <Box sx={{ p: 0, borderRadius: 3, color: '#fff', width: '100%' }}>
                     <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
                       {[
-                        { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => notify('Open new order (not wired)', 'info') },
-                        { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => notify('Open add customer (not wired)', 'info') },
-                        { key: 'record-payment', title: 'Record Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => notify('Open record payment (not wired)', 'info') },
+                        { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
+                        { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
+                        { key: 'record-payment', title: 'Record Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open record payment (not wired)', 'info'); } },
                         { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
                         { key: 'export', title: 'Export CSV', icon: <FileDownloadIcon />, color: 'blue', onClick: exportStatsCsv },
                         { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
                         { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
+                        { key: 'setup', title: 'Setup', icon: <DarkModeIcon />, color: 'teal', onClick: () => { if (typeof navigate === 'function') navigate('/setup'); else notify('Open setup (not wired)', 'info'); } },
                       ].map((b) => {
                         const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
                         const accent = accentMap[b.color] || '#3b82f6';
@@ -391,7 +409,7 @@ export default function Dashboard() {
             {/* System Info - separate card */}
             <Paper elevation={0} sx={{ p: 2, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 12px #00000033', color: '#fff' }}>
               <Typography variant="subtitle2" sx={{ color: '#60e7c6', fontWeight: 700, mb: 1 }}>System</Typography>
-              <Typography sx={{ color: '#fff', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.6</Typography>
+              <Typography sx={{ color: '#fff', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
             </Paper>
           </Box>
 
@@ -400,6 +418,7 @@ export default function Dashboard() {
             <DashboardCharts salesData={salesData} ordersStatusData={ordersStatusData} />
           </Suspense>
         </Box>
+  <QuickActionModals onNotify={notify} onSuccess={refreshCounts} />
       </Box>
     </Box>
   );

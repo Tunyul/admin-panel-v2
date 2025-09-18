@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.6.9] - 2025-09-18
+### Added
+- New `Setup` page (3-step setup wizard) and a `Setup` entry in the sidebar.
+### Changed
+- Bumped package version to `v1.6.9` and updated Dashboard System card to display the new version.
+- Added one Quick Action tile to Dashboard to avoid an empty slot and removed Quick Actions container padding for a tighter layout.
+
+
 ## [v1.2] - 2025-09-16
 ### Added
 - Fitur login halaman admin
