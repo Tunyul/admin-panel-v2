@@ -1,18 +1,9 @@
-// Custom scrollbar style
+// Custom scrollbar style (uses CSS theme tokens)
 const scrollbarStyle = `
-  ::-webkit-scrollbar {
-    width: 10px;
-    background: #232946;
-    border-radius: 8px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(120deg, #ffe066 30%, #60a5fa 70%);
-    border-radius: 8px;
-    box-shadow: 0 0 8px #fbbf24cc;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(120deg, #fbbf24 30%, #3b82f6 70%);
-  }
+  ::-webkit-scrollbar { width: 10px; border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.22), rgba(var(--accent-rgb),0.22)); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.32), rgba(var(--accent-rgb),0.32)); }
 `;
 
 
@@ -361,23 +352,23 @@ export default function Dashboard() {
                               alignItems: 'center',
                               gap: 1.5,
                               p: 2,
-                              bgcolor: '#232946',
+                              bgcolor: 'var(--main-card-bg)',
                               borderRadius: '18px',
                               width: '100%',
                               textAlign: 'left',
                               justifyContent: 'flex-start',
-                              border: '1px solid rgba(255,255,255,0.02)',
-                              boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`,
+                              border: '1px solid var(--border)',
+                              boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
                               transition: 'box-shadow 0.18s, transform 0.18s',
-                              '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px #00000066`, transform: 'translateY(-6px)' },
+                              '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' },
                               '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
                             }}
                           >
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `${accent}15`, color: accent, boxShadow: `0 6px 18px ${accent}10` }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(${(accent === '#3b82f6' ? '59,130,246' : (accent === '#fbbf24' ? '255,191,36' : '0,0,0'))},0.08)`, color: accent, boxShadow: `0 6px 18px ${accent}10` }}>
                               {b.icon}
                             </Box>
                             <Box sx={{ flex: 1 }}>
-                              <Typography sx={{ color: '#fff', fontWeight: 700 }}>{b.title}</Typography>
+                              <Typography sx={{ color: 'var(--text)', fontWeight: 700 }}>{b.title}</Typography>
                             </Box>
                           </ButtonBase>
                         );
@@ -389,15 +380,15 @@ export default function Dashboard() {
 
           {/* a2: right column - Aktivitas Terbaru + separate Quick Actions & System */}
           <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
-            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 16px #60a5fa33', color: '#fff', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: '#60a5fa', letterSpacing: 1 }}>
+            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
                 Aktivitas Terbaru
               </Typography>
               <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
                 <List>
                   {aktivitas.map((item, idx) => (
                     <ListItem key={idx} sx={{ py: 1 }}>
-                      <ListItemText primary={item} primaryTypographyProps={{ sx: { color: '#fff', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
+                      <ListItemText primary={item} primaryTypographyProps={{ sx: { color: 'var(--text)', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
                     </ListItem>
                   ))}
                 </List>
@@ -407,9 +398,9 @@ export default function Dashboard() {
             {/* Quick Actions removed from here (moved under Overview) */}
 
             {/* System Info - separate card */}
-            <Paper elevation={0} sx={{ p: 2, bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 4, boxShadow: '0 0 12px #00000033', color: '#fff' }}>
-              <Typography variant="subtitle2" sx={{ color: '#60e7c6', fontWeight: 700, mb: 1 }}>System</Typography>
-              <Typography sx={{ color: '#fff', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
+              <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
+              <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
             </Paper>
           </Box>
 

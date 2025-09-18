@@ -31,14 +31,12 @@ export default function Header() {
         }}
       >
         <h1
-          className="text-3xl font-extrabold tracking-wide animate-glow"
+          className="text-3xl font-extrabold tracking-wide"
           style={{
             color: '#fbbf24',
             fontFamily: 'Quicksand, Poppins, Comic Sans MS, Arial, sans-serif',
             paddingLeft: 32,
-            textShadow: '0 0 12px #fbbf24, 0 0 32px #3b82f6',
             letterSpacing: 2,
-            filter: 'drop-shadow(0 0 8px #fbbf24cc)',
           }}
         >
           ehe
@@ -60,9 +58,9 @@ export default function Header() {
                 fontWeight: 500,
                 letterSpacing: 1,
               },
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6', boxShadow: '0 0 8px #3b82f6cc' },
-              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#f472b6', boxShadow: '0 0 12px #f472b6cc' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#fbbf24', boxShadow: '0 0 16px #fbbf24cc' },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#f472b6' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#fbbf24' },
               '& .MuiInputBase-root': { bgcolor: '#232946', borderRadius: 3 },
               '& .MuiInputAdornment-root': { color: '#fbbf24' },
               transition: 'all 0.2s cubic-bezier(.4,0,.2,1)',
@@ -81,26 +79,16 @@ export default function Header() {
             bgcolor: '#232946',
             borderRadius: 2,
             p: 1,
-            boxShadow: '0 0 8px #3b82f6cc',
             display: 'flex',
             alignItems: 'center',
-            transition: 'box-shadow 0.2s',
-            '&:hover': { boxShadow: '0 0 16px #fbbf24cc' },
+            transition: 'none',
           }}>
             <NotificationBell />
           </Box>
           <ThemeSwitcher />
           <LogoutButton />
         </Box>
-        <style>{`
-          .animate-glow {
-            animation: glow 1.5s ease-in-out infinite alternate;
-          }
-          @keyframes glow {
-            from { text-shadow: 0 0 12px #4c8129ff, 0 0 32px #f63b3bff; }
-            to { text-shadow: 0 0 24px #b700ffff, 0 0 48px #ff0000ff; }
-          }
-        `}</style>
+        {/* removed shadow-based glow animation to keep header flat */}
       </Paper>
     );
 }

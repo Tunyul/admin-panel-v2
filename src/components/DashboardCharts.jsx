@@ -7,8 +7,8 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
     <Box sx={{ gridColumn: '1 / -1', gridRow: { xs: '4', md: '3' } }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
         {/* Chart 1: Omzet (small line) */}
-        <Paper elevation={0} sx={{ p: 2, bgcolor: '#232946', borderRadius: '18px', boxShadow: `0 4px 12px 0 #fbbf2422, 0 2px 6px #00000055`, color: '#fff', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 #fbbf2433, 0 4px 12px #00000066`, transform: 'translateY(-6px)' } }}>
-          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: '#ffe066' }}>
+        <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: '18px', boxShadow: `0 4px 12px 0 rgba(var(--accent-rgb),0.08), 0 2px 6px rgba(11,33,53,0.06)`, color: 'var(--text)', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 rgba(var(--accent-rgb),0.12), 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' } }}>
+          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: 'var(--accent-2)' }}>
             Omzet Mingguan
           </Typography>
           <ResponsiveContainer width="100%" height={120}>
@@ -23,8 +23,8 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
         </Paper>
 
         {/* Chart 2: Orders (grouped bars) */}
-        <Paper elevation={0} sx={{ p: 2, bgcolor: '#232946', borderRadius: '18px', boxShadow: `0 4px 12px 0 #3b82f622, 0 2px 6px #00000055`, color: '#fff', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 #3b82f633, 0 4px 12px #00000066`, transform: 'translateY(-6px)' } }}>
-          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: '#60a5fa' }}>
+        <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: '18px', boxShadow: `0 4px 12px 0 rgba(59,130,246,0.08), 0 2px 6px rgba(11,33,53,0.06)`, color: 'var(--text)', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 rgba(59,130,246,0.12), 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' } }}>
+          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: 'var(--accent)' }}>
             Orders / Hari
           </Typography>
           <ResponsiveContainer width="100%" height={120}>
@@ -41,8 +41,8 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
         </Paper>
 
         {/* Chart 3: Payments (small line) */}
-        <Paper elevation={0} sx={{ p: 2, bgcolor: '#232946', borderRadius: '18px', boxShadow: `0 4px 12px 0 #06b6d422, 0 2px 6px #00000055`, color: '#fff', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 #06b6d433, 0 4px 12px #00000066`, transform: 'translateY(-6px)' } }}>
-          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: '#60e7c6' }}>
+        <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: '18px', boxShadow: `0 4px 12px 0 rgba(6,182,212,0.08), 0 2px 6px rgba(11,33,53,0.06)`, color: 'var(--text)', transition: 'box-shadow 0.18s, transform 0.18s', '&:hover': { boxShadow: `0 8px 24px 0 rgba(6,182,212,0.12), 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' } }}>
+          <Typography variant="subtitle2" fontWeight={700} mb={1} sx={{ color: 'var(--accent)' }}>
             Payments (7d)
           </Typography>
           <ResponsiveContainer width="100%" height={120}>

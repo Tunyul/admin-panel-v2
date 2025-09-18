@@ -22,14 +22,14 @@ export default function StatCard({ title, value, icon, color = 'bg-blue-500' }) 
     <div
       className="flex flex-col justify-between relative group"
       style={{
-        background: '#232946',
+        background: 'var(--main-card-bg)',
         borderRadius: 18,
         height: 140,
         padding: '18px 16px',
-  boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`,
+        boxShadow: `0 6px 18px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
         fontFamily: 'Poppins, Inter, Arial, sans-serif',
         transition: 'box-shadow 0.18s, transform 0.18s',
-        border: '1px solid rgba(255,255,255,0.02)',
+        border: '1px solid var(--border)',
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
@@ -37,8 +37,14 @@ export default function StatCard({ title, value, icon, color = 'bg-blue-500' }) 
         flexDirection: 'column',
         justifyContent: 'center',
       }}
-  onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 8px 24px 0 ${accent}33, 0 4px 12px #00000066`; e.currentTarget.style.transform = 'translateY(-6px)'; }}
-  onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`; e.currentTarget.style.transform = 'none'; }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = `0 12px 36px 0 ${accent}33, 0 6px 18px rgba(11,33,53,0.08)`;
+        e.currentTarget.style.transform = 'translateY(-6px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = `0 6px 18px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`;
+        e.currentTarget.style.transform = 'none';
+      }}
     >
       <StatCardHeader title={title} accent={accent} />
 
