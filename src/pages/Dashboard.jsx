@@ -115,7 +115,7 @@ const aktivitas = [
 ];
 
 export default function Dashboard() {
-  if (process.env.NODE_ENV !== 'production') console.time('Dashboard:render');
+  if (import.meta.env.DEV) console.time('Dashboard:render');
   const [stats, setStats] = useState(DEFAULT_STATS);
   const notify = useNotificationStore((s) => s.showNotification);
   const navigate = useNavigate();
@@ -156,8 +156,8 @@ export default function Dashboard() {
       });
       return res;
     });
-    // GROUP_B_DEFAULTS is static here; intentionally ignore exhaustive-deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // GROUP_B_DEFAULTS is static here; intentionally ignore exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Quick Actions handlers
@@ -175,7 +175,7 @@ export default function Dashboard() {
         if (s.key === 'orders') return { ...s, value: mapLen(oP) };
         return s;
       }));
-    } catch (err) {
+    } catch {
       notify('Failed to refresh counts', 'error');
     } finally {
       useLoadingStore.getState().done();
@@ -286,7 +286,7 @@ export default function Dashboard() {
       });
   }, []);
 
-  if (process.env.NODE_ENV !== 'production') console.timeEnd('Dashboard:render');
+  if (import.meta.env.DEV) console.timeEnd('Dashboard:render');
 
   return (
     <Box

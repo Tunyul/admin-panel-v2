@@ -32,7 +32,7 @@ export default function LottieLoader({ animationData: initialAnimation = DEFAULT
         if (cute && cute.default) {
           setAnimationData(cute.default);
         }
-      } catch (e) {
+      } catch {
         // if dynamic import fails (network or package missing), keep fallback SVG
       }
     })();

@@ -42,7 +42,7 @@ export default function PageTransition({ children, pathname }) {
         safetyRef.current = null;
       }
     };
-  }, [pathname]);
+  }, [pathname, activePath]);
 
   return (
     <Box sx={{ position: 'relative' }}>

@@ -161,8 +161,8 @@ function Products() {
   const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
 
   const handleExpandWithDetails = useCallback((id) => {
-    const willExpand = (expanded) => (expanded !== id);
-    setExpanded((prev) => (prev !== id ? id : null));
+  const _willExpand = (expanded) => (expanded !== id);
+  setExpanded((prev) => (prev !== id ? id : null));
     if (!detailsMap[id]) {
       setDetailsLoading((s) => ({ ...s, [id]: true }));
       useLoadingStore.getState().start();

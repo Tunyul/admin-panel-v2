@@ -36,6 +36,8 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         .catch(() => onNotify('Failed to load customers or products', 'error'))
         .finally(() => setLoadingLists(false));
     }
+  // onNotify is a stable callback passed from parent in our usage; intentionally omit it from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNewOrder]);
 
   const handleCreateOrder = async () => {
@@ -47,7 +49,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
       onSuccess();
       setOpenNewOrder(false);
       setOrderCustomer(''); setOrderProduct(''); setOrderQty(1);
-    } catch (err) {
+    } catch {
       onNotify('Failed to create order', 'error');
     } finally { setSubmitting(false); }
   };
@@ -61,7 +63,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
       onSuccess();
       setOpenAddCustomer(false);
       setCustName(''); setCustPhone('');
-    } catch (err) {
+    } catch {
       onNotify('Failed to add customer', 'error');
     } finally { setSubmitting(false); }
   };
@@ -75,7 +77,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
       onSuccess();
       setOpenRecordPayment(false);
       setPayOrderId(''); setPayAmount('');
-    } catch (err) {
+    } catch {
       onNotify('Failed to record payment', 'error');
     } finally { setSubmitting(false); }
   };
