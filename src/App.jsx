@@ -26,7 +26,7 @@ function App() {
   const location = useLocation();
   // navigation loader removed — render routes immediately
   const [displayLocation, setDisplayLocation] = useState(location);
-  const busy = useLoadingStore((s) => s.busy);
+  const _busy = useLoadingStore((s) => s.busy);
   useEffect(() => {
     // Immediately reflect location changes — no loader overlay
     if (location.pathname !== displayLocation.pathname) setDisplayLocation(location);

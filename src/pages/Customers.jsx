@@ -25,6 +25,7 @@ import InfoIcon from '@mui/icons-material/InfoOutlined';
 import { getCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer } from '../api/customers';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
+import TableToolbar from '../components/TableToolbar';
 
 const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
   const id = row.id_customer || row.id;
@@ -106,6 +107,20 @@ function Customers() {
   useEffect(() => {
     reloadCustomers();
   }, [reloadCustomers]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.nama || ''} ${row.no_hp || ''} ${row.tipe_customer || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (typeFilter) {
+      if ((row.tipe_customer || '').toString() !== typeFilter) return false;
+    }
+    return true;
+  });
 
 
   const handleOpen = useCallback((item = {}) => { setForm(item); setOpen(true); }, []);
@@ -197,6 +212,7 @@ function Customers() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search customers by name or phone" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'reguler', label: 'Reguler' }, { value: 'vip', label: 'VIP' }, { value: 'hutang', label: 'Hutang' }]} />
           <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
@@ -208,8 +224,8 @@ function Customers() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data && data.length > 0 ? (
-              data.map((row) => (
+            {filteredData && filteredData.length > 0 ? (
+              filteredData.map((row) => (
                 <CustomerRow
                   key={row.id_customer || row.id}
                   row={row}

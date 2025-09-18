@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -31,6 +31,7 @@ import { getOrderDetailsByOrderId, createOrderDetail } from '../api/orderDetail'
 import { getProducts } from '../api/products';
 import { getCustomers, createCustomer, getCustomerById, getCustomersByPhone } from '../api/customers';
 import OrdersTable from '../components/OrdersTable';
+import TableToolbar from '../components/TableToolbar';
 import OrderDialog from '../components/OrderDialog';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
@@ -75,14 +76,20 @@ function Orders() {
   const handleOpen = useCallback((item = {}) => { setForm(item || {}); setDialogOpen(true); }, []);
   const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); }, []);
 
+  // keep refs to mutable state we want to read inside callbacks without adding them to deps
+  const customersMapRef = useRef(customersMap);
+  useEffect(() => { customersMapRef.current = customersMap; }, [customersMap]);
+
+  const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
+
   const reloadOrders = useCallback(() => {
     setLoading(true);
     useLoadingStore.getState().start();
     return getOrders()
-      .then((res) => {
+    .then((res) => {
         // helpful debug in development: show raw response to help map shapes
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
+        if (import.meta.env.DEV) {
           console.debug('[reloadOrders] response:', res);
         }
         // accept several common shapes: { data: [...] } or { data: { data: [...] } } or { orders: [...] }
@@ -96,7 +103,7 @@ function Orders() {
               const ids = Array.from(new Set(arr.map((o) => o.id_customer).filter(Boolean)));
               ids.forEach((id) => {
                 // if we don't have the customer cached, try to fetch it
-                if (customersMap[id]) return;
+                if (customersMapRef.current[id]) return;
                 try {
                   getCustomerById(id)
                     .then((res) => {
@@ -104,17 +111,17 @@ function Orders() {
                       if (c) setCustomersMap((m) => ({ ...m, [id]: c }));
                     })
                     .catch(() => {});
-                } catch (e) {
+                } catch {
                   // ignore per-customer fetch errors
                 }
               });
-            } catch (e) {
+            } catch {
               // ignore
             }
           })
-          .catch((err) => {
-            setError(err?.message || err || 'Failed to load orders');
-          })
+          .catch(() => {
+                  setError('Failed to load orders');
+                })
           .finally(() => {
             setLoading(false);
             useLoadingStore.getState().done();
@@ -122,6 +129,8 @@ function Orders() {
   }, []);
 
   useEffect(() => {
+    // intentionally not including stable callbacks in deps; these are safe here
+     
     getProducts()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -141,27 +150,43 @@ function Orders() {
     reloadOrders();
   }, [reloadOrders]);
 
+  // table search / filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    if (!row) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.no_transaksi || ''} ${row.nama_customer || row.customer_name || ''} ${row.id_order || ''} ${row.catatan || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (statusFilter) {
+      if ((row.status || '').toString() !== statusFilter) return false;
+    }
+    return true;
+  });
+
   useEffect(() => {
     // when opening add dialog, initialize order lines if creating
-    if (open && !form.id_order) setOrderLines([{ produk_id: null, quantity: 1 }]);
+    if (open && !formRef.current.id_order) setOrderLines([{ produk_id: null, quantity: 1 }]);
   }, [open]);
   const handleClose = useCallback(() => setOpen(false), []);
-  const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
-  const handleLineChange = (index, key, value) => {
+  const _handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
+  const _handleLineChange = (index, key, value) => {
     setOrderLines((lines) => {
       const copy = [...lines];
       copy[index] = { ...copy[index], [key]: value };
       return copy;
     });
   };
-  const addLine = () => setOrderLines((l) => ([...l, { produk_id: null, quantity: 1 }]));
-  const removeLine = (index) => setOrderLines((l) => l.filter((_, i) => i !== index));
-  const incrementQuantity = (index) => setOrderLines((lines) => {
+  const _addLine = () => setOrderLines((l) => ([...l, { produk_id: null, quantity: 1 }]));
+  const _removeLine = (index) => setOrderLines((l) => l.filter((_, i) => i !== index));
+  const _incrementQuantity = (index) => setOrderLines((lines) => {
     const copy = [...lines];
     copy[index] = { ...copy[index], quantity: (Number(copy[index].quantity) || 0) + 1 };
     return copy;
   });
-  const decrementQuantity = (index) => setOrderLines((lines) => {
+  const _decrementQuantity = (index) => setOrderLines((lines) => {
     const copy = [...lines];
     const newQty = (Number(copy[index].quantity) || 0) - 1;
     copy[index] = { ...copy[index], quantity: newQty > 0 ? newQty : 0 };
@@ -174,13 +199,13 @@ function Orders() {
     return harga * qty;
   };
   const computeTotal = () => orderLines.reduce((s, l) => s + computeLineSubtotal(l), 0);
-  const formatCurrency = (v) => {
+  const _formatCurrency = (v) => {
     const n = Number(v) || 0;
     return `Rp${n.toLocaleString('id-ID')}`;
   };
 
   // Aggregate order lines by produk_id for a cleaner summary (merge duplicates)
-  const aggregateLines = () => {
+  const _aggregateLines = () => {
     const map = {};
     for (const l of orderLines) {
       const pid = String(l.produk_id || '');
@@ -216,7 +241,7 @@ function Orders() {
   };
 
   // create order + details (final confirmation)
-  const handleConfirm = () => {
+  const _handleConfirm = () => {
     if (!selectedCustomer && !form.customer_name) {
       showNotification('Pilih atau buat customer terlebih dahulu', 'error');
       return;
@@ -278,7 +303,7 @@ function Orders() {
       });
   }, [reloadOrders, showNotification]);
   // handlers for customer step buttons
-  const handleCustomerProceed = () => {
+  const _handleCustomerProceed = () => {
     if (selectedCustomer) { setStep('items'); showNotification('Customer dipilih', 'success'); return; }
     const name = form.customer_name;
     const phone = form.customer_phone;
@@ -293,7 +318,7 @@ function Orders() {
       }
     });
   };
-  const handleCustomerCreate = () => {
+  const _handleCustomerCreate = () => {
     const name = form.customer_name || '';
     if (!name) return showNotification('Nama customer wajib untuk membuat baru', 'error');
     const payload = { nama: name, phone: form.customer_phone || null };
@@ -307,7 +332,7 @@ function Orders() {
   };
 
   // back handler: if coming from summary, reset customer inputs; otherwise just step back
-  const handleBack = () => {
+  const _handleBack = () => {
     if (step === 'summary') {
       // reset customer info when returning from summary per request
       setSelectedCustomer(null);
@@ -322,7 +347,7 @@ function Orders() {
     }
   };
 
-  const itemsValid = () => {
+  const _itemsValid = () => {
     if (!orderLines || !orderLines.length) return false;
     for (const ln of orderLines) {
       if (!ln.produk_id) return false;
@@ -333,8 +358,7 @@ function Orders() {
   // expansion handled via handleExpandWithDetails
 
   const handleExpandWithDetails = useCallback((id_order) => {
-    const willExpand = (expanded) => (expanded !== id_order);
-    setExpanded((prev) => (prev !== id_order ? id_order : null));
+  setExpanded((prev) => (prev !== id_order ? id_order : null));
     if (!detailsMap[id_order]) {
       setDetailsLoading((s) => ({ ...s, [id_order]: true }));
       getOrderDetailsByOrderId(id_order)
@@ -377,8 +401,9 @@ function Orders() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search orders by invoice, customer or note" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
           <OrdersTable
-            data={data}
+            data={filteredData}
             expanded={expanded}
             detailsMap={detailsMap}
             detailsLoading={detailsLoading}

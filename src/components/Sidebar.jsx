@@ -75,17 +75,16 @@ export default function Sidebar() {
                 borderLeft: location.pathname === item.path ? `5px solid ${item.color}` : '5px solid transparent',
                 transition: 'all 0.2s cubic-bezier(.4,0,.2,1)',
                 '&:hover': {
-                  background: `${item.color}18`,
+                  background: `${item.color}12`,
                   color: item.color,
-                  boxShadow: `0 0 6px ${item.color}66`,
-                  transform: 'scale(1.03)',
+                  transform: 'none',
                 },
                 '& .MuiListItemIcon-root': {
                   minWidth: 0,
                   mr: 2,
                   fontSize: 26,
                   color: location.pathname === item.path ? item.color : item.color + '99',
-                  filter: location.pathname === item.path ? `drop-shadow(0 0 4px ${item.color}88)` : `drop-shadow(0 0 2px ${item.color}44)` ,
+                  filter: 'none',
                   transition: 'color 0.2s, filter 0.2s',
                 },
               }}

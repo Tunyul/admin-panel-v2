@@ -25,6 +25,7 @@ import InfoIcon from '@mui/icons-material/InfoOutlined';
 import { getPiutangs, getPiutangById, createPiutang, updatePiutang, deletePiutang } from '../api/piutangs';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
+import TableToolbar from '../components/TableToolbar';
 
 export default function Piutangs() {
   const [data, setData] = useState([]);
@@ -59,6 +60,20 @@ export default function Piutangs() {
     reloadPiutangs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.id_piutang || row.id || ''} ${row.pelanggan_nama || row.id_customer || ''} ${row.keterangan || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (statusFilter) {
+      if ((row.status || '').toString() !== statusFilter) return false;
+    }
+    return true;
+  });
 
 
   const handleOpen = (item = {}) => {
@@ -154,6 +169,7 @@ export default function Piutangs() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search piutangs" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'open', label: 'Open' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} />
           <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
@@ -167,8 +183,8 @@ export default function Piutangs() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data && data.length > 0 ? (
-              data.map((row) => (
+            {filteredData && filteredData.length > 0 ? (
+              filteredData.map((row) => (
                 <React.Fragment key={row.id_piutang || row.id}>
                   <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.03)' } }}>
                     <TableCell sx={{ color: '#fff' }}>{row.id_piutang || row.id}</TableCell>

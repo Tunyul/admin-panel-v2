@@ -8,11 +8,12 @@ import useNotificationStore from '../store/notificationStore';
 
 const NeonIconButton = styled(IconButton)(() => ({
   color: '#f472b6',
-  filter: 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 12px #f472b6)',
-  transition: 'filter 0.2s, color 0.2s',
+  borderRadius: 0,
+  boxShadow: 'none',
+  filter: 'none',
+  transition: 'color 0.15s',
   '&:hover': {
     color: '#fbbf24',
-    filter: 'drop-shadow(0 0 12px #fbbf24) drop-shadow(0 0 24px #f472b6)',
     backgroundColor: 'transparent',
   },
 }));

@@ -2,14 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme variables (fast swap by toggling `.dark` on <html>) */
+:root {
+  /* Friendly light theme palette (simple, warm, high legibility) */
+  --bg: #fbf9f7;           /* warm cream background */
+  --panel: #ffffff;        /* pure panel */
+  --main-card-bg: #ffffff; /* cards white */
+  --text: #0b2135;         /* dark navy for text - softer than pure black */
+  --muted: #576a7a;        /* muted slate */
+  --accent: #3b82f6;       /* bright blue accent */
+  --accent-2: #ffd166;     /* warm yellow accent */
+  --accent-rgb: 59,130,246;
+  --accent-2-rgb: 255,209,102;
+  --text-rgb: 11,33,53;
+  --border-rgb: 230,238,246;
+  --bg-rgb: 251,249,247;
+  --border: #e6eef6;       /* very soft blueish border */
+  --input-bg: #ffffff;     /* inputs remain white */
+  --placeholder: #9fb0bd;  /* placeholder soft */
+  --icon: #2b3b46;         /* icon color (slightly muted) */
+  --gradient: linear-gradient(90deg, #fff8ec 0%, #eef6ff 100%); /* gentle warm -> cool */
+  --button-text: #081423;  /* dark button text */
+}
+.dark {
+  --bg: #18181b;        /* dark page background */
+  --panel: #23232b;     /* dark panel */
+  --main-card-bg: rgba(35,41,70,0.98);
+  --text: #e6eef8;
+  --muted: #93a3c0;
+  --accent: #60a5fa;
+  --accent-2: #fde047;
+  --border: #374151;
+  --text-rgb: 230,238,248;
+  --border-rgb: 55,65,81;
+  --bg-rgb: 24,24,27;
+  --input-bg: #232946;
+  --placeholder: #9aa6bf;
+  --icon: #cbd5e1;
+  --gradient: linear-gradient(90deg, #232946 10%, #f472b6 100%);
+  --button-text: #0b1220;
+}
+
 body {
-  background: #18181b;
+  background: var(--bg);
   min-height: 100vh;
   /* prevent horizontal page overflow while keeping vertical scroll */
   overflow-x: hidden;
   margin: 0;
   padding: 0;
 }
+
+/* Typography defaults */
+body, input, textarea, button, select {
+  color: var(--text);
+  font-family: Inter, Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* Links and accent usage */
+a { color: var(--accent); }
+
+/* Forms */
+input, textarea, select {
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  outline: none;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--placeholder);
+}
+
+/* Buttons default neutral style — components may override */
+button {
+  background: var(--gradient);
+  color: var(--button-text);
+  border: 1px solid rgba(11,33,53,0.06);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(11,33,53,0.06);
+}
+
+/* Icon default color - prefer MUI SvgIcon too */
+svg { color: var(--icon); fill: currentColor; }
+.MuiSvgIcon-root { color: var(--icon) !important; }
+/* Ensure icons in buttons and lists inherit correctly */
+.MuiButton-startIcon .MuiSvgIcon-root,
+.MuiButton-endIcon .MuiSvgIcon-root,
+.MuiListItemIcon-root .MuiSvgIcon-root {
+  color: var(--icon) !important;
+}
+
+/* Typography: force MUI typography to follow tokens where possible */
+.MuiTypography-root, .MuiInputBase-root, .MuiFormLabel-root {
+  color: var(--text) !important;
+}
+
+/* Outlined input border color */
+.MuiOutlinedInput-notchedOutline { border-color: var(--border) !important; }
+
+/* Input background for MUI inputs */
+.MuiInputBase-root { background: var(--input-bg) !important; }
+
+/* Subtle gradients used in panels */
+.panel-gradient { background: var(--gradient); }
+
+/* Scrollbar styling (WebKit) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.22), rgba(var(--accent-rgb),0.22));
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
+}
+
+/* Light-mode specific subtle scrollbar track color */
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: rgba(var(--bg-rgb),0.12);
+}
+
+/* Make MUI Paper and other cards follow CSS tokens where possible */
+.MuiPaper-root, .card, .paper, .main-card {
+  background: var(--panel) !important;
+}
+
 
 /* Use border-box sizing everywhere to avoid unexpected width/padding calculations */
 *, *::before, *::after {
@@ -75,7 +199,7 @@ th, td {
 
 /* common main content card styling to match Orders visual (neon inset shadow) */
 .main-card {
-  background-color: rgba(35,41,70,0.98);
+  background-color: var(--main-card-bg);
   border-radius: 1rem;
   padding: 1rem;
   box-shadow: 0 0 24px rgba(251,191,36,0.18), inset 0 -8px 24px rgba(0,0,0,0.45);
@@ -91,4 +215,45 @@ th, td {
 /* Ensure inner responsive table wrapper doesn't create extra height */
 .main-card .table-responsive {
   max-height: none !important;
+}
+
+/* Tables: use theme tokens for header, rows, borders */
+table thead tr th {
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+html.dark table thead tr th {
+  background: linear-gradient(180deg, rgba(35,35,45,0.9), rgba(35,35,45,0.8));
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+table tbody tr td {
+  background: transparent;
+  color: var(--text);
+  border-bottom: 1px solid rgba(var(--border-rgb),0.18);
+}
+html.dark table tbody tr td {
+  border-bottom: 1px solid rgba(var(--border-rgb),0.12);
+}
+
+table tbody tr:hover td {
+  background: rgba(var(--accent-rgb),0.06);
+}
+html.dark table tbody tr:hover td {
+  background: rgba(var(--accent-rgb),0.08);
+}
+
+/* MUI table integrations: make headers and cells follow tokens */
+.MuiTableCell-head {
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.dark .MuiTableCell-head {
+  background: linear-gradient(180deg, rgba(35,35,45,0.9), rgba(35,35,45,0.8));
+}
+.MuiTableRow-root:hover .MuiTableCell-root {
+  background: rgba(var(--accent-rgb),0.06) !important;
 }

@@ -5,18 +5,16 @@ import useLoadingStore from '../store/loadingStore';
 export default function PageTransition({ children, pathname }) {
   const theme = useTheme();
   const [showLoader, setShowLoader] = useState(false);
-  const [activePath, setActivePath] = useState(pathname);
   const busy = useLoadingStore((s) => s.busy);
   const timeoutRef = useRef(null);
   const safetyRef = useRef(null);
   const lastPathRef = useRef(pathname);
 
   useEffect(() => {
+    // ignore if same path or falsy
     if (!pathname || pathname === lastPathRef.current) return;
 
     lastPathRef.current = pathname;
-
-    if (pathname !== activePath) setActivePath(pathname);
 
     setShowLoader(true);
 
@@ -50,7 +48,7 @@ export default function PageTransition({ children, pathname }) {
         {children}
       </Box>
 
-  {showLoader && busy === 0 && (
+  {showLoader && (
         <Box
           role="presentation"
           sx={{
