@@ -7,11 +7,11 @@ const useLoadingStore = create((set, get) => ({
     set({ busy: next });
     if (process.env.NODE_ENV !== 'production') {
       // lightweight debug logging to help track imbalance
-      // eslint-disable-next-line no-console
+       
       console.debug(`[loadingStore] start -> busy=${next} @ ${new Date().toISOString()}`);
       if (next > 5) {
         // warn when counter grows unexpectedly large
-        // eslint-disable-next-line no-console
+         
         console.warn(`[loadingStore] busy counter high: ${next}. Check for missing done() calls.`);
       }
     }
@@ -21,7 +21,7 @@ const useLoadingStore = create((set, get) => ({
     const next = Math.max(0, get().busy - 1);
     set({ busy: next });
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+       
       console.debug(`[loadingStore] done -> busy=${next} @ ${new Date().toISOString()}`);
     }
     return next;
@@ -29,7 +29,7 @@ const useLoadingStore = create((set, get) => ({
   reset: () => {
     set({ busy: 0 });
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+       
       console.debug('[loadingStore] reset -> busy=0');
     }
   },

@@ -82,7 +82,7 @@ function Orders() {
       .then((res) => {
         // helpful debug in development: show raw response to help map shapes
         if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
+           
           console.debug('[reloadOrders] response:', res);
         }
         // accept several common shapes: { data: [...] } or { data: { data: [...] } } or { orders: [...] }
