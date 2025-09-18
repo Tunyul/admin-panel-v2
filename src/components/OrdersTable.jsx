@@ -16,12 +16,49 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
 
 function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, productsList, customersMap }) {
+  const openWhatsApp = (phone) => {
+    if (!phone) return;
+    // normalize phone: remove non-digit/+ chars
+    let normalized = String(phone || '').replace(/[^+\d]/g, '');
+    if (!normalized) return;
+    // remove leading + if present, we'll build wa.me without plus
+    if (normalized.startsWith('+')) normalized = normalized.slice(1);
+    // if number starts with 0 (local), convert to Indonesian +62
+    if (normalized.startsWith('0')) normalized = '62' + normalized.slice(1);
+    const url = `https://wa.me/${normalized}`;
+    window.open(url, '_blank', 'noopener');
+  };
   return (
     <>
       <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
         <TableCell sx={{ color: '#fff' }}>{row.no_transaksi || '-'}</TableCell>
         <TableCell sx={{ color: '#fff' }}>{row.customer?.nama || customersMap[row.id_customer]?.nama || '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.customer?.phone || row.customer?.no_hp || customersMap[row.id_customer]?.phone || customersMap[row.id_customer]?.no_hp || '-'}</TableCell>
+        <TableCell sx={{ color: '#fff' }}>
+          {(() => {
+            const phoneRaw = row.customer?.phone || row.customer?.no_hp || customersMap[row.id_customer]?.phone || customersMap[row.id_customer]?.no_hp || '';
+            const phoneDisplay = phoneRaw || '-';
+            if (!phoneRaw) return phoneDisplay;
+            // build normalized number for href as done in openWhatsApp
+            let normalized = String(phoneRaw || '').replace(/[^+\d]/g, '');
+            if (normalized.startsWith('+')) normalized = normalized.slice(1);
+            if (normalized.startsWith('0')) normalized = '62' + normalized.slice(1);
+            const waHref = `https://wa.me/${normalized}`;
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box component="a" href={waHref} target="_blank" rel="noopener noreferrer" sx={{ color: '#fff', textDecoration: 'none' }} aria-label={`WhatsApp ${phoneDisplay}`}>
+                  <Typography sx={{ color: '#fff' }}>{phoneDisplay}</Typography>
+                </Box>
+                <IconButton size="small" onClick={() => openWhatsApp(phoneRaw)} aria-label="open-whatsapp" sx={{ color: '#25D366' }}>
+                  {/* WhatsApp SVG */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.52 3.48A11.94 11.94 0 0012 0C5.373 0 .012 5.373 0 12c0 2.11.553 4.18 1.6 6.02L0 24l6.24-1.62A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12 0-3.2-1.25-6.2-3.48-8.52z" fill="#25D366"/>
+                    <path d="M17.56 14.1c-.36-.18-2.12-1.05-2.44-1.17-.32-.12-.55-.18-.78.18-.23.36-.9 1.17-1.1 1.41-.2.24-.4.27-.76.09-.36-.18-1.52-.56-2.9-1.79-1.07-.95-1.8-2.12-2.01-2.48-.21-.36-.02-.56.16-.74.16-.16.36-.41.54-.62.18-.2.24-.36.36-.6.12-.24.06-.44-.03-.62-.09-.18-.78-1.88-1.07-2.57-.28-.66-.56-.57-.78-.58-.2-.01-.44-.01-.68-.01-.23 0-.6.09-.92.44-.32.36-1.22 1.18-1.22 2.88 0 1.7 1.25 3.35 1.42 3.58.18.24 2.46 3.76 5.96 5.27 3.5 1.5 3.5 1.03 4.13.97.63-.06 2.02-.82 2.31-1.62.28-.8.28-1.48.2-1.62-.09-.14-.32-.18-.68-.36z" fill="#fff"/>
+                  </svg>
+                </IconButton>
+              </Box>
+            );
+          })()}
+        </TableCell>
         <TableCell sx={{ color: '#ffe066' }}>{row.tanggal_order ? new Date(row.tanggal_order).toLocaleString('id-ID') : '-'}</TableCell>
         <TableCell>
           <Chip label={row.status_urgensi || '-'} size="small" sx={{ bgcolor: row.status_urgensi === 'urgent' ? '#f87171' : '#60a5fa', color: '#fff', fontWeight: 700 }} />

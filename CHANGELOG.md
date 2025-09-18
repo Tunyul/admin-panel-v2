@@ -17,6 +17,16 @@ All notable changes to this project will be documented in this file.
 - Minor UI polish and dropdown styling for dark mode.
 
 
+## [v1.7.2] - 2025-09-18
+### Added
+- Deploy: atomic deploy script `scripts/deploy_atomic.sh` and `deploy/README_ATOMIC.md` for zero-downtime local updates (symlink swap strategy).
+- Payments: verify modal image preview and editable fields for `nominal` and `tipe` in the Payments page.
+- Orders: clickable WhatsApp (wa.me) links and WA icon in the Orders table phone column.
+### Changed
+- API: frontend payments wrapper updated to use documented PUT `/api/payments/{id}` for updates and added helpers for `/order/{id}`, `/customer/{id}`, `/update-by-transaksi`, and `/update-by-phone`.
+
+
+
 ## [v1.6.9] - 2025-09-18
 ### Added
 - New `Setup` page (3-step setup wizard) and a `Setup` entry in the sidebar.
