@@ -35,6 +35,14 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Fixed layout issues so header and sidebar remain fixed while only main content scrolls.
 - Removed unexpected bottom/overflow space in main content and unified responsive padding across pages.
+
+---
+
+## [v1.6.6] - 2025-09-18
+### Changed
+- Fixed React hooks-order bug across pages (Products, Customers, Orders, Payments, Piutangs) by ensuring hooks/callbacks are always declared before any conditional return (loading spinner).
+- Minor runtime/build fixes; production build validated successfully.
+
 - Made tables responsive and added safe wrappers to avoid horizontal overflow on narrow screens.
 - Minor visual polish: consistent card shadows and adjusted header/sidebar styles.
   - Notifikasi
