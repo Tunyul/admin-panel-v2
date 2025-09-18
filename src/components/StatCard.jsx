@@ -1,4 +1,6 @@
 import React from 'react';
+import StatCardHeader from './StatCardHeader';
+import StatCardIcon from './StatCardIcon';
 
 
 
@@ -21,39 +23,28 @@ export default function StatCard({ title, value, icon, color = 'bg-blue-500' }) 
       className="flex flex-col justify-between relative group"
       style={{
         background: '#232946',
-        borderRadius: 28,
-        minHeight: 120,
-        padding: '24px 20px',
-        boxShadow: `0 0 16px 0 ${accent}55, 0 2px 12px #232946cc`,
+        borderRadius: 18,
+        height: 140,
+        padding: '18px 16px',
+  boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`,
         fontFamily: 'Poppins, Inter, Arial, sans-serif',
-        transition: 'box-shadow 0.2s, transform 0.2s',
-        border: 'none',
+        transition: 'box-shadow 0.18s, transform 0.18s',
+        border: '1px solid rgba(255,255,255,0.02)',
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
       }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 32px 0 ${accent}99, 0 4px 24px #232946cc`}
-      onMouseLeave={e => e.currentTarget.style.boxShadow = `0 0 16px 0 ${accent}55, 0 2px 12px #232946cc`}
+  onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 8px 24px 0 ${accent}33, 0 4px 12px #00000066`; e.currentTarget.style.transform = 'translateY(-6px)'; }}
+  onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 4px 12px 0 ${accent}22, 0 2px 6px #00000055`; e.currentTarget.style.transform = 'none'; }}
     >
-      <div style={{ zIndex: 2, position: 'relative' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', letterSpacing: 0.5, opacity: 0.92 }}>{title}</div>
-        <div style={{ fontSize: 28, fontWeight: 900, color: accent, letterSpacing: 1, marginTop: 6, textShadow: `0 2px 8px ${accent}55` }}>{value}</div>
-      </div>
-      <div
-        style={{
-          position: 'absolute',
-          right: 12,
-          bottom: 8,
-          fontSize: 64,
-          color: accent,
-          opacity: 0.13,
-          zIndex: 1,
-          pointerEvents: 'none',
-          filter: `blur(0.5px)`
-        }}
-      >
-        {icon}
-      </div>
+      <StatCardHeader title={title} accent={accent} />
+
+      <div style={{ fontSize: 30, fontWeight: 900, color: accent, letterSpacing: 1, marginTop: 8, textShadow: `0 2px 8px ${accent}33`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+
+      <StatCardIcon icon={icon} accent={accent} />
     </div>
   );
 }

@@ -5,7 +5,90 @@
 body {
   background: #18181b;
   min-height: 100vh;
-  overflow: hidden;
+  /* prevent horizontal page overflow while keeping vertical scroll */
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
+}
+
+/* Use border-box sizing everywhere to avoid unexpected width/padding calculations */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Make tables and their containers responsive so they don't overflow main content */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure table elements respect container width and wrap/flex where possible */
+table {
+  max-width: 100%;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto; /* allow columns to size naturally, not fixed */
+}
+
+/* add some spacing under tables so they don't stick to the bottom */
+.table-responsive + .table-bottom-space,
+.table-bottom-space {
+  height: 18px;
+}
+
+/* page fade and route transitions removed to make navigation instant */
+
+/* Lottie loader overlay */
+.lottie-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.7);
+  z-index: 2000;
+}
+
+.lottie-loader-box {
+  width: 160px;
+  height: 160px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+}
+
+/* Keep long text from overflowing cells */
+th, td {
+  word-break: break-word;
+  white-space: normal;
+  vertical-align: middle;
+}
+
+/* Small tweak: when using a table inside a Paper or similar card, allow a subtle horizontal scroll */
+.card .table-responsive, .paper .table-responsive {
+  box-shadow: inset 0 -8px 18px -12px rgba(0,0,0,0.6);
+}
+
+/* common main content card styling to match Orders visual (neon inset shadow) */
+.main-card {
+  background-color: rgba(35,41,70,0.98);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 0 24px rgba(251,191,36,0.18), inset 0 -8px 24px rgba(0,0,0,0.45);
+}
+
+/* Force no extra bottom padding / unexpected height on main content cards */
+.main-card {
+  padding-bottom: 0 !important;
+  overflow: visible !important;
+  min-height: 0 !important;
+}
+
+/* Ensure inner responsive table wrapper doesn't create extra height */
+.main-card .table-responsive {
+  max-height: none !important;
 }

@@ -1,19 +1,21 @@
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import React, { useEffect, useState, Suspense } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import './App.css'
 // import MainLayout from './layouts/MainLayout'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import Dashboard from './pages/Dashboard'
-import Orders from './pages/Orders'
-import Products from './pages/Products'
-import Customers from './pages/Customers'
-import Payments from './pages/Payments'
-import Piutangs from './pages/Piutangs'
+const Dashboard = React.lazy(() => import('./pages/Dashboard'))
+const Orders = React.lazy(() => import('./pages/Orders'))
+const Products = React.lazy(() => import('./pages/Products'))
+const Customers = React.lazy(() => import('./pages/Customers'))
+const Payments = React.lazy(() => import('./pages/Payments'))
+const Piutangs = React.lazy(() => import('./pages/Piutangs'))
 import SetupWizard from './pages/SetupWizard'
 import Notification from './components/Notification'
 import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
+import PageTransition from './components/PageTransition'
+import useLoadingStore from './store/loadingStore'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -21,6 +23,15 @@ function PrivateRoute({ children }) {
 }
 
 function App() {
+  const location = useLocation();
+  // navigation loader removed — render routes immediately
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const busy = useLoadingStore((s) => s.busy);
+  useEffect(() => {
+    // Immediately reflect location changes — no loader overlay
+    if (location.pathname !== displayLocation.pathname) setDisplayLocation(location);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
   return (
     <>
       <Routes>
@@ -29,31 +40,38 @@ function App() {
           path="/*"
           element={
             <PrivateRoute>
-              <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
                 <Header />
-                <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', minHeight: 0 }}>
+                <div style={{ display: 'flex', flex: '0 1 auto', alignItems: 'stretch', minHeight: 0 }}>
                   <Sidebar />
                   <div
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      padding: window.innerWidth < 600 ? '8px 8px 24px 8px' : '24px 52px 32px 24px',
-                      maxWidth: 'clamp(100%, 96vw, 1200px)',
-                      overflowY: 'auto',
-                      overflowX: 'hidden',
-                      minHeight: 0,
-                    }}
-                  >
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/orders" element={<Orders />} />
-                      <Route path="/products" element={<Products />} />
-                      <Route path="/customers" element={<Customers />} />
-                      <Route path="/payments" element={<Payments />} />
-                      <Route path="/piutangs" element={<Piutangs />} />
-                    </Routes>
-                  </div>
+                      style={{
+                        // main content area — fixed height and scrollable
+                        marginTop: 72,
+                        marginLeft: 230,
+                        height: 'calc(100vh - 72px)',
+                        display: 'block',
+                        padding: window.innerWidth < 600 ? '8px' : '24px 20px',
+                        width: 'calc(100% - 230px)',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                      }}
+                    >
+                      {/* route-aware transitions */}
+                      <PageTransition pathname={displayLocation.pathname}>
+                        <Suspense fallback={<div /> }>
+                          <Routes location={displayLocation} key={displayLocation.pathname}>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/orders" element={<Orders />} />
+                            <Route path="/products" element={<Products />} />
+                            <Route path="/customers" element={<Customers />} />
+                            <Route path="/payments" element={<Payments />} />
+                            <Route path="/piutangs" element={<Piutangs />} />
+                          </Routes>
+                        </Suspense>
+                      </PageTransition>
+                      {/* navigation loader removed */}
+                    </div>
                 </div>
               </div>
             </PrivateRoute>

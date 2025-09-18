@@ -26,10 +26,10 @@ export default function Login({ onLogin }) {
 				navigate('/');
 				if (onLogin) onLogin();
 			}, 900);
-		} catch (err) {
-			showNotification('Login gagal! Periksa email/password.', 'error');
-			setLoading(false);
-		}
+			} catch {
+				showNotification('Login gagal! Periksa email/password.', 'error');
+				setLoading(false);
+			}
 	};
 
 	return (

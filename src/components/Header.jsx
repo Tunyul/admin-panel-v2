@@ -17,11 +17,16 @@ export default function Header() {
           alignItems: 'center',
           justifyContent: 'space-between',
           bgcolor: 'transparent',
+          height: 72,
           borderRadius: 0,
           boxShadow: 'none',
           mt: 0,
-          mb: 3,
-          position: 'relative',
+          mb: 0,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1200,
           overflow: 'visible',
         }}
       >

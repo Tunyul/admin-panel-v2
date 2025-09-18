@@ -11,6 +11,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import PeopleIcon from '@mui/icons-material/People';
 import PaymentIcon from '@mui/icons-material/Payment';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 
 
@@ -19,7 +20,7 @@ export default function Sidebar() {
   const menu = [
     { label: 'Dashboard', path: '/', icon: <DashboardIcon />, color: '#ffe066' }, // kuning soft
     { label: 'Orders', path: '/orders', icon: <ListAltIcon />, color: '#60a5fa' }, // biru soft
-    { label: 'Products', path: '/products', icon: <PaymentIcon />, color: '#34d399' }, // hijau soft (gunakan PaymentIcon, bisa diganti)
+  { label: 'Products', path: '/products', icon: <InventoryIcon />, color: '#34d399' }, // hijau soft (gunakan InventoryIcon)
     { label: 'Customers', path: '/customers', icon: <PeopleIcon />, color: '#f9a8d4' }, // pink soft
     { label: 'Payments', path: '/payments', icon: <PaymentIcon />, color: '#67e8f9' }, // cyan soft
     { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon />, color: '#c4b5fd' }, // ungu soft
@@ -28,22 +29,27 @@ export default function Sidebar() {
     <Box
       sx={{
         width: 230,
-        minHeight: '100vh',
-  background: 'none',
+        position: 'fixed',
+        top: 72,
+        left: 0,
+        alignSelf: 'flex-start',
+        height: 'calc(100vh - 72px)',
+        background: 'none',
         color: '#fff',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-  borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,
-  boxShadow: 'none',
-  margin: 0,
-  padding: 0,
-  fontFamily: 'Poppins, Inter, Arial, sans-serif',
+        borderTopRightRadius: 0,
+        borderBottomRightRadius: 0,
+        boxShadow: 'none',
+        margin: 0,
+        padding: 0,
+        fontFamily: 'Poppins, Inter, Arial, sans-serif',
         transition: 'all 0.3s cubic-bezier(.4,0,.2,1)',
+        zIndex: 1100,
       }}
     >
-      <List sx={{ width: '100%' }}>
+  <List sx={{ width: '100%', overflowY: 'auto', flex: 1 }}>
         {menu.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 1.5 }}>
             <ListItemButton

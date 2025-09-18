@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import useNotificationStore from '../store/notificationStore';
 
 
-const NeonIconButton = styled(IconButton)(({ theme }) => ({
+const NeonIconButton = styled(IconButton)(() => ({
   color: '#f472b6',
   filter: 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 12px #f472b6)',
   transition: 'filter 0.2s, color 0.2s',
