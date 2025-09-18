@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Bumped package version to `v1.7.0`.
 
+## [v1.7.1] - 2025-09-18
+### Added
+- UI: Improved product autocomplete layout and product metadata in Add Order modal (step 2).
+### Changed
+- Minor UI polish and dropdown styling for dark mode.
+
 
 ## [v1.6.9] - 2025-09-18
 ### Added
