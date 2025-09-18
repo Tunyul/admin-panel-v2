@@ -25,6 +25,7 @@ import InfoIcon from '@mui/icons-material/InfoOutlined';
 import { getProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../api/products';
 import useLoadingStore from '../store/loadingStore';
 import useNotificationStore from '../store/notificationStore';
+import TableToolbar from '../components/TableToolbar';
 
 const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoading, detailsMap, onOpen, onDelete, onExpand }) {
   const id = row.id_produk || row.id;
@@ -108,6 +109,20 @@ function Products() {
   useEffect(() => {
     reloadProducts();
   }, [reloadProducts]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.nama_produk || ''} ${row.kategori || ''} ${row.bahan || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (categoryFilter) {
+      if ((row.kategori || '').toString() !== categoryFilter) return false;
+    }
+    return true;
+  });
 
 
   const handleOpen = useCallback((item = {}) => {
@@ -205,6 +220,7 @@ function Products() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search products" filterValue={categoryFilter} onFilterChange={setCategoryFilter} filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))} />
           <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
@@ -218,8 +234,8 @@ function Products() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data && data.length > 0 ? (
-              data.map((row) => (
+            {filteredData && filteredData.length > 0 ? (
+              filteredData.map((row) => (
                 <ProductRow
                   key={row.id_produk || row.id}
                   row={row}

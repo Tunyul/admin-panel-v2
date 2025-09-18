@@ -27,6 +27,14 @@ All notable changes to this project will be documented in this file.
 - Lint: cleaned up unused variables and hook dependency handling to reduce ESLint warnings.
 
 
+## [v1.7.4] - 2025-09-19
+### Added
+- UI: global table toolbar with search and filter (Orders, Products, Customers, Payments, Piutangs).
+  - Debounced search input (300ms), keyboard shortcut '/' to focus, and active filter chips.
+### Changed
+- Styling: toolbar and filter controls adjusted for dark theme compatibility.
+
+
 ## [v1.6.9] - 2025-09-18
 ### Added
 - New `Setup` page (3-step setup wizard) and a `Setup` entry in the sidebar.

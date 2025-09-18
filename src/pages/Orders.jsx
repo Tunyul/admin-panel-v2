@@ -31,6 +31,7 @@ import { getOrderDetailsByOrderId, createOrderDetail } from '../api/orderDetail'
 import { getProducts } from '../api/products';
 import { getCustomers, createCustomer, getCustomerById, getCustomersByPhone } from '../api/customers';
 import OrdersTable from '../components/OrdersTable';
+import TableToolbar from '../components/TableToolbar';
 import OrderDialog from '../components/OrderDialog';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
@@ -148,6 +149,22 @@ function Orders() {
   useEffect(() => {
     reloadOrders();
   }, [reloadOrders]);
+
+  // table search / filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    if (!row) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.no_transaksi || ''} ${row.nama_customer || row.customer_name || ''} ${row.id_order || ''} ${row.catatan || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (statusFilter) {
+      if ((row.status || '').toString() !== statusFilter) return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     // when opening add dialog, initialize order lines if creating
@@ -384,8 +401,9 @@ function Orders() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search orders by invoice, customer or note" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
           <OrdersTable
-            data={data}
+            data={filteredData}
             expanded={expanded}
             detailsMap={detailsMap}
             detailsLoading={detailsLoading}

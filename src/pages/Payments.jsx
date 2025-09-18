@@ -27,6 +27,7 @@ import { getPayments, getPaymentById, createPayment, updatePayment, deletePaymen
 import { verifyPayment } from '../api/payments';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
+import TableToolbar from '../components/TableToolbar';
 
 export default function Payments() {
   const [data, setData] = useState([]);
@@ -82,6 +83,20 @@ export default function Payments() {
   useEffect(() => {
     reloadPayments();
   }, []);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const filteredData = data.filter((row) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const hay = `${row.no_transaksi || ''} ${row.no_hp || ''} ${row.id_payment || row.id || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (typeFilter) {
+      if ((row.tipe || '').toString() !== typeFilter) return false;
+    }
+    return true;
+  });
 
 
   const handleOpen = (item = {}) => {
@@ -236,6 +251,7 @@ export default function Payments() {
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
+          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search payments" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'dp', label: 'DP' }, { value: 'pelunasan', label: 'Pelunasan' }]} />
           <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
@@ -249,8 +265,8 @@ export default function Payments() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data && data.length > 0 ? (
-              data.map((row) => (
+            {filteredData && filteredData.length > 0 ? (
+              filteredData.map((row) => (
                 <React.Fragment key={row.id_payment || row.id}>
                   <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.03)' } }}>
                     <TableCell sx={{ color: '#fff' }}>{row.id_payment || row.id}</TableCell>
