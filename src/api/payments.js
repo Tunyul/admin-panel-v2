@@ -9,8 +9,18 @@ export const createPayment = crud.create(client, base);
 export const updatePayment = crud.update(client, base);
 export const deletePayment = crud.remove(client, base);
 
+// Some API variants accept a PUT /api/payments with id_payment in the body
+// Use this to update/verify a payment by sending { id_payment, ... } in payload
+export const updatePaymentByBody = (payload) => client.put(base, payload);
+
 // The API docs expose PUT /api/payments/{id} to update a payment (use for verify)
 export const verifyPayment = (id, data = {}) => client.put(`${base}/${id}`, data);
+
+// Approve endpoint: PUT /api/payments/approve/:id
+export const approvePayment = (id, data = {}) => client.put(`${base}/approve/${id}`, data);
+
+// Convenience: approve with only nominal in body
+export const approvePaymentNominal = (id, nominal) => approvePayment(id, { nominal });
 
 // Additional convenience endpoints per API docs
 export const getPaymentsByOrder = (orderId) => client.get(`${base}/order/${orderId}`);
@@ -25,7 +35,10 @@ export default {
   getPaymentById,
   createPayment,
   updatePayment,
+  updatePaymentByBody,
   verifyPayment,
+  approvePayment,
+  approvePaymentNominal,
   deletePayment,
   getPaymentsByOrder,
   getPaymentsByCustomer,

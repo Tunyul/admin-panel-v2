@@ -22,7 +22,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
 
-import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment } from '../api/payments';
+import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, approvePaymentNominal } from '../api/payments';
 import { verifyPayment } from '../api/payments';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
@@ -196,19 +196,33 @@ export default function Payments() {
       useLoadingStore.getState().done();
       return;
     }
-    verifyPayment(id, payload)
+    // Use approve endpoint as backend expects PUT /api/payments/approve/:id with { nominal }
+    approvePaymentNominal(id, payload.nominal)
       .then(() => {
-        showNotification('Payment verified', 'success');
+        showNotification('Payment approved & verified', 'success');
         cancelVerify();
         reloadPayments();
       })
-      .catch(() => {
-        showNotification('Gagal memverifikasi payment', 'error');
+      .catch((err) => {
+        // if approve endpoint not available, fallback to verifyPayment
+        if (err?.response?.status === 404 || err?.response?.status === 405) {
+          verifyPayment(id, payload)
+            .then(() => {
+              showNotification('Payment verified (fallback)', 'success');
+              cancelVerify();
+              reloadPayments();
+            })
+            .catch(() => {
+              showNotification('Gagal memverifikasi payment (fallback)', 'error');
+              setVerifyConfirm((s) => ({ ...s, loading: false }));
+            })
+            .finally(() => useLoadingStore.getState().done());
+          return;
+        }
+        showNotification('Gagal approve payment', 'error');
         setVerifyConfirm((s) => ({ ...s, loading: false }));
       })
-      .finally(() => {
-        useLoadingStore.getState().done();
-      });
+      .finally(() => useLoadingStore.getState().done());
   };
 
   const handleExpandWithDetails = (id) => {
@@ -328,6 +342,7 @@ export default function Payments() {
                           <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
                           <IconButton color="error" onClick={() => handleDelete(row.id_payment || row.id)}><DeleteIcon /></IconButton>
                           <Button variant="outlined" size="small" sx={{ ml: 1 }} onClick={() => handleVerify(row.id_payment || row.id)}>Verify</Button>
+                          
                           <IconButton color="info" onClick={() => handleExpandWithDetails(row.id_payment || row.id)}><InfoIcon /></IconButton>
                         </TableCell>
                       </TableRow>
@@ -470,6 +485,8 @@ export default function Payments() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      
     </Box>
   );
 }

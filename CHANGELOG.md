@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Bumped package version to `v1.7.0`.
 
+## [v1.7.9] - 2025-09-20
+### Added
+- API helpers: `updatePaymentByBody`, `approvePayment`, and `approvePaymentNominal` in `src/api/payments.js` to support PUT /api/payments and PUT /api/payments/approve/:id flows.
+### Changed
+- Payments: verify modal now uses the approve endpoint (PUT /api/payments/approve/:id with { nominal }) and falls back to PUT /api/payments/:id when approve is not available.
+- Payments: small UI flow fixes for verify modal (prefill nominal, preview bukti image link).
+- OrdersTable: improved payment status mapping and tooltip for failure reasons (supporting 'lunas', 'proses', 'gagal', 'belum bayar').
+
 ## [v1.7.1] - 2025-09-18
 ### Added
 - UI: Improved product autocomplete layout and product metadata in Add Order modal (step 2).

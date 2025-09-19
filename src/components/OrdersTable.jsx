@@ -11,6 +11,7 @@ import {
   Collapse,
   Box,
   Chip,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
@@ -61,7 +62,31 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
         </TableCell>
   <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>{row.total_bayar ? `Rp${Number(row.total_bayar).toLocaleString('id-ID')}` : '-'}</TableCell>
         <TableCell>
-          <Chip label={row.status_bayar || '-'} size="small" sx={{ bgcolor: row.status_bayar === 'lunas' ? '#34d399' : '#fbbf24', color: 'var(--button-text)', fontWeight: 700 }} />
+          {/* Map various payment status values to friendly labels/colors and show failure reason when available */}
+          {(() => {
+            const raw = (row.status_bayar || '').toString().toLowerCase();
+            const info = (s) => {
+              if (!s) return { label: '-', color: 'var(--status-warning)' };
+              if (s === 'lunas' || s === 'paid') return { label: 'Lunas', color: 'var(--status-success)' };
+              if (s === 'processing' || s === 'proses') return { label: 'Proses', color: '#60a5fa' };
+              if (s === 'failed' || s === 'gagal' || s === 'error') return { label: 'Gagal', color: '#f87171' };
+              if (s === 'unpaid' || s === 'belum bayar' || s === 'pending') return { label: 'Belum Bayar', color: '#fbbf24' };
+              return { label: row.status_bayar, color: '#fbbf24' };
+            };
+            const meta = info(raw);
+            const failureReason = row.failure_reason || row.payment_failure_reason || row.failure || '';
+            return (
+              <Tooltip title={failureReason || ''} arrow disableHoverListener={!failureReason}>
+                <span>
+                  <Chip
+                    label={meta.label}
+                    size="small"
+                    sx={{ bgcolor: meta.color, color: 'var(--button-text)', fontWeight: 700 }}
+                  />
+                </span>
+              </Tooltip>
+            );
+          })()}
         </TableCell>
   <TableCell sx={{ color: 'var(--accent-2)' }}>{row.tanggal_jatuh_tempo ? new Date(row.tanggal_jatuh_tempo).toLocaleDateString('id-ID') : '-'}</TableCell>
         <TableCell>
