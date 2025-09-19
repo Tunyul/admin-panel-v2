@@ -16,7 +16,6 @@ import {
   DialogTitle,
   TextField,
   Typography,
-  CircularProgress,
   MenuItem,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
@@ -63,7 +62,14 @@ export default function Payments() {
     return getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
+        // Deduplicate by id_payment or id to avoid duplicate rows when backend returns duplicates
+        const arr = Array.isArray(items) ? items : [];
+        const map = new Map();
+        arr.forEach((it) => {
+          const key = it?.id_payment ?? it?.id ?? JSON.stringify(it);
+          if (!map.has(key)) map.set(key, it);
+        });
+        setData(Array.from(map.values()));
         setError(null);
       })
       .catch((err) => {
@@ -228,15 +234,7 @@ export default function Payments() {
     }
   };
 
-  // Show loading spinner while fetching initial payments
-  // Keep after hooks so hooks order stays stable.
-  if (_loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress color="inherit" />
-      </Box>
-    );
-  }
+  // Loading early-return removed — always render page; _loading only disables actions where used.
 
   return (
   <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>

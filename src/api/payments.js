@@ -17,6 +17,8 @@ export const getPaymentsByOrder = (orderId) => client.get(`${base}/order/${order
 export const getPaymentsByCustomer = (customerId) => client.get(`${base}/customer/${customerId}`);
 export const updateByTransaksi = (payload) => client.put(`${base}/update-by-transaksi`, payload);
 export const updateByPhone = (payload) => client.put(`${base}/update-by-phone`, payload);
+// convenience: fetch payments by transaction number (no_transaksi)
+export const getPaymentsByTransaksi = (transaksi) => client.get(`${base}/transaksi/${encodeURIComponent(transaksi)}`);
 
 export default {
   getPayments,

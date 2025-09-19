@@ -16,7 +16,6 @@ import {
   DialogTitle,
   TextField,
   Typography,
-  CircularProgress,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -197,15 +196,7 @@ function Products() {
     }
   }, [detailsMap, showNotification]);
 
-  // Show a loading spinner while initial load is happening.
-  // This must be after all hooks to preserve hook order between renders.
-  if (_loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress color="inherit" />
-      </Box>
-    );
-  }
+  // Loading early-return removed — always render page; _loading only disables actions where used.
 
   return (
   <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>

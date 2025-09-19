@@ -7,6 +7,8 @@
   /* Friendly light theme palette (simple, warm, high legibility) */
   --bg: #fbf9f7;           /* warm cream background */
   --panel: #ffffff;        /* pure panel */
+
+/* (moved .always-scroll to after global scrollbar rules) */
   --main-card-bg: #ffffff; /* cards white */
   --text: #0b2135;         /* dark navy for text - softer than pure black */
   --muted: #576a7a;        /* muted slate */
@@ -14,6 +16,9 @@
   --accent-2: #ffd166;     /* warm yellow accent */
   --accent-rgb: 59,130,246;
   --accent-2-rgb: 255,209,102;
+  /* semantic status colors */
+  --status-success: #34d399; /* green - success */
+  --status-warning: #fbbf24; /* amber/yellow - warning */
   --text-rgb: 11,33,53;
   --border-rgb: 230,238,246;
   --bg-rgb: 251,249,247;
@@ -23,6 +28,7 @@
   --icon: #2b3b46;         /* icon color (slightly muted) */
   --gradient: linear-gradient(90deg, #fff8ec 0%, #eef6ff 100%); /* gentle warm -> cool */
   --button-text: #081423;  /* dark button text */
+  --header-bg: rgba(var(--bg-rgb),0.06);
 }
 .dark {
   --bg: #0f1724;        /* neutral dark page background */
@@ -33,6 +39,9 @@
   --muted: #93a3c0;
   --accent: #60a5fa;
   --accent-2: #fde047;
+  /* semantic status colors for dark mode */
+  --status-success: #34d399;
+  --status-warning: #fbbf24;
   --border: #374151;
   --text-rgb: 230,238,248;
   --border-rgb: 55,65,81;
@@ -42,6 +51,7 @@
   --icon: #cbd5e1;
     --gradient: linear-gradient(90deg, rgba(var(--bg-rgb),0.06) 0%, rgba(var(--accent-rgb),0.06) 100%); /* gentle gradient using tokens */
   --button-text: #0b1220;
+    --header-bg: rgba(var(--bg-rgb),0.06);
 }
 
 body {
@@ -223,6 +233,8 @@ table tbody tr td, table thead tr th, .MuiTableCell-root {
   padding: 1rem;
   /* Removed inset shadow to make elevation appear outward only */
   box-shadow: 0 6px 24px rgba(2,6,23,0.10);
+  /* Theme-aware border: dark in light theme, light in dark theme */
+  border: 1px solid rgba(var(--text-rgb), 0.14);
 }
 
 /* Force no extra bottom padding / unexpected height on main content cards */
@@ -230,6 +242,8 @@ table tbody tr td, table thead tr th, .MuiTableCell-root {
   padding-bottom: 0 !important;
   overflow: visible !important;
   min-height: 0 !important;
+  /* also ensure border remains consistent after layout changes */
+  border: 1px solid rgba(var(--text-rgb), 0.14) !important;
 }
 
 /* Ensure inner responsive table wrapper doesn't create extra height */
@@ -285,13 +299,101 @@ table thead tr th, .MuiTableCell-head, .MuiTableCell-head * {
 
 /* MUI table integrations: make headers and cells follow tokens */
 .MuiTableCell-head {
-  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+  /* Use header token for consistent header background across themes */
+  background: var(--header-bg) !important;
   color: var(--text) !important;
   border-bottom: 1px solid var(--border) !important;
 }
 .dark .MuiTableCell-head {
-  background: linear-gradient(180deg, rgba(var(--bg-rgb),0.04), rgba(var(--bg-rgb),0.02));
+  /* In dark mode, header-bg will be set to a subtle translucent surface via :root/.dark */
+  background: var(--header-bg) !important;
+}
+
+/* Orders table specific sticky header corrections for contrast in dark mode */
+.orders-table .MuiTableCell-head {
+  /* Orders table-specific header: use semantic header bg and muted text for chips legibility */
+  background: var(--header-bg) !important;
+  color: var(--muted) !important;
+  z-index: 5;
+}
+.orders-table {
+  background: transparent; /* orders-table container intentionally left transparent to allow parent card surface to show through */
+}
+.dark .orders-table .MuiTableCell-head {
+  background: var(--header-bg) !important;
+  color: var(--muted) !important;
+  z-index: 5;
 }
 .MuiTableRow-root:hover .MuiTableCell-root {
   background: rgba(var(--accent-rgb),0.06) !important;
+}
+
+/* Ensure cards and MUI Paper respect dark-mode tokens and cannot be forced white by other rules */
+.dark .main-card {
+  background-color: var(--main-card-bg) !important;
+}
+.dark .MuiPaper-root {
+  background: var(--panel) !important;
+}
+
+/* Utility: always-show scrollbar for scrollable containers (WebKit + Firefox)
+   Provides a wider, touch-friendly thumb and reserves gutter space so the
+   scrollbar is easier to grab on touch/trackpad devices. */
+.always-scroll {
+  scrollbar-width: auto; /* Firefox: show a normal/large thumb */
+  /* use theme-aware colors via CSS variables defined in :root/.dark */
+  scrollbar-color: var(--scroll-thumb-color, rgba(0,0,0,0.18)) var(--scroll-track-color, transparent);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+}
+.always-scroll::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+.always-scroll::-webkit-scrollbar-track {
+  background: var(--scroll-track, rgba(0,0,0,0.03));
+  border-radius: 12px;
+}
+.always-scroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb, rgba(255,255,255,0.14));
+  border-radius: 10px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+.always-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Theme tokens for scrollbars (fallbacks provided) */
+:root {
+  --scroll-track: rgba(251,249,247,0.12);
+  --scroll-track-color: rgba(251,249,247,0.12);
+  --scroll-thumb: linear-gradient(120deg, rgba(255,209,102,0.22), rgba(59,130,246,0.22));
+  --scroll-thumb-color: rgba(11,33,53,0.18);
+}
+.dark {
+  --scroll-track: rgba(255,255,255,0.02);
+  --scroll-track-color: rgba(255,255,255,0.04);
+  --scroll-thumb: linear-gradient(120deg, rgba(255,209,102,0.28), rgba(96,165,250,0.28));
+  --scroll-thumb-color: rgba(255,255,255,0.14);
+}
+
+/* modal-scroll: utility to match DialogContent scrollbar used in Add Order modal (smaller thumb like modal) */
+.modal-scroll {
+  scrollbar-width: thin; /* Firefox: thin thumb */
+  scrollbar-color: var(--scroll-thumb-color, rgba(0,0,0,0.18)) var(--scroll-track-color, transparent);
+  -webkit-overflow-scrolling: touch;
+}
+.modal-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.modal-scroll::-webkit-scrollbar-track { background: var(--scroll-track, transparent); }
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb, linear-gradient(120deg, rgba(255,209,102,0.22), rgba(59,130,246,0.22)));
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
+}
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb, linear-gradient(120deg, rgba(255,209,102,0.36), rgba(59,130,246,0.36)));
 }

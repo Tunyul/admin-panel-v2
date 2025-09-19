@@ -9,7 +9,7 @@ const scrollbarStyle = `
 
 import React, { useEffect, useState, Suspense, useRef } from 'react';
 import StatCard from '../components/StatCard';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, CircularProgress, Button, ButtonBase } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, Button, ButtonBase } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
@@ -160,13 +160,19 @@ export default function Dashboard() {
       useLoadingStore.getState().start();
       notify('Refreshing counts…', 'info');
       const [cP, pP, payP, piuP, oP] = await Promise.all([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
-      const mapLen = (r) => (Array.isArray(r?.data?.data) ? r.data.data.length : (r?.data?.length || '—'));
+      const mapLen = (r, idKey) => {
+        const arr = Array.isArray(r?.data?.data) ? r.data.data : (Array.isArray(r?.data) ? r.data : []);
+        if (!Array.isArray(arr)) return '—';
+        if (!idKey) return arr.length;
+        const uniq = new Set(arr.map((it) => it[idKey] ?? it.id ?? JSON.stringify(it)));
+        return uniq.size;
+      };
       setStats((prev) => prev.map((s) => {
-        if (s.key === 'customers') return { ...s, value: mapLen(cP) };
-        if (s.key === 'products') return { ...s, value: mapLen(pP) };
-        if (s.key === 'payments') return { ...s, value: mapLen(payP) };
-        if (s.key === 'piutangs') return { ...s, value: mapLen(piuP) };
-        if (s.key === 'orders') return { ...s, value: mapLen(oP) };
+  if (s.key === 'customers') return { ...s, value: mapLen(cP, 'id_customer') };
+  if (s.key === 'products') return { ...s, value: mapLen(pP, 'id_produk') };
+  if (s.key === 'payments') return { ...s, value: mapLen(payP, 'id_payment') };
+  if (s.key === 'piutangs') return { ...s, value: mapLen(piuP, 'id_piutang') };
+  if (s.key === 'orders') return { ...s, value: mapLen(oP, 'id_order') };
         return s;
       }));
     } catch {
@@ -219,8 +225,12 @@ export default function Dashboard() {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'customers' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {
-        // keep placeholder
+      .catch((err) => {
+        // If backend returns 404 (no data), treat as empty list and show 0.
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'customers' ? { ...s, value: 0 } : s)));
+        }
+        // otherwise keep placeholder and don't spam console
       })
       .finally(() => {
         setLoading((l) => ({ ...l, customers: false }));
@@ -234,7 +244,11 @@ export default function Dashboard() {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'products' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'products' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, products: false }));
         useLoadingStore.getState().done();
@@ -247,7 +261,11 @@ export default function Dashboard() {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'payments' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'payments' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, payments: false }));
         useLoadingStore.getState().done();
@@ -260,7 +278,11 @@ export default function Dashboard() {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'piutangs' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'piutangs' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, piutangs: false }));
         useLoadingStore.getState().done();
@@ -273,7 +295,11 @@ export default function Dashboard() {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'orders' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'orders' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, orders: false }));
         useLoadingStore.getState().done();
@@ -296,7 +322,7 @@ export default function Dashboard() {
       <Box sx={{ width: '100%' }}>
         <style>{scrollbarStyle}</style>
         {/* Two-column layout (a1 left, a2 right) */}
-  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: SHOW_ACTIVITY ? '1fr 320px' : '1fr' }, gridAutoRows: 'auto', rowGap: 2, columnGap: SHOW_ACTIVITY ? 3 : 0, alignItems: 'start' }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gridAutoRows: 'auto', rowGap: 2, columnGap: 3, alignItems: 'start' }}>
 
           {/* a1: left column - contains a1-overview (top) and a1-finance (below) */}
           <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -306,7 +332,7 @@ export default function Dashboard() {
                 <Typography sx={{ gridColumn: '1 / -1', color: '#ffe066', fontWeight: 700, mb: 1 }}>Overview</Typography>
                 {stats.filter(s => groupAKeys.includes(s.key)).map((stat) => (
                   <div key={stat.key} style={{ width: '100%' }}>
-                    <StatCard title={stat.title} value={loading[stat.key] ? <CircularProgress size={20} color="inherit" /> : stat.value} icon={stat.icon} color={stat.color} />
+                    <StatCard title={stat.title} value={loading[stat.key] ? <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</Typography> : stat.value} icon={stat.icon} color={stat.color} />
                   </div>
                 ))}
               </Box>
@@ -380,8 +406,9 @@ export default function Dashboard() {
           </Box>
 
           {/* Right column (activity/system) is optional. If activity is disabled, render System card inside left column to avoid empty gap. */}
-          {SHOW_ACTIVITY ? (
-            <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
+          {/* Right column: Activity (optional) and System (always present on md+) */}
+          <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
+            {SHOW_ACTIVITY && (
               <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
                   Aktivitas Terbaru
@@ -396,22 +423,14 @@ export default function Dashboard() {
                   </List>
                 </Box>
               </Paper>
+            )}
 
-              {/* System card */}
-              <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
-                <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
-                <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
-              </Paper>
-            </Box>
-          ) : (
-            // Activity disabled — render System card under Finances in left column to avoid empty right column
-            <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
-                <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
-                <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
-              </Paper>
-            </Box>
-          )}
+            {/* System card - always shown in right column on md+ */}
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
+              <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
+              <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
+            </Paper>
+          </Box>
 
           {/* Charts disabled - placeholder removed to avoid empty main area */}
         </Box>

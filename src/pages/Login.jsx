@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TextField, Button, Box, Typography, Paper, Avatar, CircularProgress, Card, CardContent } from '@mui/material';
+import { TextField, Button, Box, Typography, Paper, Avatar, Card, CardContent } from '@mui/material';
 import axios from 'axios';
 import useNotificationStore from '../store/notificationStore';
 import LockIcon from '@mui/icons-material/Lock';
@@ -115,39 +115,34 @@ export default function Login({ onLogin }) {
 							<input type="checkbox" id="remember" checked={remember} onChange={e => setRemember(e.target.checked)} className="accent-yellow-400 scale-110" style={{ fontFamily: 'Poppins, Arial, sans-serif' }} />
 							<Typography variant="body2" color="#fbbf24" sx={{ fontFamily: 'Poppins, Arial, sans-serif' }}>Remember Me</Typography>
 						</Box>
-						{loading ? (
-							<Box display="flex" alignItems="center" justifyContent="center" width="100%" sx={{ py: 1.5, mt: 1, mb: 2 }}>
-								<CircularProgress color="warning" size={32} thickness={5} />
-							</Box>
-						) : (
-							<Button
-								type="submit"
-								fullWidth
-								variant="contained"
-								color="warning"
-								sx={{
-									fontWeight: 700,
-									fontSize: 17,
-									borderRadius: 3,
-									py: 1.5,
-									boxShadow: '0 2px 16px #fbbf24cc, 0 0 0 4px #3b82f655',
-									mt: 1,
-									mb: 2,
-									background: 'linear-gradient(90deg,#fbbf24 60%,#f59e42 100%)',
-									color: '#181A20',
-									letterSpacing: 1.2,
-									fontFamily: 'Quicksand, Poppins, Arial, sans-serif',
-									transition: 'background 0.3s, transform 0.2s, box-shadow 0.3s',
-									'&:hover': {
-										background: 'linear-gradient(90deg,#f59e42 60%,#fbbf24 100%)',
-										transform: 'scale(1.04)',
-										boxShadow: '0 4px 24px #fbbf24ee, 0 0 0 6px #3b82f6aa',
-									},
-								}}
-							>
-								Masuk
-							</Button>
-						)}
+						<Button
+							type="submit"
+							fullWidth
+							variant="contained"
+							color="warning"
+							disabled={loading}
+							sx={{
+								fontWeight: 700,
+								fontSize: 17,
+								borderRadius: 3,
+								py: 1.5,
+								boxShadow: '0 2px 16px #fbbf24cc, 0 0 0 4px #3b82f655',
+								mt: 1,
+								mb: 2,
+								background: 'linear-gradient(90deg,#fbbf24 60%,#f59e42 100%)',
+								color: '#181A20',
+								letterSpacing: 1.2,
+								fontFamily: 'Quicksand, Poppins, Arial, sans-serif',
+								transition: 'background 0.3s, transform 0.2s, box-shadow 0.3s',
+								'&:hover': {
+									background: 'linear-gradient(90deg,#f59e42 60%,#fbbf24 100%)',
+									transform: 'scale(1.04)',
+									boxShadow: '0 4px 24px #fbbf24ee, 0 0 0 6px #3b82f6aa',
+								},
+							}}
+						>
+							Masuk
+						</Button>
 					</Box>
 					<Typography variant="caption" color="#bbb" align="center" sx={{ mt: 3, display: 'block', letterSpacing: 1, fontFamily: 'Inter, Arial, sans-serif' }}>© 2025 CS Bot Admin. All rights reserved.</Typography>
 				</CardContent>

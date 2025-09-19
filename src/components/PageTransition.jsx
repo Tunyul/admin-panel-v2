@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Fade, Backdrop, CircularProgress, useTheme } from '@mui/material';
+import { Box, Fade, Backdrop, useTheme } from '@mui/material';
 import useLoadingStore from '../store/loadingStore';
 
 export default function PageTransition({ children, pathname }) {

@@ -27,7 +27,11 @@ client.interceptors.response.use(
   response => response,
   error => {
     if (error.response) {
-      console.error("API Error:", error.response.status, error.response.data);
+      // Suppress noisy 404 logs for endpoints that legitimately return 404 when no data exists.
+      // Let callers decide how to handle a 404 (for example, showing 0 instead of an error).
+      if (error.response.status !== 404) {
+        console.error("API Error:", error.response.status, error.response.data);
+      }
     } else if (error.request) {
       console.error("API Error: No response from server", error.request);
     } else {

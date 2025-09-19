@@ -18,7 +18,6 @@ import {
   DialogTitle,
   TextField,
   Typography,
-  CircularProgress,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -31,6 +30,7 @@ import { getOrderDetailsByOrderId, createOrderDetail } from '../api/orderDetail'
 import { getProducts } from '../api/products';
 import { getCustomers, createCustomer, getCustomerById, getCustomersByPhone } from '../api/customers';
 import OrdersTable from '../components/OrdersTable';
+import { getPaymentsByTransaksi } from '../api/payments';
 import TableToolbar from '../components/TableToolbar';
 import OrderDialog from '../components/OrderDialog';
 import useNotificationStore from '../store/notificationStore';
@@ -72,6 +72,8 @@ function Orders() {
   const [detailsLoading, setDetailsLoading] = useState({});
   const { showNotification } = useNotificationStore();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [toDeleteId, setToDeleteId] = useState(null);
 
   const handleOpen = useCallback((item = {}) => { setForm(item || {}); setDialogOpen(true); }, []);
   const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); }, []);
@@ -86,8 +88,8 @@ function Orders() {
   const reloadOrders = useCallback(() => {
     setLoading(true);
     useLoadingStore.getState().start();
-    return getOrders()
-    .then((res) => {
+  return getOrders()
+  .then(async (res) => {
         // helpful debug in development: show raw response to help map shapes
         if (import.meta.env.DEV) {
           console.debug('[reloadOrders] response:', res);
@@ -95,7 +97,32 @@ function Orders() {
         // accept several common shapes: { data: [...] } or { data: { data: [...] } } or { orders: [...] }
         const maybe = res && res.data ? (res.data.data || res.data.orders || res.data.items || res.data) : null;
         const orders = Array.isArray(maybe) ? maybe : (Array.isArray(res?.data) ? res.data : []);
-        setData(orders);
+        // enrich orders with payment sums (verified) by transaksi if available
+        const enriched = Array.isArray(orders) ? orders : [];
+        try {
+          // build fetch tasks for orders that have no_transaksi
+          const tasks = enriched.map((o) => {
+            const tx = o.no_transaksi || o.no_transaksi_lama || '';
+            if (!tx) return Promise.resolve({ o, payments: [] });
+            return getPaymentsByTransaksi(tx)
+              .then((r) => {
+                const items = r?.data?.data || r?.data || [];
+                return { o, payments: Array.isArray(items) ? items : [] };
+              })
+              .catch(() => ({ o, payments: [] }));
+          });
+          const results = await Promise.all(tasks);
+          // attach computed paid totals
+          results.forEach(({ o, payments }) => {
+            const verifiedPayments = (payments || []).filter((p) => p.verified || p.status === 'verified' || p.is_verified);
+            const paidTotal = verifiedPayments.reduce((s, p) => s + (Number(p.nominal || p.amount || p.jumlah || 0) || 0), 0);
+            o.paid_amount = paidTotal;
+            o.paid_verified_total = paidTotal;
+          });
+        } catch (e) {
+          // ignore enrichment errors
+        }
+        setData(enriched);
         setError(null);
             // fetch customers for orders which only contain id_customer
             try {
@@ -153,6 +180,10 @@ function Orders() {
   // table search / filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [statusBayarFilter, setStatusBayarFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState(null);
+  const [totalMinFilter, setTotalMinFilter] = useState('');
+  const [totalMaxFilter, setTotalMaxFilter] = useState('');
   const filteredData = data.filter((row) => {
     if (!row) return false;
     const q = searchQuery.trim().toLowerCase();
@@ -162,6 +193,25 @@ function Orders() {
     }
     if (statusFilter) {
       if ((row.status || '').toString() !== statusFilter) return false;
+    }
+    if (statusBayarFilter) {
+      if ((row.status_bayar || '').toString() !== statusBayarFilter) return false;
+    }
+    if (customerFilter) {
+      const cid = customerFilter.id_customer || customerFilter.id || null;
+      if (cid && String(row.id_customer || row.customer?.id || row.customer_id || '') !== String(cid)) return false;
+      // also allow matching by customer name if an object with name provided
+      if (customerFilter.nama && !((row.customer?.nama || row.nama_customer || '').toString().toLowerCase().includes((customerFilter.nama || '').toString().toLowerCase()))) return false;
+    }
+    if (totalMinFilter) {
+      const min = Number(totalMinFilter) || 0;
+      const total = Number(row.total_bayar || row.total_tagihan || 0) || 0;
+      if (total < min) return false;
+    }
+    if (totalMaxFilter) {
+      const max = Number(totalMaxFilter) || 0;
+      const total = Number(row.total_bayar || row.total_tagihan || 0) || 0;
+      if (total > max) return false;
     }
     return true;
   });
@@ -293,15 +343,29 @@ function Orders() {
       });
   };
   const handleDelete = useCallback((id_order) => {
-    deleteOrder(id_order)
+    // open confirmation dialog first
+    setToDeleteId(id_order);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    const id = toDeleteId;
+    if (!id) return setDeleteConfirmOpen(false);
+    deleteOrder(id)
       .then(() => {
         showNotification('Order deleted', 'info');
         reloadOrders();
       })
       .catch(() => {
         showNotification('Gagal menghapus order', 'error');
+      })
+      .finally(() => {
+        setDeleteConfirmOpen(false);
+        setToDeleteId(null);
       });
-  }, [reloadOrders, showNotification]);
+  }, [toDeleteId, reloadOrders, showNotification]);
+
+  const cancelDelete = useCallback(() => { setDeleteConfirmOpen(false); setToDeleteId(null); }, []);
   // handlers for customer step buttons
   const _handleCustomerProceed = () => {
     if (selectedCustomer) { setStep('items'); showNotification('Customer dipilih', 'success'); return; }
@@ -374,49 +438,109 @@ function Orders() {
     }
   }, [detailsMap, showNotification]);
 
-  // Show loading while initial data is being fetched. Keep this after hooks.
-  if (_loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress color="secondary" size={56} />
-      </Box>
-    );
-  }
+  // Loading state removed: render page immediately so tables and layout remain stable.
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-      <style>{scrollbarStyle}</style>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
-          Orders
-        </Typography>
-  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
-          Add Order
-        </Button>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', px: { xs: 2, md: 2 }, pt: { xs: 1.5, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+    <style>{scrollbarStyle}</style>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1, mt: 0 }}>
+            Orders
+          </Typography>
+          {/* Move search/filter toolbar next to title for compact header */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableToolbar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search orders by invoice, customer or note"
+              filterValue={statusFilter}
+              onFilterChange={setStatusFilter}
+              filterOptions={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]}
+              filter2Value={statusBayarFilter}
+              onFilter2Change={setStatusBayarFilter}
+              filter2Options={[{ value: 'lunas', label: 'Lunas' }, { value: 'belum_lunas', label: 'Belum Lunas' }, { value: 'dp', label: 'DP' }]}
+              filter2Label="Status Bayar"
+              noWrap={true}
+              extraControls={(
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Autocomplete
+                    size="small"
+                    options={customersList || []}
+                    getOptionLabel={(o) => o.nama || o.name || (o.phone || '')}
+                    value={customerFilter}
+                    onChange={(e, v) => setCustomerFilter(v)}
+                    renderInput={(params) => <TextField {...params} label="Customer" variant="outlined" size="small" sx={{ bgcolor: 'rgba(var(--bg-rgb),0.02)' }} />}
+                    sx={{ minWidth: 240 }}
+                  />
+                  <TextField size="small" variant="outlined" label="Total Min" value={totalMinFilter} onChange={(e) => setTotalMinFilter(e.target.value)} sx={{ width: 120 }} />
+                  <TextField size="small" variant="outlined" label="Total Max" value={totalMaxFilter} onChange={(e) => setTotalMaxFilter(e.target.value)} sx={{ width: 120 }} />
+                </Box>
+              )}
+            />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+            Add Order
+          </Button>
+          {/* On small screens show toolbar below header inside paper via fallback */}
+        </Box>
       </Box>
 
       {_error && (
         <Box sx={{ color: 'orange', mb: 2 }}>{_error}</Box>
       )}
 
-      <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-        <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
-          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search orders by invoice, customer or note" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
-          <OrdersTable
-            data={filteredData}
-            expanded={expanded}
-            detailsMap={detailsMap}
-            detailsLoading={detailsLoading}
-            onOpen={handleOpen}
-            onDelete={handleDelete}
-            onExpand={handleExpandWithDetails}
-            productsList={productsList}
-            customersMap={customersMap}
-          />
+      {/* Container: make flex children able to shrink and allow inner scroll
+          Important: set minHeight: 0 on flex containers/children so overflow:auto works
+      */}
+    {/* Inject page-level scrollbar style (same as modal) to ensure it applies with sufficient specificity */}
+    <style dangerouslySetInnerHTML={{ __html: scrollbarStyle }} />
+      <Box sx={{ width: '100%', height: { xs: 520, md: 720 }, borderRadius: 0, p: 0, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', minHeight: 0 }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', pt: 0, px: 0, pb: 2, minHeight: 0 }}>
+          {/* The actual scrollable area */}
+          <Box
+            className="modal-scroll"
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'var(--scroll-thumb-color) var(--scroll-track-color)',
+              '&::-webkit-scrollbar': { width: 10, height: 10 },
+              '&::-webkit-scrollbar-track': { background: 'var(--scroll-track, transparent)' },
+              '&::-webkit-scrollbar-thumb': { background: 'var(--scroll-thumb)', borderRadius: 8, boxShadow: '0 0 8px rgba(var(--text-rgb),0.06)' },
+              '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
+            }}
+          >
+            <OrdersTable
+              data={filteredData}
+              expanded={expanded}
+              detailsMap={detailsMap}
+              detailsLoading={detailsLoading}
+              onOpen={handleOpen}
+              onDelete={handleDelete}
+              onExpand={handleExpandWithDetails}
+              productsList={productsList}
+              customersMap={customersMap}
+            />
+          </Box>
         </Box>
-        <Box className="table-bottom-space" />
-      </Paper>
+      </Box>
       <OrderDialog open={dialogOpen} onClose={handleDialogClose} productsList={productsList} customersList={customersList} onCreated={() => { reloadOrders(); }} />
+    
+    <Dialog open={deleteConfirmOpen} onClose={cancelDelete}>
+      <DialogTitle>Confirm delete</DialogTitle>
+      <DialogContent>
+        <Typography sx={{ color: 'var(--text)' }}>Apakah Anda yakin ingin menghapus order ini? Tindakan ini tidak dapat dikembalikan.</Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={cancelDelete}>Batal</Button>
+        <Button color="error" variant="contained" onClick={confirmDelete}>Hapus</Button>
+      </DialogActions>
+    </Dialog>
     </Box>
   );
 }

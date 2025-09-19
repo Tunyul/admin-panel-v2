@@ -12,7 +12,7 @@ function useDebouncedValue(value, delay = 300) {
   return v;
 }
 
-export default function TableToolbar({ value, onChange, placeholder = 'Search…', filterValue, onFilterChange, filterOptions = [] }) {
+export default function TableToolbar({ value, onChange, placeholder = 'Search…', filterValue, onFilterChange, filterOptions = [], filterLabel = 'Filter', filter2Value, onFilter2Change, filter2Options = [], filter2Label = 'Filter', extraControls = null, noWrap = false }) {
   const inputRef = useRef(null);
   const [local, setLocal] = useState(value || '');
   const debounced = useDebouncedValue(local, 300);
@@ -46,7 +46,7 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
   }, [filterValue, filterOptions]);
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: noWrap ? 'nowrap' : 'wrap', overflowX: noWrap ? 'auto' : 'visible' }}>
       <TextField
         inputRef={inputRef}
         size="small"
@@ -78,11 +78,11 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
 
       {filterOptions && filterOptions.length > 0 && (
         <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel id="tbl-filter-label" sx={{ color: '#94a3b8' }}>Filter</InputLabel>
+          <InputLabel id="tbl-filter-label" sx={{ color: '#94a3b8' }}>{filterLabel}</InputLabel>
           <Select
             labelId="tbl-filter-label"
             value={filterValue || ''}
-            label="Filter"
+            label={filterLabel}
             onChange={(e) => onFilterChange && onFilterChange(e.target.value)}
             MenuProps={{
               PaperProps: { sx: { bgcolor: 'var(--panel)', color: 'var(--muted)' } },
@@ -101,6 +101,31 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
         </FormControl>
       )}
 
+      {filter2Options && filter2Options.length > 0 && (
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="tbl-filter2-label" sx={{ color: '#94a3b8' }}>{filter2Label}</InputLabel>
+          <Select
+            labelId="tbl-filter2-label"
+            value={filter2Value || ''}
+            label={filter2Label}
+            onChange={(e) => onFilter2Change && onFilter2Change(e.target.value)}
+            MenuProps={{
+              PaperProps: { sx: { bgcolor: 'var(--panel)', color: 'var(--muted)' } },
+            }}
+            sx={{
+              '& .MuiSelect-select': { color: 'var(--text)' },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148,163,184,0.08)' },
+              bgcolor: 'rgba(var(--bg-rgb),0.02)'
+            }}
+          >
+            <MenuItem value="">(all)</MenuItem>
+            {filter2Options.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value} sx={{ color: 'var(--muted)' }}>{opt.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
       {filterChip && (
         <Chip
           label={filterChip}
@@ -109,6 +134,7 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
           sx={{ bgcolor: 'rgba(var(--accent-rgb),0.12)', color: 'var(--text)', border: '1px solid rgba(var(--accent-rgb),0.18)' }}
         />
       )}
+      {extraControls}
     </Box>
   );
 }
