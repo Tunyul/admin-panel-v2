@@ -29,25 +29,27 @@ export default function Sidebar() {
   ];
   return (
     <Box
-      sx={{
-        width: 230,
-        position: 'fixed',
-        top: 72,
-        left: 0,
-        alignSelf: 'flex-start',
-        height: 'calc(100vh - 72px)',
-        background: 'none',
+  sx={{
+    width: 230,
+    position: 'fixed',
+    top: 72,
+    left: 0,
+    alignSelf: 'flex-start',
+    height: 'calc(100vh - 72px)',
+    background: 'var(--panel)',
   color: 'var(--text)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         borderTopRightRadius: 0,
         borderBottomRightRadius: 0,
-        boxShadow: 'none',
+      boxShadow: 'none',
+      border: 'none',
         margin: 0,
         padding: 0,
         fontFamily: 'Poppins, Inter, Arial, sans-serif',
-        transition: 'all 0.3s cubic-bezier(.4,0,.2,1)',
+  /* make background/color switch immediate to avoid perceived delay on theme toggle */
+        transition: 'none',
         zIndex: 1100,
       }}
     >
@@ -73,7 +75,8 @@ export default function Sidebar() {
                 background: location.pathname === item.path ? 'none' : 'none',
                 boxShadow: 'none',
                 borderLeft: location.pathname === item.path ? `5px solid ${item.color}` : '5px solid transparent',
-                transition: 'all 0.2s cubic-bezier(.4,0,.2,1)',
+                /* make list items update instantly when theme toggles */
+                transition: 'none',
                 '&:hover': {
                   background: `${item.color}12`,
                   color: item.color,

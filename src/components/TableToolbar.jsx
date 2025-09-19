@@ -106,7 +106,7 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
           label={filterChip}
           onDelete={() => onFilterChange && onFilterChange('')}
           size="small"
-          sx={{ bgcolor: 'rgba(96,165,250,0.12)', color: '#e6f0ff', border: '1px solid rgba(96,165,250,0.18)' }}
+          sx={{ bgcolor: 'rgba(var(--accent-rgb),0.12)', color: 'var(--text)', border: '1px solid rgba(var(--accent-rgb),0.18)' }}
         />
       )}
     </Box>

@@ -198,7 +198,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
     <Dialog
       open={open}
       onClose={resetAndClose}
-      PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)', width: { xs: '94%', sm: '720px', md: '880px' }, maxWidth: '960px', maxHeight: '86vh', display: 'flex', flexDirection: 'column' } }}
+      PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)', width: { xs: '94%', sm: '720px', md: '880px' }, maxWidth: '960px', maxHeight: '86vh', display: 'flex', flexDirection: 'column' } }}
     >
       <DialogTitle sx={{ color: '#ffe066', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
         <Box>
@@ -222,7 +222,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                       <Typography sx={{ color: active ? '#052e16' : '#cbd5e1', fontWeight: 700 }}>{i + 1}</Typography>
                     </Box>
                     <Box sx={{ minWidth: 70 }}>
-                      <Typography sx={{ color: active ? '#fff' : '#888', fontWeight: active ? 700 : 600, fontSize: 13 }}>{active ? (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3') : (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3')}</Typography>
+                      <Typography sx={{ color: active ? 'var(--text)' : '#888', fontWeight: active ? 700 : 600, fontSize: 13 }}>{active ? (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3') : (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3')}</Typography>
                     </Box>
                     {i < 2 && (
                       <Box sx={{ width: 56, height: 2, bgcolor: (step === sName || step === (i === 0 ? 'items' : 'summary')) ? '#34d399' : 'rgba(148,163,184,0.06)', borderRadius: 1 }} />
@@ -271,8 +271,8 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                 }
               }}
               componentsProps={{
-                paper: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } },
-                listbox: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } }
+                paper: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)' } },
+                listbox: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)' } }
               }}
               getOptionLabel={(o) => {
                 if (typeof o === 'string') return o;
@@ -354,8 +354,8 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                         );
                       }}
                       componentsProps={{
-                        paper: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } },
-                        listbox: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1', maxHeight: 320, overflow: 'auto', py: 0 } }
+                        paper: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)' } },
+                        listbox: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)', maxHeight: 320, overflow: 'auto', py: 0 } }
                       }}
                       onChange={(_e, v) => {
                         if (!v) handleLineChange(idx, 'produk_id', null);
@@ -440,9 +440,9 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Product</TableCell>
-                      <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Qty</TableCell>
-                      <TableCell sx={{ color: '#a78bfa', fontWeight: 700, textAlign: 'right' }}>Subtotal</TableCell>
+                      <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Product</TableCell>
+                      <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Qty</TableCell>
+                      <TableCell sx={{ color: 'var(--muted)', fontWeight: 700, textAlign: 'right' }}>Subtotal</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -454,8 +454,8 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                       return (
                         <TableRow key={i} sx={{ borderBottom: '1px dashed rgba(255,255,255,0.03)' }}>
                           <TableCell sx={{ color: 'var(--text)' }}>{prod ? (prod.nama_produk || prod.nama) : `Produk #${ag.produk_id}`}</TableCell>
-                          <TableCell sx={{ color: '#cbd5e1', fontWeight: 700 }}>{qty}</TableCell>
-                          <TableCell sx={{ color: '#cbd5e1', textAlign: 'right' }}>Rp{Number(lineTotal).toLocaleString('id-ID')}</TableCell>
+                          <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>{qty}</TableCell>
+                          <TableCell sx={{ color: 'var(--muted)', textAlign: 'right' }}>Rp{Number(lineTotal).toLocaleString('id-ID')}</TableCell>
                         </TableRow>
                       );
                     })}

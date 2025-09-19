@@ -14,8 +14,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
-// Recharts and chart rendering moved to a lazy chunk to reduce initial parse cost
-const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
+// Charts disabled per request to speed up dashboard render
+// const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
 
 import { getCustomers } from '../api/customers';
 import { getProducts } from '../api/products';
@@ -114,6 +114,9 @@ export default function Dashboard() {
 
   // Shared card min width so Group A and Group B align consistently
   const CARD_MIN = 220; // px
+
+  // Feature flags for temporary UI changes
+  const SHOW_ACTIVITY = false; // set to false to hide 'Aktivitas Terbaru'
 
   // Define two groups
   const groupAKeys = ['orders', 'products', 'customers', 'payments', 'piutangs'];
@@ -293,7 +296,7 @@ export default function Dashboard() {
       <Box sx={{ width: '100%' }}>
         <style>{scrollbarStyle}</style>
         {/* Two-column layout (a1 left, a2 right) */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gridAutoRows: 'auto', rowGap: 2, columnGap: 3, alignItems: 'start' }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: SHOW_ACTIVITY ? '1fr 320px' : '1fr' }, gridAutoRows: 'auto', rowGap: 2, columnGap: SHOW_ACTIVITY ? 3 : 0, alignItems: 'start' }}>
 
           {/* a1: left column - contains a1-overview (top) and a1-finance (below) */}
           <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -325,18 +328,16 @@ export default function Dashboard() {
 
                 {/* Quick Actions — moved here under Finances & Orders */}
                 <Box sx={{ mt: 1, mb: 1 }}>
-                  <Box sx={{ p: 0, borderRadius: 3, color: '#fff', width: '100%' }}>
+                  <Box sx={{ p: 0, borderRadius: 3, color: 'var(--text)', width: '100%' }}>
                     <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
                       {[
                         { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
                         { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
-                        { key: 'record-payment', title: 'Record Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open record payment (not wired)', 'info'); } },
+                        { key: 'record-payment', title: 'Verif Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open verif payment (not wired)', 'info'); } },
                         { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
-                        { key: 'export', title: 'Export CSV', icon: <FileDownloadIcon />, color: 'blue', onClick: exportStatsCsv },
                         { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
                         { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
-                        { key: 'setup', title: 'Setup', icon: <DarkModeIcon />, color: 'teal', onClick: () => { if (typeof navigate === 'function') navigate('/setup'); else notify('Open setup (not wired)', 'info'); } },
                       ].map((b) => {
                         const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
                         const accent = accentMap[b.color] || '#3b82f6';
@@ -364,7 +365,7 @@ export default function Dashboard() {
                               '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
                             }}
                           >
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(${(accent === '#3b82f6' ? '59,130,246' : (accent === '#fbbf24' ? '255,191,36' : '0,0,0'))},0.08)`, color: accent, boxShadow: `0 6px 18px ${accent}10` }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(var(--accent-rgb),0.06)`, color: 'var(--accent)', boxShadow: `0 6px 18px rgba(var(--accent-rgb),0.08)` }}>
                               {b.icon}
                             </Box>
                             <Box sx={{ flex: 1 }}>
@@ -378,36 +379,41 @@ export default function Dashboard() {
                 </Box>
           </Box>
 
-          {/* a2: right column - Aktivitas Terbaru + separate Quick Actions & System */}
-          <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
-            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
-                Aktivitas Terbaru
-              </Typography>
-              <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
-                <List>
-                  {aktivitas.map((item, idx) => (
-                    <ListItem key={idx} sx={{ py: 1 }}>
-                      <ListItemText primary={item} primaryTypographyProps={{ sx: { color: 'var(--text)', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            </Paper>
+          {/* Right column (activity/system) is optional. If activity is disabled, render System card inside left column to avoid empty gap. */}
+          {SHOW_ACTIVITY ? (
+            <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
+              <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
+                  Aktivitas Terbaru
+                </Typography>
+                <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
+                  <List>
+                    {aktivitas.map((item, idx) => (
+                      <ListItem key={idx} sx={{ py: 1 }}>
+                        <ListItemText primary={item} primaryTypographyProps={{ sx: { color: 'var(--text)', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              </Paper>
 
-            {/* Quick Actions removed from here (moved under Overview) */}
+              {/* System card */}
+              <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
+                <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
+                <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
+              </Paper>
+            </Box>
+          ) : (
+            // Activity disabled — render System card under Finances in left column to avoid empty right column
+            <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
+                <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
+                <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
+              </Paper>
+            </Box>
+          )}
 
-            {/* System Info - separate card */}
-            <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
-              <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
-              <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
-            </Paper>
-          </Box>
-
-          {/* Chart row: lazy-loaded charts to reduce initial parse */}
-          <Suspense fallback={<div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading charts…</div>}>
-            <DashboardCharts salesData={salesData} ordersStatusData={ordersStatusData} />
-          </Suspense>
+          {/* Charts disabled - placeholder removed to avoid empty main area */}
         </Box>
   <QuickActionModals onNotify={notify} onSuccess={refreshCounts} />
       </Box>

@@ -25,9 +25,10 @@
   --button-text: #081423;  /* dark button text */
 }
 .dark {
-  --bg: #18181b;        /* dark page background */
-  --panel: #23232b;     /* dark panel */
-  --main-card-bg: rgba(35,41,70,0.98);
+  --bg: #0f1724;        /* neutral dark page background */
+  /* Make panel match main-card-bg for consistent dark-mode surfaces */
+  --panel: #0f1724;
+  --main-card-bg: #0f1724;
   --text: #e6eef8;
   --muted: #93a3c0;
   --accent: #60a5fa;
@@ -35,7 +36,7 @@
   --border: #374151;
   --text-rgb: 230,238,248;
   --border-rgb: 55,65,81;
-  --bg-rgb: 24,24,27;
+  --bg-rgb: 15,23,36;
   --input-bg: #232946;
   --placeholder: #9aa6bf;
   --icon: #cbd5e1;
@@ -130,8 +131,13 @@ html:not(.dark) ::-webkit-scrollbar-track {
 }
 
 /* Make MUI Paper and other cards follow CSS tokens where possible */
-.MuiPaper-root, .card, .paper, .main-card {
-  background: var(--panel) !important;
+.MuiPaper-root, .card, .paper {
+  background: var(--panel);
+}
+
+/* main-card explicitly follows main-card token to allow distinct surface control */
+.main-card {
+  background-color: var(--main-card-bg);
 }
 
 
@@ -192,9 +198,22 @@ th, td {
   vertical-align: middle;
 }
 
+/* Add consistent bottom padding to table cells to improve vertical rhythm and readability.
+   Use a modest value so compact tables aren't overly tall. Compact tables can override
+   with a `.table-compact` class if needed. */
+table tbody tr td, table thead tr th, .MuiTableCell-root {
+  padding-bottom: 0.6rem;
+}
+
+/* Compact table variant - useful for dense lists or inventory tables */
+.table-compact tbody tr td, .table-compact thead tr th, .table-compact .MuiTableCell-root {
+  padding-bottom: 0.25rem;
+}
+
 /* Small tweak: when using a table inside a Paper or similar card, allow a subtle horizontal scroll */
 .card .table-responsive, .paper .table-responsive {
-  box-shadow: inset 0 -8px 18px -12px rgba(0,0,0,0.6);
+  /* Removed inset shadow per request; keep a subtle outer shadow for separation */
+  box-shadow: 0 6px 14px -10px rgba(2,6,23,0.12);
 }
 
 /* common main content card styling to match Orders visual (neon inset shadow) */
@@ -202,7 +221,8 @@ th, td {
   background-color: var(--main-card-bg);
   border-radius: 1rem;
   padding: 1rem;
-  box-shadow: 0 0 24px rgba(251,191,36,0.18), inset 0 -8px 24px rgba(0,0,0,0.45);
+  /* Removed inset shadow to make elevation appear outward only */
+  box-shadow: 0 6px 24px rgba(2,6,23,0.10);
 }
 
 /* Force no extra bottom padding / unexpected height on main content cards */
@@ -219,12 +239,14 @@ th, td {
 
 /* Tables: use theme tokens for header, rows, borders */
 table thead tr th {
-  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+  /* light mode: subtle translucent header to keep contrast without bright silver */
+  background: rgba(var(--bg-rgb),0.06);
   color: var(--text);
   border-bottom: 1px solid var(--border);
 }
-html.dark table thead tr th {
-  background: linear-gradient(180deg, rgba(35,35,45,0.9), rgba(35,35,45,0.8));
+.dark table thead tr th {
+  /* dark mode: use token-based panel header to avoid hard-coded blue tint */
+  background: linear-gradient(180deg, rgba(var(--bg-rgb),0.04), rgba(var(--bg-rgb),0.02));
   color: var(--text);
   border-bottom: 1px solid var(--border);
 }
@@ -245,6 +267,22 @@ html.dark table tbody tr:hover td {
   background: rgba(var(--accent-rgb),0.08);
 }
 
+/* Ensure header cells (thead/th) do not change on row hover or active states.
+   Some components applied hover rules broadly to .MuiTableCell-root; make header cells
+   visually stable by forcing their background to the header background and disabling
+   hover transitions. */
+table thead tr th, .MuiTableCell-head, .MuiTableCell-head * {
+  background: inherit !important;
+}
+.MuiTableRow-root:hover .MuiTableCell-head, table tbody tr:hover th, table thead tr:hover th {
+  background: inherit !important;
+}
+
+/* Also ensure the top header does not get a hover-induced box-shadow or transform */
+.MuiTableCell-head {
+  transition: none !important;
+}
+
 /* MUI table integrations: make headers and cells follow tokens */
 .MuiTableCell-head {
   background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
@@ -252,7 +290,7 @@ html.dark table tbody tr:hover td {
   border-bottom: 1px solid var(--border) !important;
 }
 .dark .MuiTableCell-head {
-  background: linear-gradient(180deg, rgba(35,35,45,0.9), rgba(35,35,45,0.8));
+  background: linear-gradient(180deg, rgba(var(--bg-rgb),0.04), rgba(var(--bg-rgb),0.02));
 }
 .MuiTableRow-root:hover .MuiTableCell-root {
   background: rgba(var(--accent-rgb),0.06) !important;

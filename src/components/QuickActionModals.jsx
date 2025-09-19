@@ -24,7 +24,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
 
-  // Record Payment form state
+  // Record Payment form state (user-facing label will be 'Verif Payment')
   const [payOrderId, setPayOrderId] = useState('');
   const [payAmount, setPayAmount] = useState('');
 
@@ -73,12 +73,12 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
     setSubmitting(true);
     try {
       await createPayment({ order_id: payOrderId, amount: Number(payAmount) });
-      onNotify('Payment recorded', 'success');
+      onNotify('Payment verified', 'success');
       onSuccess();
       setOpenRecordPayment(false);
       setPayOrderId(''); setPayAmount('');
     } catch {
-      onNotify('Failed to record payment', 'error');
+      onNotify('Failed to verify payment', 'error');
     } finally { setSubmitting(false); }
   };
 
@@ -123,9 +123,9 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         </DialogActions>
       </Dialog>
 
-      {/* Record Payment Dialog */}
+      {/* Record Payment Dialog (labelled 'Verif Payment') */}
       <Dialog open={openRecordPayment} onClose={() => setOpenRecordPayment(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Record Payment</DialogTitle>
+        <DialogTitle>Verif Payment</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField label="Order ID" value={payOrderId} onChange={(e) => setPayOrderId(e.target.value)} />
@@ -134,7 +134,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenRecordPayment(false)} disabled={submitting}>Cancel</Button>
-          <Button onClick={handleRecordPayment} disabled={submitting}>{submitting ? 'Recording…' : 'Record'}</Button>
+          <Button onClick={handleRecordPayment} disabled={submitting}>{submitting ? 'Verifying…' : 'Verify'}</Button>
         </DialogActions>
       </Dialog>
 

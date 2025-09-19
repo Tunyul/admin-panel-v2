@@ -16,10 +16,11 @@ export default function Header() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          bgcolor: 'transparent',
+          bgcolor: 'var(--panel)',
           height: 72,
           borderRadius: 0,
           boxShadow: 'none',
+          border: 'none',
           mt: 0,
           mb: 0,
           position: 'fixed',
@@ -33,7 +34,7 @@ export default function Header() {
         <h1
           className="text-3xl font-extrabold tracking-wide"
           style={{
-            color: '#fbbf24',
+            color: 'var(--accent)',
             fontFamily: 'Quicksand, Poppins, Comic Sans MS, Arial, sans-serif',
             paddingLeft: 32,
             letterSpacing: 2,
