@@ -40,16 +40,16 @@ import useLoadingStore from '../store/loadingStore';
 const scrollbarStyle = `
   ::-webkit-scrollbar {
     width: 10px;
-    background: #232946;
+    background: transparent;
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(120deg, #ffe066 30%, #60a5fa 70%);
+    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.26), rgba(var(--accent-rgb),0.26));
     border-radius: 8px;
-    box-shadow: 0 0 8px #fbbf24cc;
+    box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(120deg, #fbbf24 30%, #3b82f6 70%);
+    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.36), rgba(var(--accent-rgb),0.36));
   }
 `;
 
@@ -390,7 +390,7 @@ function Orders() {
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Orders
         </Typography>
-        <Button variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
           Add Order
         </Button>
       </Box>

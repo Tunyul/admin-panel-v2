@@ -57,21 +57,21 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <SearchIcon sx={{ color: '#cbd5e1' }} />
+              <SearchIcon sx={{ color: 'var(--muted)' }} />
             </InputAdornment>
           ),
-          endAdornment: local ? (
+            endAdornment: local ? (
             <InputAdornment position="end">
-              <IconButton size="small" onClick={() => setLocal('')} sx={{ color: '#cbd5e1' }} aria-label="clear search"><ClearIcon fontSize="small" /></IconButton>
+              <IconButton size="small" onClick={() => setLocal('')} sx={{ color: 'var(--muted)' }} aria-label="clear search"><ClearIcon fontSize="small" /></IconButton>
             </InputAdornment>
           ) : null,
         }}
-        InputLabelProps={{ sx: { color: '#94a3b8' } }}
+        InputLabelProps={{ sx: { color: 'var(--placeholder)' } }}
         sx={{
           minWidth: 220,
-          '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.03)', color: '#fff' },
-          '& .MuiOutlinedInput-input': { color: '#fff' },
-          '& .MuiInputLabel-root': { color: '#94a3b8' },
+          '& .MuiOutlinedInput-root': { bgcolor: 'rgba(var(--bg-rgb),0.03)', color: 'var(--text)' },
+          '& .MuiOutlinedInput-input': { color: 'var(--text)' },
+          '& .MuiInputLabel-root': { color: 'var(--placeholder)' },
           '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148,163,184,0.08)' },
         }}
       />
@@ -85,17 +85,17 @@ export default function TableToolbar({ value, onChange, placeholder = 'Search…
             label="Filter"
             onChange={(e) => onFilterChange && onFilterChange(e.target.value)}
             MenuProps={{
-              PaperProps: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } },
+              PaperProps: { sx: { bgcolor: 'var(--panel)', color: 'var(--muted)' } },
             }}
             sx={{
-              '& .MuiSelect-select': { color: '#fff' },
+              '& .MuiSelect-select': { color: 'var(--text)' },
               '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148,163,184,0.08)' },
-              bgcolor: 'rgba(255,255,255,0.02)'
+              bgcolor: 'rgba(var(--bg-rgb),0.02)'
             }}
           >
             <MenuItem value="">(all)</MenuItem>
             {filterOptions.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value} sx={{ color: '#cbd5e1' }}>{opt.label}</MenuItem>
+              <MenuItem key={opt.value} value={opt.value} sx={{ color: 'var(--muted)' }}>{opt.label}</MenuItem>
             ))}
           </Select>
         </FormControl>

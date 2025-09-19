@@ -38,7 +38,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
   const inputSx = {
     '& .MuiOutlinedInput-root': {
       backgroundColor: 'rgba(255,255,255,0.02)',
-      color: '#fff',
+  color: 'var(--text)',
       '& fieldset': { borderColor: 'rgba(148,163,184,0.12)' },
       '&:hover fieldset': { borderColor: '#60a5fa' },
       '&.Mui-focused fieldset': { borderColor: '#60a5fa', boxShadow: '0 0 0 6px rgba(96,165,250,0.04)' },
@@ -233,7 +233,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
             </Box>
           </Box>
         </Box>
-        <IconButton onClick={resetAndClose} sx={{ color: '#fff', position: 'absolute', right: 12, top: 12 }} aria-label="close-dialog"><CloseIcon /></IconButton>
+                      <IconButton onClick={resetAndClose} sx={{ color: 'var(--text)', position: 'absolute', right: 12, top: 12 }} aria-label="close-dialog"><CloseIcon /></IconButton>
       </DialogTitle>
 
       <DialogContent dividers sx={{ overflowY: 'auto', px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 }, flex: 1 }}>
@@ -300,7 +300,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                   margin="dense"
                   fullWidth
                   sx={inputSx}
-                  InputProps={{ ...params.InputProps, sx: { color: '#fff' } }}
+                  InputProps={{ ...params.InputProps, sx: { color: 'var(--text)' } }}
                   onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
                 />
               )}
@@ -368,7 +368,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                           margin="dense"
                           fullWidth
                           sx={inputSx}
-                          InputProps={{ ...params.InputProps, sx: { color: '#fff' } }}
+                          InputProps={{ ...params.InputProps, sx: { color: 'var(--text)' } }}
                         />
                       )}
                     />
@@ -407,13 +407,13 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                   </Box>
                   <Box sx={{ width: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, alignSelf: 'flex-start' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconButton size="small" onClick={() => decrement(idx)} sx={{ bgcolor: '#1f2937', color: '#fff' }}><RemoveIcon fontSize="small" /></IconButton>
-                      <Box sx={{ minWidth: 48, textAlign: 'center', color: '#fff', border: '1px solid #334155', borderRadius: 1, py: '6px' }}>{ln.quantity || 0}</Box>
-                      <IconButton size="small" onClick={() => increment(idx)} sx={{ bgcolor: '#1f2937', color: '#fff' }}><AddIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" onClick={() => decrement(idx)} sx={{ bgcolor: 'var(--panel)', color: 'var(--text)' }}><RemoveIcon fontSize="small" /></IconButton>
+                      <Box sx={{ minWidth: 48, textAlign: 'center', color: 'var(--text)', border: '1px solid rgba(var(--border-rgb),0.18)', borderRadius: 1, py: '6px' }}>{ln.quantity || 0}</Box>
+                      <IconButton size="small" onClick={() => increment(idx)} sx={{ bgcolor: 'var(--panel)', color: 'var(--text)' }}><AddIcon fontSize="small" /></IconButton>
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', ml: 'auto' }}>
-                    <IconButton aria-label="remove-line" title="Hapus baris" size="small" onClick={() => removeLine(idx)} sx={{ bgcolor: '#ef4444', color: '#fff', '&:hover': { bgcolor: '#dc2626' } }}>
+                    <IconButton aria-label="remove-line" title="Hapus baris" size="small" onClick={() => removeLine(idx)} sx={{ bgcolor: '#ef4444', color: 'var(--button-text)', '&:hover': { bgcolor: '#dc2626' } }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Box>
@@ -430,7 +430,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
         {step === 'summary' && (
           <Box>
             <Typography sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Summary</Typography>
-            <Box sx={{ color: '#fff', mb: 2 }}>
+            <Box sx={{ color: 'var(--text)', mb: 2 }}>
               <Typography component="div"><strong>Customer:</strong> {selectedCustomer ? (selectedCustomer.nama || selectedCustomer.name) : (form.customer_name || '-')}</Typography>
               <Typography component="div"><strong>Phone:</strong> {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.no_hp) : (form.customer_phone || '-')}</Typography>
             </Box>
@@ -453,7 +453,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                       const lineTotal = pricePer * qty;
                       return (
                         <TableRow key={i} sx={{ borderBottom: '1px dashed rgba(255,255,255,0.03)' }}>
-                          <TableCell sx={{ color: '#fff' }}>{prod ? (prod.nama_produk || prod.nama) : `Produk #${ag.produk_id}`}</TableCell>
+                          <TableCell sx={{ color: 'var(--text)' }}>{prod ? (prod.nama_produk || prod.nama) : `Produk #${ag.produk_id}`}</TableCell>
                           <TableCell sx={{ color: '#cbd5e1', fontWeight: 700 }}>{qty}</TableCell>
                           <TableCell sx={{ color: '#cbd5e1', textAlign: 'right' }}>Rp{Number(lineTotal).toLocaleString('id-ID')}</TableCell>
                         </TableRow>
@@ -483,7 +483,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
           </Box>
           <Box>
             {step === 'customer' && (
-              <Button variant="outlined" onClick={handleCustomerProceed} disabled={!selectedCustomer && !(form.customer_name || form.customer_phone)} sx={{ ml: 1, color: '#fff', borderColor: '#fff', backgroundColor: 'transparent', '&.Mui-disabled': { color: 'rgba(148,163,184,0.95)', borderColor: 'rgba(148,163,184,0.25)', backgroundColor: 'rgba(148,163,184,0.03)', cursor: 'not-allowed', opacity: 1 } }}>Pilih / Lanjut</Button>
+              <Button variant="outlined" onClick={handleCustomerProceed} disabled={!selectedCustomer && !(form.customer_name || form.customer_phone)} sx={{ ml: 1, color: 'var(--text)', borderColor: 'var(--border)', backgroundColor: 'transparent', '&.Mui-disabled': { color: 'rgba(148,163,184,0.95)', borderColor: 'rgba(148,163,184,0.25)', backgroundColor: 'rgba(148,163,184,0.03)', cursor: 'not-allowed', opacity: 1 } }}>Pilih / Lanjut</Button>
             )}
             {step === 'items' && (
               <Button variant="contained" onClick={() => setStep('summary')} disabled={!itemsValid()} sx={{ '&.Mui-disabled': { backgroundColor: 'rgba(148,163,184,0.06)', color: 'rgba(148,163,184,0.9)', borderColor: 'rgba(148,163,184,0.15)' } }}>Lanjut ke Summary</Button>

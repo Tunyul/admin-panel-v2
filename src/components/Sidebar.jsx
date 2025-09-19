@@ -37,7 +37,7 @@ export default function Sidebar() {
         alignSelf: 'flex-start',
         height: 'calc(100vh - 72px)',
         background: 'none',
-        color: '#fff',
+  color: 'var(--text)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',

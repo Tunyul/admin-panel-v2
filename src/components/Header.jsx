@@ -50,10 +50,10 @@ export default function Header() {
             variant="outlined"
             sx={{
               minWidth: 180,
-              bgcolor: '#232946',
+              bgcolor: 'var(--input-bg)',
               borderRadius: 3,
               input: {
-                color: '#fff',
+                color: 'var(--text)',
                 fontFamily: 'Poppins, Arial, sans-serif',
                 fontWeight: 500,
                 letterSpacing: 1,
@@ -61,7 +61,7 @@ export default function Header() {
               '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' },
               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#f472b6' },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#fbbf24' },
-              '& .MuiInputBase-root': { bgcolor: '#232946', borderRadius: 3 },
+              '& .MuiInputBase-root': { bgcolor: 'var(--input-bg)', borderRadius: 3 },
               '& .MuiInputAdornment-root': { color: '#fbbf24' },
               transition: 'all 0.2s cubic-bezier(.4,0,.2,1)',
             }}
@@ -76,7 +76,7 @@ export default function Header() {
             }}
           />
           <Box sx={{
-            bgcolor: '#232946',
+            bgcolor: 'var(--panel)',
             borderRadius: 2,
             p: 1,
             display: 'flex',

@@ -48,7 +48,7 @@ export default function Payments() {
   const inputSx = {
     '& .MuiOutlinedInput-root': {
       backgroundColor: 'rgba(255,255,255,0.02)',
-      color: '#fff',
+  color: 'var(--text)',
       '& fieldset': { borderColor: 'rgba(148,163,184,0.12)' },
       '&:hover fieldset': { borderColor: '#60a5fa' },
       '&.Mui-focused fieldset': { borderColor: '#60a5fa', boxShadow: '0 0 0 6px rgba(96,165,250,0.04)' },
@@ -244,7 +244,7 @@ export default function Payments() {
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Payments
         </Typography>
-        <Button variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
+  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
           Add Payment
         </Button>
       </Box>
@@ -331,7 +331,7 @@ export default function Payments() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
         </DialogActions>
       </Dialog>
 

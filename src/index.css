@@ -18,7 +18,7 @@
   --border-rgb: 230,238,246;
   --bg-rgb: 251,249,247;
   --border: #e6eef6;       /* very soft blueish border */
-  --input-bg: #ffffff;     /* inputs remain white */
+    --input-bg: #ffffff;     /* inputs background follows panel in light mode */
   --placeholder: #9fb0bd;  /* placeholder soft */
   --icon: #2b3b46;         /* icon color (slightly muted) */
   --gradient: linear-gradient(90deg, #fff8ec 0%, #eef6ff 100%); /* gentle warm -> cool */
@@ -39,7 +39,7 @@
   --input-bg: #232946;
   --placeholder: #9aa6bf;
   --icon: #cbd5e1;
-  --gradient: linear-gradient(90deg, #232946 10%, #f472b6 100%);
+    --gradient: linear-gradient(90deg, rgba(var(--bg-rgb),0.06) 0%, rgba(var(--accent-rgb),0.06) 100%); /* gentle gradient using tokens */
   --button-text: #0b1220;
 }
 

@@ -50,7 +50,7 @@ function ButtonNeon({ children, startIcon, sx, variantColor = 'blue', pill = tru
       startIcon={startIcon}
       {...rest}
       sx={{
-        color: '#fff',
+  color: 'var(--text)',
         borderRadius: pill ? 999 : 1,
         px: pill ? 2 : 1.5,
         py: pill ? 0.8 : 0.6,

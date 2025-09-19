@@ -31,9 +31,9 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
   return (
     <>
       <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
-        <TableCell sx={{ color: '#fff' }}>{row.no_transaksi || '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.customer?.nama || customersMap[row.id_customer]?.nama || '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>
+  <TableCell sx={{ color: 'var(--text)' }}>{row.no_transaksi || '-'}</TableCell>
+  <TableCell sx={{ color: 'var(--text)' }}>{row.customer?.nama || customersMap[row.id_customer]?.nama || '-'}</TableCell>
+  <TableCell sx={{ color: 'var(--text)' }}>
           {(() => {
             const phoneRaw = row.customer?.phone || row.customer?.no_hp || customersMap[row.id_customer]?.phone || customersMap[row.id_customer]?.no_hp || '';
             const phoneDisplay = phoneRaw || '-';
@@ -45,8 +45,8 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
             const waHref = `https://wa.me/${normalized}`;
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box component="a" href={waHref} target="_blank" rel="noopener noreferrer" sx={{ color: '#fff', textDecoration: 'none' }} aria-label={`WhatsApp ${phoneDisplay}`}>
-                  <Typography sx={{ color: '#fff' }}>{phoneDisplay}</Typography>
+                <Box component="a" href={waHref} target="_blank" rel="noopener noreferrer" sx={{ color: 'var(--text)', textDecoration: 'none' }} aria-label={`WhatsApp ${phoneDisplay}`}>
+                  <Typography sx={{ color: 'var(--text)' }}>{phoneDisplay}</Typography>
                 </Box>
                 <IconButton size="small" onClick={() => openWhatsApp(phoneRaw)} aria-label="open-whatsapp" sx={{ color: '#25D366' }}>
                   {/* WhatsApp SVG */}
@@ -65,14 +65,14 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
         </TableCell>
         <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>{row.total_bayar ? `Rp${Number(row.total_bayar).toLocaleString('id-ID')}` : '-'}</TableCell>
         <TableCell>
-          <Chip label={row.status_bayar || '-'} size="small" sx={{ bgcolor: row.status_bayar === 'lunas' ? '#34d399' : '#fbbf24', color: '#232946', fontWeight: 700 }} />
+          <Chip label={row.status_bayar || '-'} size="small" sx={{ bgcolor: row.status_bayar === 'lunas' ? '#34d399' : '#fbbf24', color: 'var(--button-text)', fontWeight: 700 }} />
         </TableCell>
         <TableCell sx={{ color: '#60a5fa' }}>{row.tanggal_jatuh_tempo ? new Date(row.tanggal_jatuh_tempo).toLocaleDateString('id-ID') : '-'}</TableCell>
         <TableCell>
           <Chip label={row.status_order || '-'} size="small" sx={{ bgcolor: row.status_order === 'proses' ? '#60a5fa' : '#a78bfa', color: '#fff', fontWeight: 700 }} />
         </TableCell>
         <TableCell>
-          <Chip label={row.status || '-'} size="small" sx={{ bgcolor: row.status === 'pending' ? '#fbbf24' : row.status === 'proses' ? '#60a5fa' : row.status === 'selesai' ? '#34d399' : '#f87171', color: '#232946', fontWeight: 700 }} />
+          <Chip label={row.status || '-'} size="small" sx={{ bgcolor: row.status === 'pending' ? '#fbbf24' : row.status === 'proses' ? '#60a5fa' : row.status === 'selesai' ? '#34d399' : '#f87171', color: 'var(--button-text)', fontWeight: 700 }} />
         </TableCell>
         <TableCell>
           <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>

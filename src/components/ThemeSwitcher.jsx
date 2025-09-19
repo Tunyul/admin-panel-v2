@@ -12,20 +12,16 @@ export default function ThemeSwitcher() {
 			ref.current.animate(
 				[
 					{
-						background: darkMode
-							? 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)'
-							: 'linear-gradient(90deg, #232946 10%, #f472b6 100%)',
+						background: getComputedStyle(document.documentElement).getPropertyValue('--gradient') || 'var(--gradient)',
 						boxShadow: darkMode
-							? '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a'
-							: '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946',
+							? '0 0 6px 2px rgba(var(--accent-2-rgb),0.18), 0 0 0 1px var(--border)'
+							: '0 0 6px 2px rgba(var(--accent-rgb),0.18), 0 0 0 1px var(--border)',
 					},
 					{
-						background: darkMode
-							? 'linear-gradient(90deg, #232946 10%, #f472b6 100%)'
-							: 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)',
+						background: getComputedStyle(document.documentElement).getPropertyValue('--gradient') || 'var(--gradient)',
 						boxShadow: darkMode
-							? '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946'
-							: '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a',
+							? '0 0 6px 2px rgba(var(--accent-rgb),0.18), 0 0 0 1px var(--border)'
+							: '0 0 6px 2px rgba(var(--accent-2-rgb),0.18), 0 0 0 1px var(--border)',
 					},
 				],
 				{
@@ -59,11 +55,9 @@ export default function ThemeSwitcher() {
 				justifyContent: 'center',
 				borderRadius: 999,
 				boxShadow: darkMode
-					? '0 0 6px 2px #f472b6cc, 0 0 0 1px #232946'
-					: '0 0 6px 2px #fbbf24cc, 0 0 0 1px #fde68a',
-				background: darkMode
-					? 'linear-gradient(90deg, #232946 10%, #f472b6 100%)'
-					: 'linear-gradient(270deg, #fffbe8 10%, #fbbf24 100%)',
+					? '0 0 6px 2px rgba(var(--accent-rgb),0.18), 0 0 0 1px var(--border)'
+					: '0 0 6px 2px rgba(var(--accent-2-rgb),0.18), 0 0 0 1px var(--border)',
+				background: 'var(--gradient)',
 				position: 'relative',
 				overflow: 'hidden',
 				cursor: 'pointer',

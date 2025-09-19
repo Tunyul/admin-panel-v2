@@ -213,7 +213,7 @@ function Products() {
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Products
         </Typography>
-        <Button variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
+  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
           Add Product
         </Button>
       </Box>
@@ -275,7 +275,7 @@ function Products() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
         </DialogActions>
       </Dialog>
 

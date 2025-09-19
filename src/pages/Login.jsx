@@ -33,12 +33,12 @@ export default function Login({ onLogin }) {
 	};
 
 	return (
-		<Box className="min-h-screen flex items-center justify-center bg-transparent text-zinc-100" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
-			<Card sx={{ maxWidth: 320, width: '100%', borderRadius: 6, boxShadow: '0 8px 32px 0 #3b82f655', bgcolor: '#181A20', p: 2, transition: 'box-shadow 0.3s, transform 0.3s', fontFamily: 'Inter, Arial, sans-serif', '&:hover': { boxShadow: '0 12px 48px 0 #3b82f6aa', transform: 'scale(1.02)' } }} className="animate-fade-in">
+		<Box className="min-h-screen flex items-center justify-center bg-transparent" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
+			<Card sx={{ maxWidth: 320, width: '100%', borderRadius: 6, boxShadow: '0 8px 32px 0 rgba(var(--accent-rgb),0.12)', bgcolor: 'var(--panel)', p: 2, transition: 'box-shadow 0.3s, transform 0.3s', fontFamily: 'Inter, Arial, sans-serif', '&:hover': { boxShadow: '0 12px 48px 0 rgba(var(--accent-rgb),0.14)', transform: 'scale(1.02)' } }} className="animate-fade-in">
 				<CardContent>
 					<Box display="flex" flexDirection="column" alignItems="center" mb={3}>
-						<Avatar sx={{ bgcolor: '#fbbf24', width: 56, height: 56, mb: 2, boxShadow: '0 0 16px #fbbf2455', fontFamily: 'Inter, Arial, sans-serif' }}>
-							<LockIcon sx={{ color: '#181A20', fontSize: 32 }} />
+						<Avatar sx={{ bgcolor: 'var(--accent-2)', width: 56, height: 56, mb: 2, boxShadow: 'none', fontFamily: 'Inter, Arial, sans-serif' }}>
+							<LockIcon sx={{ color: 'var(--button-text)', fontSize: 32 }} />
 						</Avatar>
 						<Typography variant="h6" fontWeight={700} color="#fbbf24" className="tracking-wide drop-shadow" sx={{ fontFamily: 'Quicksand, Poppins, Arial, sans-serif', textShadow: '0 2px 8px #fbbf2455', letterSpacing: 1.2, fontSize: 26 }}>CS Bot Admin</Typography>
 					</Box>
@@ -53,8 +53,8 @@ export default function Login({ onLogin }) {
 							color="warning"
 							InputProps={{
 								style: {
-									background: '#232946',
-									color: '#fff',
+									background: 'var(--input-bg)',
+									color: 'var(--text)',
 									borderRadius: 8,
 									fontFamily: 'Poppins, Arial, sans-serif',
 								},
@@ -88,8 +88,8 @@ export default function Login({ onLogin }) {
 							color="warning"
 							InputProps={{
 								style: {
-									background: '#232946',
-									color: '#fff',
+									background: 'var(--input-bg)',
+									color: 'var(--text)',
 									borderRadius: 8,
 									fontFamily: 'Poppins, Arial, sans-serif',
 								},
