@@ -31,11 +31,11 @@ const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap,
   const id = row.id_customer || row.id;
   return (
     <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
-        <TableCell sx={{ color: '#fff' }}>{id}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.nama || '-'}</TableCell>
-        <TableCell sx={{ color: '#34d399' }}>{row.no_hp || '-'}</TableCell>
-        <TableCell sx={{ color: '#ffe066' }}>{row.tipe_customer || '-'}</TableCell>
+  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
+        <TableCell sx={{ color: 'var(--text)' }}>{id}</TableCell>
+        <TableCell sx={{ color: 'var(--text)' }}>{row.nama || '-'}</TableCell>
+        <TableCell sx={{ color: 'var(--accent)' }}>{row.no_hp || '-'}</TableCell>
+        <TableCell sx={{ color: 'var(--accent-2)' }}>{row.tipe_customer || '-'}</TableCell>
         <TableCell>
           <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
           <IconButton color="error" onClick={() => onDelete(id)}><DeleteIcon /></IconButton>
@@ -46,12 +46,12 @@ const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap,
       <TableRow>
         <TableCell colSpan={5} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Customer Details</Typography>
+            <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Customer Details</Typography>
               {detailsLoading[id] ? (
-                <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
+                <Typography sx={{ color: 'var(--accent)', fontStyle: 'italic' }}>Loading details...</Typography>
               ) : (
-                <Box sx={{ color: '#fff' }}>
+                <Box sx={{ color: 'var(--text)' }}>
                   <Typography><strong>Nama:</strong> {detailsMap[id]?.nama || row.nama}</Typography>
                   <Typography><strong>No HP:</strong> {detailsMap[id]?.no_hp || row.no_hp}</Typography>
                   <Typography><strong>Tipe:</strong> {detailsMap[id]?.tipe_customer || row.tipe_customer}</Typography>
@@ -200,7 +200,7 @@ function Customers() {
   }
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Customers
@@ -215,12 +215,12 @@ function Customers() {
           <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search customers by name or phone" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'reguler', label: 'Reguler' }, { value: 'vip', label: 'VIP' }, { value: 'hutang', label: 'Hutang' }]} />
           <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Nama</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>No HP</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Tipe</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
+            <TableRow sx={{ bgcolor: 'transparent' }}>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Nama</TableCell>
+              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>No HP</TableCell>
+              <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tipe</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -239,7 +239,7 @@ function Customers() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>
+                <TableCell colSpan={5} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
                   Belum ada data customer.
                 </TableCell>
               </TableRow>
@@ -250,21 +250,21 @@ function Customers() {
         <Box className="table-bottom-space" />
       </Paper>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
+  <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_customer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="nama" label="Nama" type="text" fullWidth value={form.nama || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#ffe066' } }} error={!!errors.nama} helperText={errors.nama || ''} />
-          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#60a5fa' } }} error={!!errors.no_hp} helperText={errors.no_hp || ''} />
-          <TextField select margin="dense" name="tipe_customer" label="Tipe Customer" fullWidth value={form.tipe_customer || 'reguler'} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#f472b6' } }}>
+          <TextField autoFocus margin="dense" name="nama" label="Nama" type="text" fullWidth value={form.nama || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.nama} helperText={errors.nama || ''} />
+          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent)' } }} error={!!errors.no_hp} helperText={errors.no_hp || ''} />
+          <TextField select margin="dense" name="tipe_customer" label="Tipe Customer" fullWidth value={form.tipe_customer || 'reguler'} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }}>
             <option value="reguler">reguler</option>
             <option value="vip">vip</option>
             <option value="hutang">hutang</option>
           </TextField>
-          <TextField margin="dense" name="batas_piutang" label="Batas Piutang" type="datetime-local" fullWidth value={form.batas_piutang ? form.batas_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#fbbf24' } }} />
-          <TextField margin="dense" name="catatan" label="Catatan" type="text" fullWidth multiline rows={3} value={form.catatan || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#a78bfa' } }} />
+          <TextField margin="dense" name="batas_piutang" label="Batas Piutang" type="datetime-local" fullWidth value={form.batas_piutang ? form.batas_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} />
+          <TextField margin="dense" name="catatan" label="Catatan" type="text" fullWidth multiline rows={3} value={form.catatan || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
+          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
           <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
         </DialogActions>
       </Dialog>

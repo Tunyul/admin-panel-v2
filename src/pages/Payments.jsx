@@ -48,12 +48,12 @@ export default function Payments() {
   const inputSx = {
     '& .MuiOutlinedInput-root': {
       backgroundColor: 'rgba(255,255,255,0.02)',
-  color: 'var(--text)',
+      color: 'var(--text)',
       '& fieldset': { borderColor: 'rgba(148,163,184,0.12)' },
-      '&:hover fieldset': { borderColor: '#60a5fa' },
-      '&.Mui-focused fieldset': { borderColor: '#60a5fa', boxShadow: '0 0 0 6px rgba(96,165,250,0.04)' },
+      '&:hover fieldset': { borderColor: 'var(--accent)' },
+      '&.Mui-focused fieldset': { borderColor: 'var(--accent)', boxShadow: '0 0 0 6px rgba(var(--accent-rgb),0.04)' },
     },
-    '& .MuiInputLabel-root': { color: '#60a5fa' },
+    '& .MuiInputLabel-root': { color: 'var(--accent)' },
   };
 
   const reloadPayments = () => {
@@ -239,7 +239,7 @@ export default function Payments() {
   }
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Payments
@@ -254,27 +254,27 @@ export default function Payments() {
           <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search payments" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'dp', label: 'DP' }, { value: 'pelunasan', label: 'Pelunasan' }]} />
           <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Tanggal</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Nominal</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Tipe</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>No Transaksi</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>No HP</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
+            <TableRow sx={{ bgcolor: 'transparent' }}>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+              <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tanggal</TableCell>
+              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Nominal</TableCell>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Tipe</TableCell>
+                <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>No Transaksi</TableCell>
+                <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>No HP</TableCell>
+                <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData && filteredData.length > 0 ? (
               filteredData.map((row) => (
                 <React.Fragment key={row.id_payment || row.id}>
-                  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.03)' } }}>
-                    <TableCell sx={{ color: '#fff' }}>{row.id_payment || row.id}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.tanggal || '-'}</TableCell>
-                    <TableCell sx={{ color: '#34d399' }}>{row.nominal != null ? `Rp${Number(row.nominal).toLocaleString('id-ID')}` : '-'}</TableCell>
-                    <TableCell sx={{ color: '#ffe066' }}>{row.tipe || '-'}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.no_transaksi || '-'}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.no_hp || '-'}</TableCell>
+                  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.id_payment || row.id}</TableCell>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.tanggal || '-'}</TableCell>
+                    <TableCell sx={{ color: 'var(--accent)' }}>{row.nominal != null ? `Rp${Number(row.nominal).toLocaleString('id-ID')}` : '-'}</TableCell>
+                    <TableCell sx={{ color: 'var(--accent-2)' }}>{row.tipe || '-'}</TableCell>
+                      <TableCell sx={{ color: 'var(--text)' }}>{row.no_transaksi || '-'}</TableCell>
+                      <TableCell sx={{ color: 'var(--text)' }}>{row.no_hp || '-'}</TableCell>
                     <TableCell>
                       <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
                       <IconButton color="error" onClick={() => handleDelete(row.id_payment || row.id)}><DeleteIcon /></IconButton>
@@ -286,12 +286,12 @@ export default function Payments() {
                   <TableRow>
                     <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
                       <Collapse in={expanded === (row.id_payment || row.id)} timeout="auto" unmountOnExit>
-                        <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-                          <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Payment Details</Typography>
+                        <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+                          <Typography variant="subtitle1" sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Payment Details</Typography>
                           {detailsLoading[row.id_payment || row.id] ? (
                             <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
                           ) : (
-                            <Box sx={{ color: '#fff' }}>
+                            <Box sx={{ color: 'var(--text)' }}>
                               <Typography><strong>Bukti:</strong> {detailsMap[row.id_payment || row.id]?.bukti || row.bukti || '-'}</Typography>
                               <Typography><strong>No Transaksi:</strong> {detailsMap[row.id_payment || row.id]?.no_transaksi || row.no_transaksi || '-'}</Typography>
                               <Typography><strong>No HP:</strong> {detailsMap[row.id_payment || row.id]?.no_hp || row.no_hp || '-'}</Typography>
@@ -306,7 +306,7 @@ export default function Payments() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Belum ada data payment.</TableCell>
+                <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>Belum ada data payment.</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -315,23 +315,23 @@ export default function Payments() {
         <Box className="table-bottom-space" />
       </Paper>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
+  <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_payment ? 'Edit Payment' : 'Add Payment'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="tanggal" label="Tanggal" type="datetime-local" fullWidth value={form.tanggal ? form.tanggal.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#ffe066' } }} error={!!errors.tanggal} helperText={errors.tanggal || ''} />
-          <TextField margin="dense" name="nominal" label="Nominal" type="number" fullWidth value={form.nominal != null ? form.nominal : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#60a5fa' } }} error={!!errors.nominal} helperText={errors.nominal || ''} />
-          <TextField margin="dense" name="bukti" label="Bukti (URL/file)" type="text" fullWidth value={form.bukti || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#f472b6' } }} />
-          <TextField select margin="dense" name="tipe" label="Tipe" fullWidth value={form.tipe || ''} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#fbbf24' } }}>
+          <TextField autoFocus margin="dense" name="tanggal" label="Tanggal" type="datetime-local" fullWidth value={form.tanggal ? form.tanggal.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.tanggal} helperText={errors.tanggal || ''} />
+          <TextField margin="dense" name="nominal" label="Nominal" type="number" fullWidth value={form.nominal != null ? form.nominal : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent)' } }} error={!!errors.nominal} helperText={errors.nominal || ''} />
+          <TextField margin="dense" name="bukti" label="Bukti (URL/file)" type="text" fullWidth value={form.bukti || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
+          <TextField select margin="dense" name="tipe" label="Tipe" fullWidth value={form.tipe || ''} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}>
             <option value="">(pilih)</option>
             <option value="dp">dp</option>
             <option value="pelunasan">pelunasan</option>
           </TextField>
-          <TextField margin="dense" name="no_transaksi" label="No Transaksi" type="text" fullWidth value={form.no_transaksi || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#a78bfa' } }} />
-          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#a78bfa' } }} />
+          <TextField margin="dense" name="no_transaksi" label="No Transaksi" type="text" fullWidth value={form.no_transaksi || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
+          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: 'var(--accent-2)', color: 'var(--button-text)', fontWeight: 700 }}>Save</Button>
         </DialogActions>
       </Dialog>
 
@@ -346,20 +346,20 @@ export default function Payments() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={verifyConfirm.open} onClose={cancelVerify} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)', width: { xs: '94%', sm: '640px' }, maxWidth: '960px' } }}>
+  <Dialog open={verifyConfirm.open} onClose={cancelVerify} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)', width: { xs: '94%', sm: '640px' }, maxWidth: '960px' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>Verifikasi payment</DialogTitle>
         <DialogContent>
-          {verifyConfirm.loading ? (
-            <Typography sx={{ color: '#60a5fa' }}>Loading...</Typography>
+                {verifyConfirm.loading ? (
+            <Typography sx={{ color: 'var(--accent-2)' }}>Loading...</Typography>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-              <Box sx={{ minWidth: 220, flex: '0 0 220px' }}>
+                  <Box sx={{ minWidth: 220, flex: '0 0 220px' }}>
                 {verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file || verifyConfirm.data?.bukti ? (
                   <Box component="a" href={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} target="_blank" rel="noopener noreferrer">
                     <Box component="img" src={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} alt="Bukti pembayaran" sx={{ width: '100%', borderRadius: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }} />
                   </Box>
                 ) : (
-                  <Typography sx={{ color: '#cbd5e1', fontStyle: 'italic' }}>Tidak ada bukti</Typography>
+                  <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>Tidak ada bukti</Typography>
                 )}
               </Box>
               <Box sx={{ flex: 1 }}>
@@ -376,7 +376,7 @@ export default function Payments() {
                   InputProps={{
                     // Merge styling and numeric input tweaks into a single `sx` object and keep inputProps
                     sx: {
-                      color: '#fff',
+                      color: 'var(--text)',
                       '& input[type=number]': { MozAppearance: 'textfield' },
                       '& input[type=number]::-webkit-outer-spin-button': { WebkitAppearance: 'none', margin: 0 },
                       '& input[type=number]::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
@@ -396,11 +396,11 @@ export default function Payments() {
                   value={verifyConfirm.form.tipe || verifyConfirm.data?.tipe || ''}
                   onChange={handleVerifyFormChange}
                   SelectProps={{
-                    MenuProps: { PaperProps: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } } },
+                    MenuProps: { PaperProps: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)' } } },
                   }}
                   sx={inputSx}
-                  InputProps={{ sx: { color: '#fff' } }}
-                  InputLabelProps={{ sx: { color: '#fbbf24' } }}
+                  InputProps={{ sx: { color: 'var(--text)' } }}
+                  InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}
                 >
                   <MenuItem value="">(pilih)</MenuItem>
                   <MenuItem value="dp">dp</MenuItem>
@@ -413,7 +413,7 @@ export default function Payments() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={cancelVerify} disabled={verifyConfirm.loading} sx={{ color: '#fff' }}>Batal</Button>
+          <Button onClick={cancelVerify} disabled={verifyConfirm.loading} sx={{ color: 'var(--text)' }}>Batal</Button>
           <Button onClick={confirmVerify} variant="contained" disabled={verifyConfirm.loading} sx={{ bgcolor: '#34d399', color: '#052e16', fontWeight: 700 }}>
             {verifyConfirm.loading ? 'Processing...' : 'Verifikasi'}
           </Button>

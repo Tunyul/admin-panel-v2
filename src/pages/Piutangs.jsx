@@ -157,7 +157,7 @@ export default function Piutangs() {
   }
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
           Piutangs
@@ -172,27 +172,27 @@ export default function Piutangs() {
           <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search piutangs" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'open', label: 'Open' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} />
           <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Customer</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Jumlah</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Tanggal</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Keterangan</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
+            <TableRow sx={{ bgcolor: 'transparent' }}>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Customer</TableCell>
+              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Jumlah</TableCell>
+              <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tanggal</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Keterangan</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData && filteredData.length > 0 ? (
               filteredData.map((row) => (
                 <React.Fragment key={row.id_piutang || row.id}>
-                  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.03)' } }}>
-                    <TableCell sx={{ color: '#fff' }}>{row.id_piutang || row.id}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.id_customer || row.pelanggan_nama || '-'}</TableCell>
-                    <TableCell sx={{ color: '#34d399' }}>{row.jumlah_piutang != null ? `Rp${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'}</TableCell>
-                    <TableCell sx={{ color: '#ffe066' }}>{row.tanggal_piutang || '-'}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.status || '-'}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{row.keterangan || '-'}</TableCell>
+          <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.id_piutang || row.id}</TableCell>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.id_customer || row.pelanggan_nama || '-'}</TableCell>
+            <TableCell sx={{ color: 'var(--accent)' }}>{row.jumlah_piutang != null ? `Rp${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'}</TableCell>
+            <TableCell sx={{ color: 'var(--muted)' }}>{row.tanggal_piutang || '-'}</TableCell>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.status || '-'}</TableCell>
+                    <TableCell sx={{ color: 'var(--text)' }}>{row.keterangan || '-'}</TableCell>
                     <TableCell>
                       <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
                       <IconButton color="error" onClick={() => handleDelete(row.id_piutang || row.id)}><DeleteIcon /></IconButton>
@@ -203,12 +203,12 @@ export default function Piutangs() {
                   <TableRow>
                     <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
                       <Collapse in={expanded === (row.id_piutang || row.id)} timeout="auto" unmountOnExit>
-                        <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+                        <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
                           <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Piutang Details</Typography>
                           {detailsLoading[row.id_piutang || row.id] ? (
                             <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
                           ) : (
-                            <Box sx={{ color: '#fff' }}>
+                            <Box sx={{ color: 'var(--text)' }}>
                               <Typography><strong>Jumlah:</strong> {detailsMap[row.id_piutang || row.id]?.jumlah_piutang || row.jumlah_piutang || '-'}</Typography>
                               <Typography><strong>Tanggal:</strong> {detailsMap[row.id_piutang || row.id]?.tanggal_piutang || row.tanggal_piutang || '-'}</Typography>
                               <Typography><strong>Status:</strong> {detailsMap[row.id_piutang || row.id]?.status || row.status || '-'}</Typography>
@@ -232,22 +232,22 @@ export default function Piutangs() {
         <Box className="table-bottom-space" />
       </Paper>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
+  <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_piutang ? 'Edit Piutang' : 'Add Piutang'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="id_customer" label="Customer ID" type="text" fullWidth value={form.id_customer || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#ffe066' } }} error={!!errors.id_customer} helperText={errors.id_customer || ''} />
-          <TextField margin="dense" name="jumlah_piutang" label="Jumlah Piutang" type="number" fullWidth value={form.jumlah_piutang != null ? form.jumlah_piutang : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#60a5fa' } }} error={!!errors.jumlah_piutang} helperText={errors.jumlah_piutang || ''} />
-          <TextField margin="dense" name="tanggal_piutang" label="Tanggal Piutang" type="datetime-local" fullWidth value={form.tanggal_piutang ? form.tanggal_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#f472b6' } }} error={!!errors.tanggal_piutang} helperText={errors.tanggal_piutang || ''} />
-          <TextField select margin="dense" name="status" label="Status" fullWidth value={form.status || ''} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#fbbf24' } }}>
+          <TextField autoFocus margin="dense" name="id_customer" label="Customer ID" type="text" fullWidth value={form.id_customer || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.id_customer} helperText={errors.id_customer || ''} />
+          <TextField margin="dense" name="jumlah_piutang" label="Jumlah Piutang" type="number" fullWidth value={form.jumlah_piutang != null ? form.jumlah_piutang : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent)' } }} error={!!errors.jumlah_piutang} helperText={errors.jumlah_piutang || ''} />
+          <TextField margin="dense" name="tanggal_piutang" label="Tanggal Piutang" type="datetime-local" fullWidth value={form.tanggal_piutang ? form.tanggal_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} error={!!errors.tanggal_piutang} helperText={errors.tanggal_piutang || ''} />
+          <TextField select margin="dense" name="status" label="Status" fullWidth value={form.status || ''} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}>
             <option value="">(pilih)</option>
             <option value="open">open</option>
             <option value="paid">paid</option>
             <option value="overdue">overdue</option>
           </TextField>
-          <TextField margin="dense" name="keterangan" label="Keterangan" type="text" fullWidth multiline rows={3} value={form.keterangan || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#a78bfa' } }} />
+          <TextField margin="dense" name="keterangan" label="Keterangan" type="text" fullWidth multiline rows={3} value={form.keterangan || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
+          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
           <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
         </DialogActions>
       </Dialog>

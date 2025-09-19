@@ -21,6 +21,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 ### Changed
 
+
+## [v1.7.6] - 2025-09-19
+### Added
+- Visual: applied neon table glow to Products, Customers, Payments, and Piutangs to match Orders list visual contract.
+### Changed
+- Styling: harmonized table container shadows and improved dark-mode surface consistency across list pages.
 ## [v1.7.3] - 2025-09-18
 ### Fixed
 - Payments: removed duplicate `sx` key in the verify modal TextField which could cause style overrides and build warnings.

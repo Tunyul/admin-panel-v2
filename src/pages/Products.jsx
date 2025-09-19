@@ -31,13 +31,13 @@ const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoadin
   const id = row.id_produk || row.id;
   return (
     <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
-        <TableCell sx={{ color: '#fff' }}>{id}</TableCell>
-        <TableCell sx={{ color: '#f8fafc' }}>{row.kategori || '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.nama_produk || '-'}</TableCell>
-        <TableCell sx={{ color: '#34d399' }}>{row.harga_per_m2 ? `Rp${Number(row.harga_per_m2).toLocaleString('id-ID')}` : '-'}</TableCell>
-        <TableCell sx={{ color: '#ffe066' }}>{row.harga_per_pcs ? `Rp${Number(row.harga_per_pcs).toLocaleString('id-ID')}` : '-'}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.stock != null ? row.stock : 0}</TableCell>
+  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
+    <TableCell sx={{ color: 'var(--text)' }}>{id}</TableCell>
+    <TableCell sx={{ color: 'var(--text)' }}>{row.kategori || '-'}</TableCell>
+    <TableCell sx={{ color: 'var(--text)' }}>{row.nama_produk || '-'}</TableCell>
+    <TableCell sx={{ color: 'var(--accent)' }}>{row.harga_per_m2 ? `Rp${Number(row.harga_per_m2).toLocaleString('id-ID')}` : '-'}</TableCell>
+    <TableCell sx={{ color: 'var(--accent-2)' }}>{row.harga_per_pcs ? `Rp${Number(row.harga_per_pcs).toLocaleString('id-ID')}` : '-'}</TableCell>
+    <TableCell sx={{ color: 'var(--text)' }}>{row.stock != null ? row.stock : 0}</TableCell>
         <TableCell>
           <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
           <IconButton color="error" onClick={() => onDelete(id)}><DeleteIcon /></IconButton>
@@ -48,12 +48,12 @@ const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoadin
       <TableRow>
         <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Product Details</Typography>
+            <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Product Details</Typography>
               {detailsLoading[id] ? (
-                <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
+                <Typography sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>Loading details...</Typography>
               ) : (
-                <Box sx={{ color: '#fff' }}>
+                <Box sx={{ color: 'var(--text)' }}>
                   <Typography><strong>Bahan:</strong> {detailsMap[id]?.bahan || row.bahan || '-'}</Typography>
                   <Typography><strong>Finishing:</strong> {detailsMap[id]?.finishing || row.finishing || '-'}</Typography>
                   <Typography><strong>Ukuran Standar:</strong> {detailsMap[id]?.ukuran_standar || row.ukuran_standar || '-'}</Typography>
@@ -208,29 +208,29 @@ function Products() {
   }
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
-          Products
-        </Typography>
-  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
-          Add Product
-        </Button>
-      </Box>
+            <Typography variant="h5" fontWeight={700} sx={{ color: 'var(--accent-2)', letterSpacing: 1 }}>
+              Products
+            </Typography>
+      <Button variant="contained" sx={{ bgcolor: 'var(--accent-2)', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
+              Add Product
+            </Button>
+          </Box>
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
         <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
           <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search products" filterValue={categoryFilter} onFilterChange={setCategoryFilter} filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))} />
           <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Kategori</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nama Produk</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>Harga/m2</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Harga/pcs</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Stock</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
+            <TableRow sx={{ bgcolor: 'transparent' }}>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Kategori</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Nama Produk</TableCell>
+              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Harga/m2</TableCell>
+              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Harga/pcs</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Stock</TableCell>
+              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -249,7 +249,7 @@ function Products() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>
+                <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
                   Belum ada data produk.
                 </TableCell>
               </TableRow>
@@ -260,7 +260,7 @@ function Products() {
         <Box className="table-bottom-space" />
       </Paper>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
+      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_produk ? 'Edit Product' : 'Add Product'}</DialogTitle>
         <DialogContent>
           <TextField autoFocus margin="dense" name="kategori" label="Kategori" type="text" fullWidth value={form.kategori || ''} onChange={handleChange} error={!!errors.kategori} helperText={errors.kategori || ''} />
@@ -274,7 +274,7 @@ function Products() {
           <TextField margin="dense" name="stock" label="Stock" type="number" fullWidth value={form.stock != null ? form.stock : ''} onChange={handleChange} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
+          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
           <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
         </DialogActions>
       </Dialog>
