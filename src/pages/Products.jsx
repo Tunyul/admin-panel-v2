@@ -67,6 +67,23 @@ const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoadin
   );
 });
 
+// reuse same modal scrollbar style as Orders for consistent look
+const scrollbarStyle = `
+  ::-webkit-scrollbar {
+    width: 10px;
+    background: transparent;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.26), rgba(var(--accent-rgb),0.26));
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.36), rgba(var(--accent-rgb),0.36));
+  }
+`;
+
 function Products() {
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
@@ -199,56 +216,113 @@ function Products() {
   // Loading early-return removed — always render page; _loading only disables actions where used.
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h5" fontWeight={700} sx={{ color: 'var(--accent-2)', letterSpacing: 1 }}>
-              Products
-            </Typography>
-      <Button variant="contained" sx={{ bgcolor: 'var(--accent-2)', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
-              Add Product
-            </Button>
+  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', px: { xs: 2, md: 2 }, pt: { xs: 1.5, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+    <style>{scrollbarStyle}</style>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1, mt: 0 }}>
+            Products
+          </Typography>
+              {/* Desktop/tablet: toolbar inline next to title */}
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <TableToolbar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search products"
+                  filterValue={categoryFilter}
+                  onFilterChange={setCategoryFilter}
+                  filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))}
+                  noWrap={true}
+                />
+              </Box>
+            </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+            Add Product
+          </Button>
+        </Box>
           </Box>
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-        <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
-          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search products" filterValue={categoryFilter} onFilterChange={setCategoryFilter} filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))} />
-          <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'transparent' }}>
-              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Kategori</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Nama Produk</TableCell>
-              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Harga/m2</TableCell>
-              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Harga/pcs</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Stock</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData && filteredData.length > 0 ? (
-              filteredData.map((row) => (
-                <ProductRow
-                  key={row.id_produk || row.id}
-                  row={row}
-                  expanded={expanded}
-                  detailsLoading={detailsLoading}
-                  detailsMap={detailsMap}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
-                  Belum ada data produk.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          </Table>
+        {/* mimic Orders layout: fixed-height scroll area with inner modal-scroll for consistent scrollbar and sticky header */}
+        <Box sx={{ width: '100%', height: { xs: 520, md: 720 }, borderRadius: 0, p: 0, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', minHeight: 0 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', pt: 0, px: 0, pb: 2, minHeight: 0 }}>
+            {/* Small screens: show toolbar below header */}
+            <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2, px: 2 }}>
+              <TableToolbar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search products"
+                filterValue={categoryFilter}
+                onFilterChange={setCategoryFilter}
+                filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))}
+              />
+            </Box>
+            <Box
+              className="modal-scroll"
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'auto',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--scroll-thumb-color) var(--scroll-track-color)',
+                '&::-webkit-scrollbar': { width: 10, height: 10 },
+                '&::-webkit-scrollbar-track': { background: 'var(--scroll-track, transparent)' },
+                '&::-webkit-scrollbar-thumb': { background: 'var(--scroll-thumb)', borderRadius: 8, boxShadow: '0 0 8px rgba(var(--text-rgb),0.06)' },
+                '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
+              }}
+            >
+              {/* toolbar moved to header (desktop) and small-screen fallback above */}
+              {/* single table with colgroup and fixed layout for header/body alignment */}
+              <Table sx={{ tableLayout: 'fixed', minWidth: { xs: 800, md: 1400 }, width: 'max-content', '& .MuiTableCell-root': { boxSizing: 'border-box', padding: '0.75rem 0.75rem' }, '& .MuiTableCell-root:last-child': { paddingRight: 0 } }}>
+                <colgroup>
+                  {/* ID, Kategori, Nama Produk, Harga/m2, Harga/pcs, Stock, Aksi */}
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '220px' }} />
+                  <col style={{ width: '520px' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '140px' }} />
+                </colgroup>
+                <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1200, background: 'var(--main-card-bg)' }}>
+                  <TableRow sx={{ bgcolor: 'transparent' }}>
+                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Kategori</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Nama Produk</TableCell>
+                    <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Harga/m2</TableCell>
+                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Harga/pcs</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Stock</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredData && filteredData.length > 0 ? (
+                    filteredData.map((row) => (
+                      <ProductRow
+                        key={row.id_produk || row.id}
+                        row={row}
+                        expanded={expanded}
+                        detailsLoading={detailsLoading}
+                        detailsMap={detailsMap}
+                        onOpen={handleOpen}
+                        onDelete={handleDelete}
+                        onExpand={handleExpandWithDetails}
+                      />
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
+                        Belum ada data produk.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
         </Box>
-        <Box className="table-bottom-space" />
       </Paper>
 
       <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>

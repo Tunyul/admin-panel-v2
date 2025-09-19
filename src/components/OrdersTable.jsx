@@ -1,4 +1,5 @@
 import React from 'react';
+import normalizePhone from '../utils/phone';
 import {
   Table,
   TableContainer,
@@ -18,17 +19,7 @@ import InfoIcon from '@mui/icons-material/InfoOutlined';
 import WhatsAppLogo from '../assets/WhatsApp.svg.webp';
 
 function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, productsList, customersMap }) {
-  // normalize phone number for wa.me links
-  const normalizePhone = (phone) => {
-    if (!phone) return null;
-    let normalized = String(phone || '').replace(/[^+\d]/g, '');
-    if (!normalized) return null;
-    if (normalized.startsWith('+')) normalized = normalized.slice(1);
-    if (normalized.startsWith('0')) normalized = '62' + normalized.slice(1);
-    // finally ensure only digits remain
-    normalized = normalized.replace(/\D/g, '');
-    return normalized || null;
-  };
+  // normalize phone number for wa.me links (now imported from utils)
   return (
     <>
   <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>

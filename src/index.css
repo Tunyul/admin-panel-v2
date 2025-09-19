@@ -163,6 +163,16 @@ html:not(.dark) ::-webkit-scrollbar-track {
   -webkit-overflow-scrolling: touch;
 }
 
+/* make table wrappers use modal-style scrollbar by default */
+.table-responsive, .table-responsive * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
+}
+.table-responsive::-webkit-scrollbar { width: 10px; height: 10px; }
+.table-responsive::-webkit-scrollbar-track { background: var(--scroll-track, transparent); }
+.table-responsive::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; box-shadow: 0 0 8px rgba(var(--text-rgb),0.06); }
+.table-responsive::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb); }
+
 /* Ensure table elements respect container width and wrap/flex where possible */
 table {
   max-width: 100%;

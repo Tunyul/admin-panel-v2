@@ -53,7 +53,7 @@ export default function Sidebar() {
         zIndex: 1100,
       }}
     >
-  <List sx={{ width: '100%', overflowY: 'auto', flex: 1 }}>
+  <List className="modal-scroll" sx={{ width: '100%', overflowY: 'auto', flex: 1 }}>
         {menu.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 1.5 }}>
             <ListItemButton

@@ -149,82 +149,118 @@ export default function Piutangs() {
   // Loading early-return removed — always render page; _loading only disables actions where used.
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
-          Piutangs
-        </Typography>
-  <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
-          Add Piutang
-        </Button>
+    <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', px: { xs: 2, md: 2 }, pt: { xs: 1.5, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1, mt: 0 }}>
+            Piutangs
+          </Typography>
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search piutangs" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'open', label: 'Open' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} noWrap={true} />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+            Add Piutang
+          </Button>
+        </Box>
       </Box>
 
       <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-        <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
-          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search piutangs" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'open', label: 'Open' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} />
-          <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'transparent' }}>
-              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Customer</TableCell>
-              <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Jumlah</TableCell>
-              <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tanggal</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Keterangan</TableCell>
-              <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData && filteredData.length > 0 ? (
-              filteredData.map((row) => (
-                <React.Fragment key={row.id_piutang || row.id}>
-          <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
-                    <TableCell sx={{ color: 'var(--text)' }}>{row.id_piutang || row.id}</TableCell>
-                    <TableCell sx={{ color: 'var(--text)' }}>{row.id_customer || row.pelanggan_nama || '-'}</TableCell>
-            <TableCell sx={{ color: 'var(--accent)' }}>{row.jumlah_piutang != null ? `Rp${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'}</TableCell>
-            <TableCell sx={{ color: 'var(--muted)' }}>{row.tanggal_piutang || '-'}</TableCell>
-                    <TableCell sx={{ color: 'var(--text)' }}>{row.status || '-'}</TableCell>
-                    <TableCell sx={{ color: 'var(--text)' }}>{row.keterangan || '-'}</TableCell>
-                    <TableCell>
-                      <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
-                      <IconButton color="error" onClick={() => handleDelete(row.id_piutang || row.id)}><DeleteIcon /></IconButton>
-                      <IconButton color="info" onClick={() => handleExpandWithDetails(row.id_piutang || row.id)}><InfoIcon /></IconButton>
-                    </TableCell>
+        <Box sx={{ width: '100%', height: { xs: 520, md: 720 }, borderRadius: 0, p: 0, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', minHeight: 0 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', pt: 0, px: 0, pb: 2, minHeight: 0 }}>
+            <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2, px: 2 }}>
+              <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search piutangs" filterValue={statusFilter} onFilterChange={setStatusFilter} filterOptions={[{ value: 'open', label: 'Open' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} />
+            </Box>
+            <Box
+              className="modal-scroll"
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'auto',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--scroll-thumb-color) var(--scroll-track-color)',
+                '&::-webkit-scrollbar': { width: 10, height: 10 },
+                '&::-webkit-scrollbar-track': { background: 'var(--scroll-track, transparent)' },
+                '&::-webkit-scrollbar-thumb': { background: 'var(--scroll-thumb)', borderRadius: 8, boxShadow: '0 0 8px rgba(var(--text-rgb),0.06)' },
+                '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
+              }}
+            >
+              <Table sx={{ tableLayout: 'fixed', minWidth: { xs: 800, md: 1400 }, width: 'max-content', '& .MuiTableCell-root': { boxSizing: 'border-box', padding: '0.75rem 0.75rem' } }}>
+                <colgroup>
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '220px' }} />
+                  <col style={{ width: '200px' }} />
+                  <col style={{ width: '160px' }} />
+                  <col style={{ width: '160px' }} />
+                  <col style={{ width: '220px' }} />
+                  <col style={{ width: '200px' }} />
+                </colgroup>
+                <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1200, background: 'var(--main-card-bg)' }}>
+                  <TableRow sx={{ bgcolor: 'transparent' }}>
+                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
+                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Customer</TableCell>
+                    <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Jumlah</TableCell>
+                    <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tanggal</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Status</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Keterangan</TableCell>
+                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
                   </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredData && filteredData.length > 0 ? (
+                    filteredData.map((row) => (
+                      <React.Fragment key={row.id_piutang || row.id}>
+                        <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
+                          <TableCell sx={{ color: 'var(--text)' }}>{row.id_piutang || row.id}</TableCell>
+                          <TableCell sx={{ color: 'var(--text)' }}>{row.id_customer || row.pelanggan_nama || '-'}</TableCell>
+                          <TableCell sx={{ color: 'var(--accent)' }}>{row.jumlah_piutang != null ? `Rp${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'}</TableCell>
+                          <TableCell sx={{ color: 'var(--muted)' }}>{row.tanggal_piutang || '-'}</TableCell>
+                          <TableCell sx={{ color: 'var(--text)' }}>{row.status || '-'}</TableCell>
+                          <TableCell sx={{ color: 'var(--text)' }}>{row.keterangan || '-'}</TableCell>
+                          <TableCell>
+                            <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
+                            <IconButton color="error" onClick={() => handleDelete(row.id_piutang || row.id)}><DeleteIcon /></IconButton>
+                            <IconButton color="info" onClick={() => handleExpandWithDetails(row.id_piutang || row.id)}><InfoIcon /></IconButton>
+                          </TableCell>
+                        </TableRow>
 
-                  <TableRow>
-                    <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
-                      <Collapse in={expanded === (row.id_piutang || row.id)} timeout="auto" unmountOnExit>
-                        <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-                          <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Piutang Details</Typography>
-                          {detailsLoading[row.id_piutang || row.id] ? (
-                            <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
-                          ) : (
-                            <Box sx={{ color: 'var(--text)' }}>
-                              <Typography><strong>Jumlah:</strong> {detailsMap[row.id_piutang || row.id]?.jumlah_piutang || row.jumlah_piutang || '-'}</Typography>
-                              <Typography><strong>Tanggal:</strong> {detailsMap[row.id_piutang || row.id]?.tanggal_piutang || row.tanggal_piutang || '-'}</Typography>
-                              <Typography><strong>Status:</strong> {detailsMap[row.id_piutang || row.id]?.status || row.status || '-'}</Typography>
-                              <Typography sx={{ mt: 1 }}><strong>Keterangan:</strong> {detailsMap[row.id_piutang || row.id]?.keterangan || row.keterangan || '-'}</Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </Collapse>
-                    </TableCell>
-                  </TableRow>
-                </React.Fragment>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Belum ada data piutang.</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          </Table>
+                        <TableRow>
+                          <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
+                            <Collapse in={expanded === (row.id_piutang || row.id)} timeout="auto" unmountOnExit>
+                              <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+                                <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Piutang Details</Typography>
+                                {detailsLoading[row.id_piutang || row.id] ? (
+                                  <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
+                                ) : (
+                                  <Box sx={{ color: 'var(--text)' }}>
+                                    <Typography><strong>Jumlah:</strong> {detailsMap[row.id_piutang || row.id]?.jumlah_piutang || row.jumlah_piutang || '-'}</Typography>
+                                    <Typography><strong>Tanggal:</strong> {detailsMap[row.id_piutang || row.id]?.tanggal_piutang || row.tanggal_piutang || '-'}</Typography>
+                                    <Typography><strong>Status:</strong> {detailsMap[row.id_piutang || row.id]?.status || row.status || '-'}</Typography>
+                                    <Typography sx={{ mt: 1 }}><strong>Keterangan:</strong> {detailsMap[row.id_piutang || row.id]?.keterangan || row.keterangan || '-'}</Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Belum ada data piutang.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
         </Box>
         <Box className="table-bottom-space" />
       </Paper>
 
-  <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
+      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
         <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_piutang ? 'Edit Piutang' : 'Add Piutang'}</DialogTitle>
         <DialogContent>
           <TextField autoFocus margin="dense" name="id_customer" label="Customer ID" type="text" fullWidth value={form.id_customer || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.id_customer} helperText={errors.id_customer || ''} />

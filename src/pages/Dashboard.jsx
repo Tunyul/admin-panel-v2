@@ -413,7 +413,7 @@ export default function Dashboard() {
                 <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
                   Aktivitas Terbaru
                 </Typography>
-                <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
+                <Box className="modal-scroll" sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
                   <List>
                     {aktivitas.map((item, idx) => (
                       <ListItem key={idx} sx={{ py: 1 }}>
