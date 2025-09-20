@@ -6,7 +6,7 @@ import useNotificationStore from '../store/notificationStore';
 export default function useSocket({ url, autoConnect = true } = {}) {
   const socketRef = useRef(null);
   const connectedRef = useRef(false);
-  const { showNotification, incrementUnread } = useNotificationStore();
+  const { showNotification, incrementUnread, prependItem } = useNotificationStore();
 
   const getToken = useCallback(() => {
     try {
@@ -48,6 +48,18 @@ export default function useSocket({ url, autoConnect = true } = {}) {
         const title = `Invoice: ${payload.no_transaksi}`;
         const msg = `Status: ${payload.status}`;
         showNotification(`${title} — ${msg}`, 'info');
+        // optimistic prepend to FE store so dialog shows immediately
+        const item = {
+          id: payload.id || `invoice-${payload.no_transaksi}-${Date.now()}`,
+          title,
+          message: msg,
+          no_transaksi: payload.no_transaksi,
+          invoice_url: payload.invoice_url,
+          status: payload.status,
+          timestamp: payload.timestamp || new Date().toISOString(),
+          read: false,
+        };
+        prependItem(item);
         incrementUnread(1);
       } catch (err) {
         console.debug('[socket] invoice.notify handler error', err);
@@ -57,20 +69,46 @@ export default function useSocket({ url, autoConnect = true } = {}) {
     // proposed payment events
     socket.on('payment.created', (p) => {
       try {
-        showNotification(`Pembayaran diterima ${p.no_transaksi} — Rp${p.nominal}`, 'success');
+        const title = `Pembayaran: ${p.no_transaksi}`;
+        const msg = `Rp${p.nominal} — ${p.status || 'created'}`;
+        showNotification(`${title} — ${msg}`, 'success');
+        const item = {
+          id: p.id_payment || p.id || `payment-${p.no_transaksi}-${Date.now()}`,
+          title,
+          message: msg,
+          no_transaksi: p.no_transaksi,
+          nominal: p.nominal,
+          status: p.status,
+          timestamp: p.timestamp || new Date().toISOString(),
+          read: false,
+        };
+        prependItem(item);
         incrementUnread(1);
       } catch (err) { console.debug('[socket] payment.created handler error', err); }
     });
 
     socket.on('payment.updated', (p) => {
       try {
-        showNotification(`Update pembayaran ${p.no_transaksi} — ${p.status}`, 'info');
+        const title = `Update pembayaran: ${p.no_transaksi}`;
+        const msg = `${p.status}`;
+        showNotification(`${title} — ${msg}`, 'info');
+        const item = {
+          id: p.id_payment || p.id || `payment-${p.no_transaksi}-${Date.now()}`,
+          title,
+          message: msg,
+          no_transaksi: p.no_transaksi,
+          nominal: p.nominal,
+          status: p.status,
+          timestamp: p.timestamp || new Date().toISOString(),
+          read: false,
+        };
+        prependItem(item);
         incrementUnread(1);
       } catch (err) { console.debug('[socket] payment.updated handler error', err); }
     });
 
     return socket;
-  }, [getToken, url, showNotification, incrementUnread]);
+  }, [getToken, url, showNotification, incrementUnread, prependItem]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
