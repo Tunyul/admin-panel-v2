@@ -11,7 +11,6 @@ const Customers = React.lazy(() => import('./pages/Customers'))
 const Payments = React.lazy(() => import('./pages/Payments'))
 const PublicInvoice = React.lazy(() => import('./pages/PublicInvoice'))
 const Piutangs = React.lazy(() => import('./pages/Piutangs'))
-const SetupWizard = React.lazy(() => import('./pages/SetupWizard'))
 import Notification from './components/Notification'
 import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
