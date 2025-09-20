@@ -342,8 +342,20 @@ table thead tr th, .MuiTableCell-head, .MuiTableCell-head * {
 .dark .main-card {
   background-color: var(--main-card-bg) !important;
 }
-.dark .MuiPaper-root {
+.dark .MuiPaper-root:not(.public-invoice-paper) {
   background: var(--panel) !important;
+}
+
+/* Scoped override for public invoice paper: always light for printing/sharing */
+.public-invoice-paper {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+.public-invoice-paper * { color: inherit !important; }
+
+@media print {
+  body { background: #ffffff !important; }
+  .public-invoice-paper { box-shadow: none !important; border: none !important; }
 }
 
 /* Utility: always-show scrollbar for scrollable containers (WebKit + Firefox)

@@ -5,7 +5,7 @@ import useLoadingStore from '../store/loadingStore';
 export default function PageTransition({ children, pathname }) {
   const theme = useTheme();
   const [showLoader, setShowLoader] = useState(false);
-  const busy = useLoadingStore((s) => s.busy);
+  const _busy = useLoadingStore((s) => s.busy);
   const timeoutRef = useRef(null);
   const safetyRef = useRef(null);
   const lastPathRef = useRef(pathname);

@@ -88,7 +88,7 @@ const DEFAULT_STATS = [
   { key: 'piutangs', title: 'Piutangs', value: '—', icon: <MonetizationOnIcon />, color: 'bg-purple-400' },
 ];
 
-const salesData = [
+const _salesData = [
   { name: 'Sen', omzet: 12000000 },
   { name: 'Sel', omzet: 15000000 },
   { name: 'Rab', omzet: 11000000 },
@@ -130,7 +130,7 @@ export default function Dashboard() {
   { key: 'orders_pending', title: 'Pending', value: '—', icon: <ShoppingCartIcon />, color: 'bg-blue-400' },
   ];
 
-  const ordersStatusData = [
+  const _ordersStatusData = [
     { name: 'Sen', selesai: 8, pending: 2, belum: 1 },
     { name: 'Sel', selesai: 12, pending: 3, belum: 0 },
     { name: 'Rab', selesai: 7, pending: 1, belum: 2 },
@@ -199,7 +199,7 @@ export default function Dashboard() {
     return <div ref={ref}>{inView ? children : <div style={{ height: 240 }} />}</div>;
   }
 
-  const exportStatsCsv = () => {
+  const _exportStatsCsv = () => {
     const rows = stats.map((s) => ({ key: s.key, title: s.title, value: s.value }));
     const csv = ['key,title,value', ...rows.map(r => `${r.key},"${r.title}",${r.value}`)].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });

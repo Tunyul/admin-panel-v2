@@ -24,6 +24,7 @@ export default function Sidebar() {
   { label: 'Products', path: '/products', icon: <InventoryIcon />, color: '#34d399' }, // hijau soft (gunakan InventoryIcon)
     { label: 'Customers', path: '/customers', icon: <PeopleIcon />, color: '#f9a8d4' }, // pink soft
     { label: 'Payments', path: '/payments', icon: <PaymentIcon />, color: '#67e8f9' }, // cyan soft
+  { label: 'Invoices', path: '/invoices', icon: <MonetizationOnIcon />, color: '#fcd34d' }, // gold-ish
     { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon />, color: '#c4b5fd' }, // ungu soft
       { label: 'Setup', path: '/setup', icon: <SettingsIcon />, color: '#8b5cf6' }, // purple
   ];

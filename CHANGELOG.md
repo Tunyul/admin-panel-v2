@@ -1,3 +1,9 @@
+## [1.7.10] - 2025-09-20
+
+- UI: Add API/DB health indicators in header with neon glow and pulse animations; health probes every 10s.
+- UX: Public invoice preview/download fixes and normalization of payloads to handle inconsistent backend shapes.
+- UX: Orders page - incremental loading progress, refresh button, and programmatic `window.refreshOrders` helper.
+- Fix: Prevent progress bar from showing previous run's completion on reload.
 # Changelog
 
 All notable changes to this project will be documented in this file.

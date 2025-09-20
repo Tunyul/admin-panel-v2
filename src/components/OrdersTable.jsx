@@ -17,9 +17,10 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import WhatsAppLogo from '../assets/WhatsApp.svg.webp';
 
-function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, productsList, customersMap }) {
+function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, onGenerateInvoice, productsList, customersMap }) {
   // normalize phone number for wa.me links (now imported from utils)
   return (
     <>
@@ -121,6 +122,9 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
           <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon fontSize="small"/></IconButton>
           <IconButton color="error" onClick={() => onDelete(row.id_order)} size="small"><DeleteIcon fontSize="small"/></IconButton>
           <IconButton color="info" onClick={() => onExpand(row.id_order)} size="small"><InfoIcon fontSize="small"/></IconButton>
+          <IconButton color="secondary" onClick={() => onGenerateInvoice && onGenerateInvoice(row)} size="small" title="Generate Invoice Link">
+            <ReceiptLongIcon fontSize="small" />
+          </IconButton>
         </TableCell>
       </TableRow>
 
@@ -180,7 +184,7 @@ function OrderRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete,
 }
 
 export default function OrdersTable(props) {
-  const { data, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, productsList, customersMap } = props;
+  const { data, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, onGenerateInvoice, productsList, customersMap } = props;
 
   // shared col widths
   const cols = [
@@ -239,6 +243,7 @@ export default function OrdersTable(props) {
                   onOpen={onOpen}
                   onDelete={onDelete}
                   onExpand={onExpand}
+                  onGenerateInvoice={onGenerateInvoice}
                   productsList={productsList}
                   customersMap={customersMap}
                 />

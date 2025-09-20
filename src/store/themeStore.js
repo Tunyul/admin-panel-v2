@@ -6,7 +6,7 @@ const getInitialDark = () => {
     const saved = localStorage.getItem('theme');
     if (saved === 'dark') return true;
     if (saved === 'light') return false;
-  } catch (e) {
+  } catch {
     // ignore
   }
   if (typeof window !== 'undefined' && window.matchMedia) {
@@ -20,7 +20,7 @@ const applyDocumentClass = (isDark) => {
     if (typeof document !== 'undefined') {
       document.documentElement.classList.toggle('dark', Boolean(isDark));
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 };
@@ -37,7 +37,7 @@ const useThemeStore = create((set) => ({
       applyDocumentClass(next);
       try {
         localStorage.setItem('theme', next ? 'dark' : 'light');
-      } catch (e) {
+      } catch {
         // ignore
       }
       return { darkMode: next };
@@ -48,7 +48,7 @@ const useThemeStore = create((set) => ({
       applyDocumentClass(val);
       try {
         localStorage.setItem('theme', val ? 'dark' : 'light');
-      } catch (e) {
+      } catch {
         // ignore
       }
       return { darkMode: val };

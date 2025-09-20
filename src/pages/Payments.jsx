@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -89,6 +90,22 @@ export default function Payments() {
   useEffect(() => {
     reloadPayments();
   }, []);
+
+  // auto-open verify modal if query param present
+  const location = useLocation();
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const toOpen = params.get('open_verify');
+    if (toOpen && !autoOpenedRef.current) {
+      // try to open verify modal for this id after a short delay to ensure data loaded
+      autoOpenedRef.current = true;
+      setTimeout(() => {
+        handleVerify(toOpen);
+      }, 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');

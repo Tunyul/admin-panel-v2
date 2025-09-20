@@ -18,6 +18,8 @@ import {
   DialogTitle,
   TextField,
   Typography,
+  CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -70,10 +72,16 @@ function Orders() {
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
+  const [ordersProgress, setOrdersProgress] = useState({ done: 0, total: 0 });
   const { showNotification } = useNotificationStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [toDeleteId, setToDeleteId] = useState(null);
+  // Generate invoice link modal state
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState(null);
+  const [invoiceResult, setInvoiceResult] = useState(null);
 
   const handleOpen = useCallback((item = {}) => { setForm(item || {}); setDialogOpen(true); }, []);
   const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); }, []);
@@ -87,6 +95,8 @@ function Orders() {
 
   const reloadOrders = useCallback(() => {
     setLoading(true);
+    // reset progress immediately to avoid showing previous run's completion while new data loads
+    setOrdersProgress({ done: 0, total: 0 });
     useLoadingStore.getState().start();
   return getOrders()
   .then(async (res) => {
@@ -100,7 +110,9 @@ function Orders() {
         // enrich orders with payment sums (verified) by transaksi if available
         const enriched = Array.isArray(orders) ? orders : [];
         try {
-          // build fetch tasks for orders that have no_transaksi
+          // build fetch tasks for orders that have no_transaksi and track progress
+          const totalTasks = Array.isArray(enriched) ? enriched.length : 0;
+          setOrdersProgress({ done: 0, total: totalTasks });
           const tasks = enriched.map((o) => {
             const tx = o.no_transaksi || o.no_transaksi_lama || '';
             if (!tx) return Promise.resolve({ o, payments: [] });
@@ -111,15 +123,29 @@ function Orders() {
               })
               .catch(() => ({ o, payments: [] }));
           });
-          const results = await Promise.all(tasks);
+          // wrap promises to update progress when each resolves
+          let completed = 0;
+          const wrapped = tasks.map((p) => p.then((res) => {
+            completed += 1;
+            setOrdersProgress({ done: completed, total: totalTasks });
+            return res;
+          }).catch((e) => {
+            completed += 1;
+            setOrdersProgress({ done: completed, total: totalTasks });
+            return { o: null, payments: [] };
+          }));
+          const results = await Promise.all(wrapped);
           // attach computed paid totals
           results.forEach(({ o, payments }) => {
+            if (!o) return;
             const verifiedPayments = (payments || []).filter((p) => p.verified || p.status === 'verified' || p.is_verified);
             const paidTotal = verifiedPayments.reduce((s, p) => s + (Number(p.nominal || p.amount || p.jumlah || 0) || 0), 0);
             o.paid_amount = paidTotal;
             o.paid_verified_total = paidTotal;
           });
-        } catch (e) {
+          // ensure progress shows complete
+          setOrdersProgress((s) => ({ ...s, done: s.total }));
+        } catch {
           // ignore enrichment errors
         }
         setData(enriched);
@@ -146,14 +172,28 @@ function Orders() {
               // ignore
             }
           })
-          .catch(() => {
-                  setError('Failed to load orders');
+          .catch((err) => {
+                  // Provide more helpful error message for debugging
+                  console.error('[reloadOrders] failed to load orders', err);
+                  let msg = 'Failed to load orders';
+                  try {
+                    if (err && err.response) {
+                      const status = err.response.status;
+                      const data = err.response.data;
+                      msg = `Failed to load orders: ${status} ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+                    } else if (err && err.message) {
+                      msg = `Failed to load orders: ${err.message}`;
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                  setError(msg);
                 })
           .finally(() => {
             setLoading(false);
             useLoadingStore.getState().done();
           });
-  }, []);
+  }, [showNotification]);
 
   useEffect(() => {
     // intentionally not including stable callbacks in deps; these are safe here
@@ -170,11 +210,19 @@ function Orders() {
         setCustomersList(Array.isArray(items) ? items : []);
       })
       .catch(() => setCustomersList([]));
-  }, []);
+  }, [showNotification]);
 
   // load orders when the page mounts (same pattern as other list pages)
   useEffect(() => {
     reloadOrders();
+  }, [reloadOrders]);
+
+  // expose a global programmatic refresh helper for scripts or debug tools
+  useEffect(() => {
+    window.refreshOrders = () => reloadOrders();
+    return () => {
+      try { delete window.refreshOrders; } catch (_) { window.refreshOrders = undefined; }
+    };
   }, [reloadOrders]);
 
   // table search / filter state
@@ -346,7 +394,7 @@ function Orders() {
     // open confirmation dialog first
     setToDeleteId(id_order);
     setDeleteConfirmOpen(true);
-  }, []);
+  }, [showNotification]);
 
   const confirmDelete = useCallback(() => {
     const id = toDeleteId;
@@ -364,6 +412,82 @@ function Orders() {
         setToDeleteId(null);
       });
   }, [toDeleteId, reloadOrders, showNotification]);
+
+  // Generate invoice link for a specific order row
+  const handleGenerateInvoice = useCallback((row) => {
+    console.debug('[Orders] handleGenerateInvoice', row?.no_transaksi || row?.id_order);
+    setInvoiceError(null);
+    setInvoiceResult(null);
+    setInvoiceModalOpen(true);
+    showNotification('Opening invoice modal', 'info');
+    // attach the order we're generating for
+    setForm((f) => ({ ...f, __invoice_row: row }));
+  }, []);
+
+  // Note: Create via API removed — static link only
+
+  const handleInvoiceModalClose = useCallback(() => {
+    setInvoiceModalOpen(false);
+    setInvoiceLoading(false);
+    setInvoiceError(null);
+    setInvoiceResult(null);
+    setForm((f) => ({ ...f, __invoice_row: undefined }));
+  }, []);
+
+  // Build static link by fetching up-to-date details/payments for the order then encoding
+  const handleCreateStaticLink = useCallback(async () => {
+    const row = formRef.current.__invoice_row || {};
+    if (!row) return setInvoiceError('Order tidak ditemukan');
+    setInvoiceError(null);
+    setInvoiceLoading(true);
+    try {
+      // fetch details if not already present in detailsMap
+      let details = detailsMap?.[row.id_order];
+      if (!details || !details.length) {
+        try {
+          const r = await getOrderDetailsByOrderId(row.id_order || row.id);
+          details = r?.data?.data || r?.data || [];
+        } catch {
+          details = row.details || [];
+        }
+      }
+      // fetch payments by transaksi if available
+      let payments = [];
+      const tx = row.no_transaksi || row.no_transaksi_lama || null;
+      if (tx) {
+        try {
+          const rp = await getPaymentsByTransaksi(tx);
+          payments = rp?.data?.data || rp?.data || [];
+        } catch {
+          payments = [];
+        }
+      }
+
+      const payload = {
+        order: {
+          id: row.id_order || row.id || null,
+          no_transaksi: row.no_transaksi || row.no_transaksi_lama || null,
+          nama_customer: row.nama_customer || row.customer?.nama || null,
+          total: row.total_bayar || row.total || null,
+          tanggal_order: row.tanggal_order || null,
+        },
+        order_details: Array.isArray(details) ? details : [],
+        payments: Array.isArray(payments) ? payments : [],
+        created_at: new Date().toISOString(),
+      };
+
+      const json = JSON.stringify(payload);
+      const b64 = window.btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const url = `${window.location.origin}/invoice/static/${b64}`;
+      setInvoiceResult({ url, token: null, expires_at: null });
+      showNotification('Static link dibuat (tanpa BE)', 'success');
+    } catch (e) {
+      console.error('failed to build static link', e);
+      setInvoiceError('Gagal membuat static link');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }, [detailsMap, showNotification]);
 
   const cancelDelete = useCallback(() => { setDeleteConfirmOpen(false); setToDeleteId(null); }, []);
   // handlers for customer step buttons
@@ -484,6 +608,9 @@ function Orders() {
           <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
             Add Order
           </Button>
+          <Button variant="outlined" sx={{ color: 'var(--text)', borderRadius: 3, textTransform: 'none' }} onClick={() => reloadOrders()}>
+            Refresh
+          </Button>
           {/* On small screens show toolbar below header inside paper via fallback */}
         </Box>
       </Box>
@@ -515,17 +642,36 @@ function Orders() {
               '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
             }}
           >
-            <OrdersTable
-              data={filteredData}
-              expanded={expanded}
-              detailsMap={detailsMap}
-              detailsLoading={detailsLoading}
-              onOpen={handleOpen}
-              onDelete={handleDelete}
-              onExpand={handleExpandWithDetails}
-              productsList={productsList}
-              customersMap={customersMap}
-            />
+              {_loading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
+                  <Box sx={{ width: '100%', maxWidth: 540 }}>
+                    {ordersProgress.total > 0 ? (
+                      <>
+                        <Typography variant="caption">Loading orders ({ordersProgress.done}/{ordersProgress.total}) — {Math.round((ordersProgress.done / Math.max(1, ordersProgress.total)) * 100)}%</Typography>
+                        <LinearProgress variant="determinate" value={Math.round((ordersProgress.done / Math.max(1, ordersProgress.total)) * 100)} sx={{ height: 8, borderRadius: 2, mt: 1 }} />
+                      </>
+                    ) : (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <CircularProgress />
+                        <Typography sx={{ mt: 1 }}>Loading orders...</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              ) : (
+                <OrdersTable
+                  data={filteredData}
+                  expanded={expanded}
+                  detailsMap={detailsMap}
+                  detailsLoading={detailsLoading}
+                  onOpen={handleOpen}
+                  onDelete={handleDelete}
+                  onExpand={handleExpandWithDetails}
+                  onGenerateInvoice={handleGenerateInvoice}
+                  productsList={productsList}
+                  customersMap={customersMap}
+                />
+              )}
           </Box>
         </Box>
       </Box>
@@ -539,6 +685,43 @@ function Orders() {
       <DialogActions>
         <Button onClick={cancelDelete}>Batal</Button>
         <Button color="error" variant="contained" onClick={confirmDelete}>Hapus</Button>
+      </DialogActions>
+    </Dialog>
+    <Dialog open={invoiceModalOpen} onClose={handleInvoiceModalClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Generate Invoice Link</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {invoiceLoading && (
+            <Typography sx={{ color: 'var(--muted)' }}>Membuat link...</Typography>
+          )}
+          {invoiceError && (
+            <Typography sx={{ color: '#f87171' }}>{invoiceError}</Typography>
+          )}
+          {invoiceResult && (
+            <Box>
+              <TextField fullWidth value={invoiceResult.url || ''} InputProps={{ readOnly: true }} label="Public Invoice URL" />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'flex-end' }}>
+                <Button onClick={() => { navigator.clipboard?.writeText(invoiceResult.url || ''); showNotification('Link disalin', 'success'); }}>Copy</Button>
+                <Button component="a" href={invoiceResult.url || '#'} target="_blank" rel="noopener noreferrer" variant="contained">Open</Button>
+              </Box>
+              {invoiceResult.expires_at && (
+                <Typography variant="caption" sx={{ color: 'var(--muted)', mt: 1 }}>Expires at: {new Date(invoiceResult.expires_at).toLocaleString('id-ID')}</Typography>
+              )}
+            </Box>
+          )}
+          {!invoiceLoading && !invoiceResult && (
+            <Typography sx={{ color: 'var(--muted)' }}>Klik "Create" untuk membuat link invoice publik untuk order ini.</Typography>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleInvoiceModalClose}>Close</Button>
+        {!invoiceResult && (
+          <>
+            <Button variant="outlined" onClick={handleCreateStaticLink}>Create static link (no BE)</Button>
+            {/* Create via API removed; static link is the only option now */}
+          </>
+        )}
       </DialogActions>
     </Dialog>
     </Box>
