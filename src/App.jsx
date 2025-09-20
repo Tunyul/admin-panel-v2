@@ -18,6 +18,7 @@ import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
 import PageTransition from './components/PageTransition'
 import useLoadingStore from './store/loadingStore'
+import SocketProvider from './components/SocketProvider'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -45,11 +46,12 @@ function App() {
           path="/*"
           element={
             <PrivateRoute>
-              <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-                <Header />
-                <div style={{ display: 'flex', flex: '0 1 auto', alignItems: 'stretch', minHeight: 0 }}>
-                  <Sidebar />
-                  <div
+              <SocketProvider>
+                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+                  <Header />
+                  <div style={{ display: 'flex', flex: '0 1 auto', alignItems: 'stretch', minHeight: 0 }}>
+                    <Sidebar />
+                    <div
                       style={{
                         // main content area — fixed height and scrollable
                         marginTop: 72,
@@ -79,8 +81,9 @@ function App() {
                       </PageTransition>
                       {/* navigation loader removed */}
                     </div>
+                  </div>
                 </div>
-              </div>
+              </SocketProvider>
             </PrivateRoute>
           }
         />
