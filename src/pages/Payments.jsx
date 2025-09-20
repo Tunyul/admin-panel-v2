@@ -42,7 +42,7 @@ export default function Payments() {
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
-  const { showNotification } = useNotificationStore();
+  const { showNotification, prependItem, incrementUnread } = useNotificationStore();
 
   // reuse the same dark-mode TextField styles used in OrderDialog
   const inputSx = {
@@ -217,6 +217,22 @@ export default function Payments() {
     approvePaymentNominal(id, payload.nominal)
       .then(() => {
         showNotification('Payment approved & verified', 'success');
+        try {
+          const item = {
+            id: `payment-approve-${id}-${Date.now()}`,
+            title: `Pembayaran diverifikasi: ${verifyConfirm.data?.no_transaksi || id}`,
+            message: `Nominal: Rp${Number(payload.nominal).toLocaleString('id-ID')}`,
+            no_transaksi: verifyConfirm.data?.no_transaksi,
+            nominal: payload.nominal,
+            status: 'approved',
+            timestamp: new Date().toISOString(),
+            read: false,
+          };
+          prependItem(item);
+          incrementUnread(1);
+        } catch (e) {
+          // ignore
+        }
         cancelVerify();
         reloadPayments();
       })
@@ -226,6 +242,22 @@ export default function Payments() {
           verifyPayment(id, payload)
             .then(() => {
               showNotification('Payment verified (fallback)', 'success');
+              try {
+                const item = {
+                  id: `payment-verify-${id}-${Date.now()}`,
+                  title: `Pembayaran diverifikasi: ${verifyConfirm.data?.no_transaksi || id}`,
+                  message: `Nominal: Rp${Number(payload.nominal).toLocaleString('id-ID')}`,
+                  no_transaksi: verifyConfirm.data?.no_transaksi,
+                  nominal: payload.nominal,
+                  status: 'verified',
+                  timestamp: new Date().toISOString(),
+                  read: false,
+                };
+                prependItem(item);
+                incrementUnread(1);
+              } catch (e) {
+                // ignore
+              }
               cancelVerify();
               reloadPayments();
             })

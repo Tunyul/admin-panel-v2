@@ -6,8 +6,8 @@ const tryEndpoints = async (paths = []) => {
 		try {
 			const res = await client.get(p);
 			return res;
-		} catch (e) {
-			lastErr = e;
+		} catch (err) {
+			lastErr = err;
 			// continue trying other paths
 		}
 	}
@@ -15,21 +15,9 @@ const tryEndpoints = async (paths = []) => {
 	throw lastErr || new Error('No endpoints provided');
 };
 
-// Try common API health endpoints
-export const getApiHealth = () => tryEndpoints([
-	'/health',
-	'/api/health',
-	'/healthz',
-	'/status',
-	'/api/status',
-]);
+// API health — only /health
+export const getApiHealth = () => tryEndpoints(['/health']);
 
-// Try common DB-specific health endpoints, then fallback to general health
-export const getDbHealth = async () => {
-	try {
-		return await tryEndpoints(['/api/health/db', '/health/db', '/db/health']);
-	} catch (e) {
-		// fallback: try general health and hope it contains db info (or at least is reachable)
-		return tryEndpoints(['/api/health', '/health', '/healthz']);
-	}
-};
+// DB-specific health — only /health/db
+export const getDbHealth = () => tryEndpoints(['/health/db']);
+

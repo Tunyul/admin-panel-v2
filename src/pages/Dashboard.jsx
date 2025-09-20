@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState({ customers: true, products: true, payments: true, piutangs: true, orders: true });
 
   // Shared card min width so Group A and Group B align consistently
-  const CARD_MIN = 220; // px
+  const CARD_MIN = 320; // px (increased to make cards more horizontal)
 
   // Feature flags for temporary UI changes
   const SHOW_ACTIVITY = false; // set to false to hide 'Aktivitas Terbaru'
@@ -153,6 +153,10 @@ export default function Dashboard() {
   // GROUP_B_DEFAULTS is static here; intentionally ignore exhaustive-deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Overview stats for layout calculations
+  const overviewStats = stats.filter((s) => groupAKeys.includes(s.key));
+  const overviewCount = overviewStats.length;
 
   // Quick Actions handlers
   const refreshCounts = async () => {
@@ -322,15 +326,15 @@ export default function Dashboard() {
       <Box sx={{ width: '100%' }}>
         <style>{scrollbarStyle}</style>
         {/* Two-column layout (a1 left, a2 right) */}
-  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gridAutoRows: 'auto', rowGap: 2, columnGap: 3, alignItems: 'start' }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: SHOW_ACTIVITY ? '1fr 320px' : '1fr' }, gridAutoRows: 'auto', rowGap: 2, columnGap: SHOW_ACTIVITY ? 3 : 0, alignItems: 'start' }}>
 
           {/* a1: left column - contains a1-overview (top) and a1-finance (below) */}
           <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* a1-overview */}
             <Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${CARD_MIN}px, 1fr))`, gap: '10px', alignItems: 'start', justifyItems: 'stretch', justifyContent: 'center' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${Math.min(overviewCount, 2)}, 1fr)`, md: `repeat(${Math.min(overviewCount, 5)}, 1fr)` }, gap: 3, alignItems: 'start', justifyItems: 'stretch' }}>
                 <Typography sx={{ gridColumn: '1 / -1', color: '#ffe066', fontWeight: 700, mb: 1 }}>Overview</Typography>
-                {stats.filter(s => groupAKeys.includes(s.key)).map((stat) => (
+                {overviewStats.map((stat) => (
                   <div key={stat.key} style={{ width: '100%' }}>
                     <StatCard title={stat.title} value={loading[stat.key] ? <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</Typography> : stat.value} icon={stat.icon} color={stat.color} />
                   </div>
@@ -356,59 +360,59 @@ export default function Dashboard() {
                 <Box sx={{ mt: 1, mb: 1 }}>
                   <Box sx={{ p: 0, borderRadius: 3, color: 'var(--text)', width: '100%' }}>
                     <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-                      {[
-                        { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
-                        { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
-                        { key: 'record-payment', title: 'Verif Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open verif payment (not wired)', 'info'); } },
-                        { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
-                        { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
-                        { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
-                      ].map((b) => {
-                        const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
-                        const accent = accentMap[b.color] || '#3b82f6';
-                        return (
-                          <ButtonBase
-                            key={b.key}
-                            onClick={b.onClick}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.onClick(); } }}
-                            aria-label={`Quick action ${b.title}`}
-                            focusRipple
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1.5,
-                              p: 2,
-                              bgcolor: 'var(--main-card-bg)',
-                              borderRadius: '18px',
-                              width: '100%',
-                              textAlign: 'left',
-                              justifyContent: 'flex-start',
-                              border: '1px solid var(--border)',
-                              boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
-                              transition: 'box-shadow 0.18s, transform 0.18s',
-                              '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' },
-                              '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(var(--accent-rgb),0.06)`, color: 'var(--accent)', boxShadow: `0 6px 18px rgba(var(--accent-rgb),0.08)` }}>
-                              {b.icon}
-                            </Box>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography sx={{ color: 'var(--text)', fontWeight: 700 }}>{b.title}</Typography>
-                            </Box>
-                          </ButtonBase>
-                        );
-                      })}
-                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, alignItems: 'stretch' }}>
+                          {[
+                            { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
+                            { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
+                            { key: 'record-payment', title: 'Verif Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open verif payment (not wired)', 'info'); } },
+                            { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
+                            { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
+                            { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
+                          ].map((b) => {
+                            const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
+                            const accent = accentMap[b.color] || '#3b82f6';
+                            return (
+                              <Box key={b.key} sx={{ minWidth: 260, flex: '0 0 auto' }}>
+                              <ButtonBase
+                                onClick={b.onClick}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.onClick(); } }}
+                                aria-label={`Quick action ${b.title}`}
+                                focusRipple
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1.5,
+                                  p: 2,
+                                  bgcolor: 'var(--main-card-bg)',
+                                  borderRadius: '18px',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  justifyContent: 'flex-start',
+                                  border: '1px solid var(--border)',
+                                  boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
+                                  transition: 'box-shadow 0.18s, transform 0.18s',
+                                  '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' },
+                                  '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(var(--accent-rgb),0.06)`, color: 'var(--accent)', boxShadow: `0 6px 18px rgba(var(--accent-rgb),0.08)` }}>
+                                  {b.icon}
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography sx={{ color: 'var(--text)', fontWeight: 700 }}>{b.title}</Typography>
+                                </Box>
+                              </ButtonBase>
+                              </Box>
+                            );
+                          })}
+                        </Box>
                   </Box>
                 </Box>
           </Box>
 
-          {/* Right column (activity/system) is optional. If activity is disabled, render System card inside left column to avoid empty gap. */}
-          {/* Right column: Activity (optional) and System (always present on md+) */}
-          <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
-            {SHOW_ACTIVITY && (
+          {/* Right column (activity) is optional. We removed the System healthcard because health is shown in the header. */}
+          {SHOW_ACTIVITY && (
+            <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
               <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
                   Aktivitas Terbaru
@@ -423,14 +427,8 @@ export default function Dashboard() {
                   </List>
                 </Box>
               </Paper>
-            )}
-
-            {/* System card - always shown in right column on md+ */}
-            <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
-              <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
-              <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
-            </Paper>
-          </Box>
+            </Box>
+          )}
 
           {/* Charts disabled - placeholder removed to avoid empty main area */}
         </Box>

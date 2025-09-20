@@ -8,8 +8,8 @@
   --bg: #fbf9f7;           /* warm cream background */
   --panel: #ffffff;        /* pure panel */
 
-/* (moved .always-scroll to after global scrollbar rules) */
-  --main-card-bg: #ffffff; /* cards white */
+/* main cards should follow the panel color so header/sidebar and main content match */
+  --main-card-bg: var(--panel);
   --text: #0b2135;         /* dark navy for text - softer than pure black */
   --muted: #576a7a;        /* muted slate */
   --accent: #3b82f6;       /* bright blue accent */
@@ -54,6 +54,24 @@
     --header-bg: rgba(var(--bg-rgb),0.06);
 }
 
+/* Ensure Autocomplete dropdowns follow theme tokens even when rendered in portals or inside Dialogs */
+.MuiAutocomplete-paper, .MuiAutocomplete-listbox {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+}
+.MuiAutocomplete-listbox .MuiAutocomplete-option {
+  color: var(--text) !important;
+}
+/* When Autocomplete is used inside Dialogs (like Add Order modal), force panel bg/text for modal surface */
+.MuiDialog-root .MuiAutocomplete-paper, .MuiDialog-root .MuiAutocomplete-listbox, .MuiDialog-root .MuiAutocomplete-option {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+}
+/* Lighter placeholder and muted option state follow tokens */
+.MuiAutocomplete-listbox .MuiAutocomplete-option.Mui-disabled {
+  color: var(--muted) !important;
+}
+
 body {
   background: var(--bg);
   min-height: 100vh;
@@ -66,7 +84,7 @@ body {
 /* Typography defaults */
 body, input, textarea, button, select {
   color: var(--text);
-  font-family: Inter, Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  font-family: var(--font-primary, Inter, Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial);
 }
 
 /* Links and accent usage */

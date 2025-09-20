@@ -2,13 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TextField, InputAdornment, IconButton, Box, Paper, Badge } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import ThemeSwitcher from './ThemeSwitcher';
 import LogoutButton from './LogoutButton';
 import { getApiHealth, getDbHealth } from '../api/health';
-import NotificationsCenter from './NotificationsCenter';
-import useNotificationStore from '../store/notificationStore';
 
 export default function Header() {
   const [search, setSearch] = useState('');
@@ -18,12 +16,11 @@ export default function Header() {
   const prevApiRef = useRef(null);
   const prevDbRef = useRef(null);
 
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const location = useLocation();
 
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [apiFlash, setApiFlash] = useState(false);
-  const [dbFlash, setDbFlash] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [firstPendingId, setFirstPendingId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -32,12 +29,12 @@ export default function Header() {
         const mod = await import('../api/payments');
         const res = await mod.getPayments();
         const items = res?.data?.data || res?.data || [];
-    const arr = Array.isArray(items) ? items : [];
-    // determine pending payments if needed; not used for badge
-    const _pending = arr.filter((p) => !p.verified && !(p.status && p.status === 'approved'));
-    if (!mounted) return;
-    // intentionally not storing pendingCount anymore (badge shows only unread notifications)
-      } catch {
+        const arr = Array.isArray(items) ? items : [];
+        const pend = arr.filter((p) => !p.verified && !(p.status && p.status === 'approved'));
+        if (!mounted) return;
+        setPendingCount(pend.length);
+        setFirstPendingId(pend.length ? (pend[0].id_payment || pend[0].id) : null);
+      } catch (err) {
         // ignore
       }
     };
@@ -46,20 +43,18 @@ export default function Header() {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
-  const unreadCount = useNotificationStore((s) => s.unreadCount || 0);
-
   useEffect(() => {
     const check = async () => {
       try {
         const a = await getApiHealth();
         setApiStatus({ ok: Boolean(a && a.status >= 200 && a.status < 300) });
-      } catch {
+      } catch (_) {
         setApiStatus({ ok: false });
       }
       try {
         const d = await getDbHealth();
         setDbStatus({ ok: Boolean(d && d.status >= 200 && d.status < 300) });
-      } catch {
+      } catch (_) {
         setDbStatus({ ok: false });
       }
     };
@@ -71,8 +66,6 @@ export default function Header() {
   useEffect(() => {
     if (prevApiRef.current != null && prevApiRef.current !== apiStatus.ok) {
       setAnnounce(apiStatus.ok ? 'API online' : 'API tidak terhubung');
-      setApiFlash(true);
-      setTimeout(() => setApiFlash(false), 1000);
     }
     prevApiRef.current = apiStatus.ok;
   }, [apiStatus.ok]);
@@ -80,8 +73,6 @@ export default function Header() {
   useEffect(() => {
     if (prevDbRef.current != null && prevDbRef.current !== dbStatus.ok) {
       setAnnounce(dbStatus.ok ? 'Database online' : 'Database tidak terhubung');
-      setDbFlash(true);
-      setTimeout(() => setDbFlash(false), 1000);
     }
     prevDbRef.current = dbStatus.ok;
   }, [dbStatus.ok]);
@@ -94,41 +85,19 @@ export default function Header() {
         <Box display="flex" alignItems="center" gap={2} sx={{ pr: 4 }}>
           <TextField value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari..." size="small" variant="outlined" sx={{ minWidth: 180 }} InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton size="small"><SearchIcon /></IconButton></InputAdornment>) }} />
 
-          {/* API / DB indicators with labels */}
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: apiStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }}
-                className={apiFlash ? (apiStatus.ok ? 'neon-pulse-green' : 'neon-pulse-red') : (apiStatus.ok ? 'neon-green' : 'neon-red')}
-                aria-hidden
-              />
-              <Box component="span" sx={{ fontSize: 12 }} className={apiStatus.ok ? 'neon-text-green' : 'neon-text-red'}>
-                API: {apiStatus.ok ? 'Terhubung' : (apiStatus.ok === null ? 'N/A' : 'Terputus')}
-              </Box>
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: dbStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }}
-                className={dbFlash ? (dbStatus.ok ? 'neon-pulse-green' : 'neon-pulse-red') : (dbStatus.ok ? 'neon-green' : 'neon-red')}
-                aria-hidden
-              />
-              <Box component="span" sx={{ fontSize: 12 }} className={dbStatus.ok ? 'neon-text-green' : 'neon-text-red'}>
-                DB: {dbStatus.ok ? 'Terhubung' : (dbStatus.ok === null ? 'N/A' : 'Terputus')}
-              </Box>
-            </Box>
+          {/* API / DB indicators */}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: apiStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }} />
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: dbStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }} />
           </Box>
 
           {/* Notification badge (header) */}
           {!(location.pathname && location.pathname.startsWith('/invoice')) && (
-            <>
-              <IconButton size="small" onClick={() => setNotifOpen(true)} aria-label="Notifications" sx={{ color: 'var(--accent-2)' }}>
-                <Badge badgeContent={Math.max(0, unreadCount)} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-              <NotificationsCenter open={notifOpen} onClose={() => setNotifOpen(false)} />
-            </>
+            <IconButton size="small" onClick={() => { if (firstPendingId) navigate(`/payments?open_verify=${firstPendingId}`); else navigate('/payments'); }} aria-label="Notifications" sx={{ color: 'var(--accent-2)' }}>
+              <Badge badgeContent={pendingCount} color="error">
+                <NotificationsIcon />
+              </Badge>
+            </IconButton>
           )}
 
           <ThemeSwitcher />
@@ -136,6 +105,6 @@ export default function Header() {
         </Box>
       </Paper>
       <span className="sr-only" aria-live="polite">{announce}</span>
-      </>
-    );
-  }
+    </>
+  );
+}

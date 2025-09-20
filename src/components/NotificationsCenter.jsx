@@ -34,6 +34,8 @@ export default function NotificationsCenter({ open, onClose } = {}) {
               setItemsStore([]);
               // keep unread in store but we'll surface serverUnread via local state so UI can show it
               setServerUnread(serverUnread);
+              // ensure header badge reflects server count when list is empty
+              setUnread(serverUnread);
             } else {
               setServerUnread(0);
             }
@@ -96,6 +98,8 @@ export default function NotificationsCenter({ open, onClose } = {}) {
                   const res = await getNotifications({ limit: 50 });
                   const data = res?.data?.data || res?.data || [];
                   setItemsStore(Array.isArray(data) ? data : []);
+                  const unread2 = (Array.isArray(data) ? data : []).filter((n) => !n.read).length;
+                  setUnread(unread2);
                 } catch {
                   // ignore
                 } finally {

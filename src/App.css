@@ -34,3 +34,48 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Neon/glow animations for header health indicators */
+@keyframes neonGreen {
+  from { box-shadow: 0 0 0 rgba(16,185,129,0.0); }
+  to   { box-shadow: 0 0 12px rgba(16,185,129,0.28); }
+}
+
+@keyframes neonRed {
+  from { box-shadow: 0 0 0 rgba(239,68,68,0.0); }
+  to   { box-shadow: 0 0 12px rgba(239,68,68,0.28); }
+}
+
+@keyframes neonPulseGreen {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(16,185,129,0.12); }
+  100% { transform: scale(1.12); box-shadow: 0 0 18px rgba(16,185,129,0.22); }
+}
+
+@keyframes neonPulseRed {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(239,68,68,0.12); }
+  100% { transform: scale(1.12); box-shadow: 0 0 18px rgba(239,68,68,0.22); }
+}
+
+/* Utility classes used by Header.jsx indicators */
+.neon-green { animation: neonGreen 2.4s infinite alternate; }
+.neon-red { animation: neonRed 2.4s infinite alternate; }
+.neon-pulse-green { animation: neonPulseGreen 1s ease-out; }
+.neon-pulse-red { animation: neonPulseRed 1s ease-out; }
+
+
+/* Neon text glow variants for status labels */
+@keyframes neonTextPulseGreen {
+  0% { text-shadow: 0 0 6px rgba(16,185,129,0.12); transform: scale(1); }
+  100% { text-shadow: 0 0 18px rgba(16,185,129,0.22); transform: scale(1.02); }
+}
+
+@keyframes neonTextPulseRed {
+  0% { text-shadow: 0 0 6px rgba(239,68,68,0.12); transform: scale(1); }
+  100% { text-shadow: 0 0 18px rgba(239,68,68,0.22); transform: scale(1.02); }
+}
+
+.neon-text-green { color: var(--status-success); text-shadow: 0 0 8px rgba(16,185,129,0.32); }
+.neon-text-red { color: var(--status-error); text-shadow: 0 0 8px rgba(239,68,68,0.32); }
+.neon-text-pulse-green { animation: neonTextPulseGreen 1s ease-out; }
+.neon-text-pulse-red { animation: neonTextPulseRed 1s ease-out; }
+

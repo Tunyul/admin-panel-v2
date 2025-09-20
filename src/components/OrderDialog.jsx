@@ -10,6 +10,7 @@ import {
   TextField,
   Button,
   IconButton,
+  CircularProgress,
   Table,
   TableHead,
   TableRow,
@@ -31,19 +32,20 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
   const [form, setForm] = useState({});
   const [orderLines, setOrderLines] = useState([]);
   const [localCustomers, setLocalCustomers] = useState(customersList || []);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
   const { showNotification } = useNotificationStore();
   const searchDebounceRef = React.useRef(null);
 
   // shared dark-mode TextField styles for modal inputs
   const inputSx = {
-    '& .MuiOutlinedInput-root': {
+      '& .MuiOutlinedInput-root': {
       backgroundColor: 'rgba(255,255,255,0.02)',
   color: 'var(--text)',
-      '& fieldset': { borderColor: 'rgba(148,163,184,0.12)' },
-      '&:hover fieldset': { borderColor: '#60a5fa' },
-      '&.Mui-focused fieldset': { borderColor: '#60a5fa', boxShadow: '0 0 0 6px rgba(96,165,250,0.04)' },
+      '& fieldset': { borderColor: 'rgba(var(--border-rgb),0.12)' },
+      '&:hover fieldset': { borderColor: 'var(--accent)' },
+      '&.Mui-focused fieldset': { borderColor: 'var(--accent)', boxShadow: '0 0 0 6px rgba(var(--accent-rgb),0.04)' },
     },
-    '& .MuiInputLabel-root': { color: '#60a5fa' },
+    '& .MuiInputLabel-root': { color: 'var(--accent)' },
   };
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
   const handleCustomerCreate = () => {
     const name = form.customer_name || '';
     if (!name) return showNotification('Nama customer wajib', 'error');
+    setCreatingCustomer(true);
     createCustomer({ nama: name, phone: form.customer_phone || null })
       .then((res) => {
         const cust = res?.data?.data || res?.data || { nama: name, phone: form.customer_phone };
@@ -106,7 +109,8 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
         showNotification('Customer dibuat', 'success');
         setStep('items');
       })
-      .catch(() => showNotification('Gagal membuat customer', 'error'));
+      .catch(() => showNotification('Gagal membuat customer', 'error'))
+      .finally(() => setCreatingCustomer(false));
   };
 
   // back navigation logic for steps
@@ -216,16 +220,16 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      bgcolor: active ? '#34d399' : 'transparent',
-                      border: `1px solid ${active ? '#34d399' : 'rgba(148,163,184,0.12)'}`,
+                      bgcolor: active ? 'var(--status-success)' : 'transparent',
+                      border: `1px solid ${active ? 'var(--status-success)' : 'rgba(var(--border-rgb),0.12)'}`,
                     }}>
-                      <Typography sx={{ color: active ? '#052e16' : '#cbd5e1', fontWeight: 700 }}>{i + 1}</Typography>
+                      <Typography sx={{ color: active ? 'rgba(var(--status-success-rgb,5,30,22),1)' : 'var(--muted)', fontWeight: 700 }}>{i + 1}</Typography>
                     </Box>
                     <Box sx={{ minWidth: 70 }}>
                       <Typography sx={{ color: active ? 'var(--text)' : '#888', fontWeight: active ? 700 : 600, fontSize: 13 }}>{active ? (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3') : (sName === 'customer' ? 'Step 1' : sName === 'items' ? 'Step 2' : 'Step 3')}</Typography>
                     </Box>
                     {i < 2 && (
-                      <Box sx={{ width: 56, height: 2, bgcolor: (step === sName || step === (i === 0 ? 'items' : 'summary')) ? '#34d399' : 'rgba(148,163,184,0.06)', borderRadius: 1 }} />
+                      <Box sx={{ width: 56, height: 2, bgcolor: (step === sName || step === (i === 0 ? 'items' : 'summary')) ? 'var(--status-success)' : 'rgba(var(--border-rgb),0.06)', borderRadius: 1 }} />
                     )}
                   </Box>
                 );
@@ -239,9 +243,10 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
       <DialogContent dividers sx={{ overflowY: 'auto', px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 }, flex: 1 }}>
         {step === 'customer' && (
           <Box>
-            <Typography sx={{ color: '#60a5fa', fontWeight: 700 }}>Customer</Typography>
+            <Typography sx={{ color: 'var(--accent)', fontWeight: 700 }}>Customer</Typography>
             <Autocomplete
               freeSolo
+              
               options={localCustomers || []}
               inputValue={form.customer_name || ''}
               onInputChange={(e, nv, reason) => {
@@ -288,9 +293,9 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
               }}
               noOptionsText="Tidak ditemukan"
               renderOption={(props, option) => (
-                <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, color: '#cbd5e1' }}>
+                <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, color: 'var(--text)' }}>
                   <span>{option?.nama || option?.name || option || ''}</span>
-                  <span>{option?.phone || option?.no_hp || ''}</span>
+                  <span style={{ color: 'var(--muted)' }}>{option?.phone || option?.no_hp || ''}</span>
                 </Box>
               )}
               renderInput={(params) => (
@@ -317,6 +322,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                     <Box key={idx} sx={{ p: 1, mb: 1, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.02)', display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1 }}>
                     <Autocomplete
+                      disablePortal
                       options={productsList || []}
                       getOptionLabel={(opt) => {
                         if (!opt) return '';
@@ -339,17 +345,17 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                         // assemble details joined by bullet
                         const details = [kategori, bahan, finishing, ukuran, waktu, `Stok: ${stock}`].filter(Boolean).join(' • ');
                         return (
-                          <Box component="li" {...props} sx={{ py: 1, px: 3, borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <Box component="li" {...props} sx={{ py: 1, px: 3, borderBottom: '1px solid rgba(255,255,255,0.03)', bgcolor: 'var(--panel)', color: 'var(--text)' }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#eef6ff' }}>{name}</Typography>
-                              <Typography sx={{ color: option?.stock === 0 ? '#ffd6a5' : '#9ae6b4', fontWeight: 700, fontSize: 13 }}>{price}<Box component="span" sx={{ color: '#9ca3af', fontWeight: 500 }}> {satuan}</Box></Typography>
-                            </Box>
+                                    <Typography sx={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{name}</Typography>
+                                    <Typography sx={{ color: option?.stock === 0 ? 'var(--status-warning)' : 'var(--status-success)', fontWeight: 700, fontSize: 13 }}>{price}<Box component="span" sx={{ color: 'var(--muted)', fontWeight: 500 }}> {satuan}</Box></Typography>
+                                  </Box>
 
                             <Box sx={{ mt: 1, mb: 1 }}>
-                              <Box sx={{ height: 1, bgcolor: 'rgba(148,163,184,0.06)', width: '100%' }} />
+                              <Box sx={{ height: 1, bgcolor: 'rgba(var(--border-rgb),0.06)', width: '100%' }} />
                             </Box>
 
-                            <Typography sx={{ mt: 0.5, color: '#9ca3af', fontSize: 12, lineHeight: 1.3 }}>{details}</Typography>
+                            <Typography sx={{ mt: 0.5, color: 'var(--muted)', fontSize: 12, lineHeight: 1.3 }}>{details}</Typography>
                           </Box>
                         );
                       }}
@@ -374,12 +380,12 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                     />
 
                     {prod && (
-                      <Box sx={{ color: '#cbd5e1', fontSize: 13, mt: 1 }}>
-                        <Typography sx={{ color: '#ffe066', fontSize: 13, fontWeight: 700 }}>{prod.nama_produk || prod.nama}</Typography>
+                      <Box sx={{ color: 'var(--muted)', fontSize: 13, mt: 1 }}>
+                        <Typography sx={{ color: 'var(--accent-2)', fontSize: 13, fontWeight: 700 }}>{prod.nama_produk || prod.nama}</Typography>
                         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 1 }}>
                           <Box>
-                            <Typography sx={{ color: '#ffe066', fontSize: 12, fontWeight: 700 }}>Harga</Typography>
-                            <Typography sx={{ color: '#cbd5e1', fontSize: 13 }}>{prod.harga_per_pcs ? `Rp${Number(prod.harga_per_pcs).toLocaleString('id-ID')} / pcs` : prod.harga_per_m2 ? `Rp${Number(prod.harga_per_m2).toLocaleString('id-ID')} / m2` : '-'}</Typography>
+                            <Typography sx={{ color: 'var(--accent-2)', fontSize: 12, fontWeight: 700 }}>Harga</Typography>
+                            <Typography sx={{ color: 'var(--muted)', fontSize: 13 }}>{prod.harga_per_pcs ? `Rp${Number(prod.harga_per_pcs).toLocaleString('id-ID')} / pcs` : prod.harga_per_m2 ? `Rp${Number(prod.harga_per_m2).toLocaleString('id-ID')} / m2` : '-'}</Typography>
                           </Box>
                           <Box>
                             <Typography sx={{ color: '#ffe066', fontSize: 12, fontWeight: 700 }}>Kategori</Typography>
@@ -413,7 +419,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', ml: 'auto' }}>
-                    <IconButton aria-label="remove-line" title="Hapus baris" size="small" onClick={() => removeLine(idx)} sx={{ bgcolor: '#ef4444', color: 'var(--button-text)', '&:hover': { bgcolor: '#dc2626' } }}>
+                    <IconButton aria-label="remove-line" title="Hapus baris" size="small" onClick={() => removeLine(idx)} sx={{ bgcolor: 'var(--status-error)', color: 'var(--button-text)', '&:hover': { bgcolor: 'rgba(var(--status-error-rgb,239,68,68),0.9)' } }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Box>
@@ -422,20 +428,20 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
             })}
             <Button sx={{ mt: 1, px: 2, minWidth: 44 }} onClick={addLine} variant="contained" color="primary" startIcon={<AddIcon />} aria-label="Tambah baris produk" />
             <Box sx={{ mt: 2 }}>
-              <Typography sx={{ color: '#34d399', fontWeight: 700 }}>Total: Rp{Number(computeTotal()).toLocaleString('id-ID')}</Typography>
+              <Typography sx={{ color: 'var(--status-success)', fontWeight: 700 }}>Total: Rp{Number(computeTotal()).toLocaleString('id-ID')}</Typography>
             </Box>
           </Box>
         )}
 
         {step === 'summary' && (
           <Box>
-            <Typography sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Summary</Typography>
+            <Typography sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>Summary</Typography>
             <Box sx={{ color: 'var(--text)', mb: 2 }}>
               <Typography component="div"><strong>Customer:</strong> {selectedCustomer ? (selectedCustomer.nama || selectedCustomer.name) : (form.customer_name || '-')}</Typography>
               <Typography component="div"><strong>Phone:</strong> {selectedCustomer ? (selectedCustomer.phone || selectedCustomer.no_hp) : (form.customer_phone || '-')}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Items</Typography>
+              <Typography sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Items</Typography>
               {aggregateLines().length ? (
                 <Table size="small">
                   <TableHead>
@@ -462,11 +468,11 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
                   </TableBody>
                 </Table>
               ) : (
-                <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Tidak ada item.</Typography>
+                <Typography sx={{ color: 'var(--accent)', fontStyle: 'italic' }}>Tidak ada item.</Typography>
               )}
             </Box>
             <Box sx={{ mt: 2 }}>
-              <Typography sx={{ color: '#34d399', fontWeight: 700 }}>Total: Rp{Number(computeTotal()).toLocaleString('id-ID')}</Typography>
+              <Typography sx={{ color: 'var(--status-success)', fontWeight: 700 }}>Total: Rp{Number(computeTotal()).toLocaleString('id-ID')}</Typography>
             </Box>
           </Box>
         )}
@@ -476,14 +482,56 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
         <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             {step === 'customer' ? (
-              <Button variant="contained" color="primary" onClick={handleCustomerCreate} sx={{ mr: 1, bgcolor: '#3b82f6', '&:hover': { bgcolor: '#2563eb' } }}>Create Customer</Button>
+              <Button
+                variant="outlined"
+                onClick={handleCustomerCreate}
+                disabled={creatingCustomer}
+                sx={{
+                  mr: 1,
+                  color: 'var(--text)',
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  px: 2,
+                  py: 1,
+                  fontWeight: 700,
+                  border: '1px solid rgba(var(--border-rgb),0.12)',
+                  borderColor: 'var(--border)',
+                  bgcolor: creatingCustomer ? 'rgba(0,0,0,0.01)' : 'transparent',
+                  '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.04)' },
+                  '&.Mui-disabled': {
+                    bgcolor: 'rgba(0,0,0,0.03)',
+                    color: 'var(--muted)',
+                    border: '1px solid rgba(var(--border-rgb),0.06)',
+                    opacity: 1,
+                    cursor: 'not-allowed'
+                  }
+                }}
+              >
+                {creatingCustomer ? <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} /> : null}
+                Create Customer
+              </Button>
             ) : (
               <Button variant="contained" onClick={handleBack}>Back</Button>
             )}
           </Box>
           <Box>
             {step === 'customer' && (
-              <Button variant="outlined" onClick={handleCustomerProceed} disabled={!selectedCustomer && !(form.customer_name || form.customer_phone)} sx={{ ml: 1, color: 'var(--text)', borderColor: 'var(--border)', backgroundColor: 'transparent', '&.Mui-disabled': { color: 'rgba(148,163,184,0.95)', borderColor: 'rgba(148,163,184,0.25)', backgroundColor: 'rgba(148,163,184,0.03)', cursor: 'not-allowed', opacity: 1 } }}>Pilih / Lanjut</Button>
+              <Button
+                variant="outlined"
+                onClick={handleCustomerProceed}
+                disabled={!selectedCustomer && !(form.customer_name || form.customer_phone)}
+                sx={{
+                  ml: 1,
+                  color: 'var(--text)',
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  px: 2,
+                  py: 1,
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'transparent',
+                  '&.Mui-disabled': { color: 'rgba(148,163,184,0.95)', borderColor: 'rgba(148,163,184,0.25)', backgroundColor: 'rgba(148,163,184,0.03)', cursor: 'not-allowed', opacity: 1 }
+                }}
+              >Pilih / Lanjut</Button>
             )}
             {step === 'items' && (
               <Button variant="contained" onClick={() => setStep('summary')} disabled={!itemsValid()} sx={{ '&.Mui-disabled': { backgroundColor: 'rgba(148,163,184,0.06)', color: 'rgba(148,163,184,0.9)', borderColor: 'rgba(148,163,184,0.15)' } }}>Lanjut ke Summary</Button>
