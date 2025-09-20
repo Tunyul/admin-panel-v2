@@ -9,7 +9,6 @@ const Orders = React.lazy(() => import('./pages/Orders'))
 const Products = React.lazy(() => import('./pages/Products'))
 const Customers = React.lazy(() => import('./pages/Customers'))
 const Payments = React.lazy(() => import('./pages/Payments'))
-const Invoice = React.lazy(() => import('./pages/Invoice'))
 const PublicInvoice = React.lazy(() => import('./pages/PublicInvoice'))
 const Piutangs = React.lazy(() => import('./pages/Piutangs'))
 const SetupWizard = React.lazy(() => import('./pages/SetupWizard'))
@@ -73,9 +72,7 @@ function App() {
                             <Route path="/products" element={<Products />} />
                             <Route path="/customers" element={<Customers />} />
                             <Route path="/payments" element={<Payments />} />
-                            <Route path="/invoices" element={<Invoice />} />
                             <Route path="/piutangs" element={<Piutangs />} />
-                            <Route path="/setup" element={<SetupWizard />} />
                           </Routes>
                         </Suspense>
                       </PageTransition>
