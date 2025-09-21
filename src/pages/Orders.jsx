@@ -37,6 +37,7 @@ import TableToolbar from '../components/TableToolbar';
 import OrderDialog from '../components/OrderDialog';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
+import useSocket from '../hooks/useSocket';
 
 // Reuse same custom scrollbar style used in Dashboard so modals match theme
 const scrollbarStyle = `
@@ -63,6 +64,7 @@ function Orders() {
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [editingOrder, setEditingOrder] = useState(null);
   const [productsList, setProductsList] = useState([]);
   const [customersList, setCustomersList] = useState([]);
   const [customersMap, setCustomersMap] = useState({});
@@ -83,8 +85,8 @@ function Orders() {
   const [invoiceError, setInvoiceError] = useState(null);
   const [invoiceResult, setInvoiceResult] = useState(null);
 
-  const handleOpen = useCallback((item = {}) => { setForm(item || {}); setDialogOpen(true); }, []);
-  const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); }, []);
+  const handleOpen = useCallback((item = {}) => { setForm(item || {}); setEditingOrder(item || null); setDialogOpen(true); }, []);
+  const handleDialogClose = useCallback(() => { setDialogOpen(false); setForm({}); setEditingOrder(null); }, []);
 
   // keep refs to mutable state we want to read inside callbacks without adding them to deps
   const customersMapRef = useRef(customersMap);
@@ -217,6 +219,45 @@ function Orders() {
     reloadOrders();
   }, [reloadOrders]);
 
+  // Auto-refresh when server emits order events (created/updated/status changes)
+  useEffect(() => {
+    // only attach listeners if socket manager is active (connect handled by SocketProvider)
+    // We'll listen to window custom events emitted by the socket hook to avoid coupling directly
+    // to the socket instance here.
+    let timeout = null;
+    const scheduleReload = () => {
+      // debounce multiple quick events into a single reload
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        try { reloadOrders(); } catch { /* ignore */ }
+        timeout = null;
+      }, 800);
+    };
+
+    const handler = (ev) => {
+      try {
+        const t = ev?.detail?.type || ev?.detail?.event || ev?.detail?.type || null;
+        // Only refresh for order-related events
+        if (!t) return scheduleReload();
+        if (/order\./i.test(t) || /order/i.test(String(t))) scheduleReload();
+      } catch (e) {
+        scheduleReload();
+      }
+    };
+
+    window.addEventListener('app:socket:event', handler);
+    // also listen to custom order events that server might emit directly as global events
+    window.addEventListener('order.created', scheduleReload);
+    window.addEventListener('order.updated', scheduleReload);
+
+    return () => {
+      window.removeEventListener('app:socket:event', handler);
+      window.removeEventListener('order.created', scheduleReload);
+      window.removeEventListener('order.updated', scheduleReload);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [reloadOrders]);
+
   // expose a global programmatic refresh helper for scripts or debug tools
   useEffect(() => {
     window.refreshOrders = () => reloadOrders();
@@ -246,10 +287,29 @@ function Orders() {
       if ((row.status_bayar || '').toString() !== statusBayarFilter) return false;
     }
     if (customerFilter) {
-      const cid = customerFilter.id_customer || customerFilter.id || null;
-      if (cid && String(row.id_customer || row.customer?.id || row.customer_id || '') !== String(cid)) return false;
-      // also allow matching by customer name if an object with name provided
-      if (customerFilter.nama && !((row.customer?.nama || row.nama_customer || '').toString().toLowerCase().includes((customerFilter.nama || '').toString().toLowerCase()))) return false;
+      // If the filter is a primitive (string/number) try to treat it as an ID first (user pasted/typed id)
+      if (typeof customerFilter === 'string' || typeof customerFilter === 'number') {
+        const fid = String(customerFilter).trim();
+        const orderCid = String(row.id_customer || row.customer?.id || row.customer_id || '').trim();
+        // if both sides have an id-like value, prefer strict id comparison
+        if (orderCid) {
+          if (orderCid !== fid) return false;
+        } else {
+          // fallback to name/phone substring match when order has no explicit customer id
+          const s = fid.toLowerCase();
+          const target = `${row.customer?.nama || row.nama_customer || row.customer?.name || ''} ${row.customer?.phone || row.customer?.no_hp || ''}`.toLowerCase();
+          if (!target.includes(s)) return false;
+        }
+      } else if (typeof customerFilter === 'object') {
+        // normalize candidate id from the selected object
+        const cid = customerFilter.id_customer || customerFilter.id || customerFilter.customer_id || null;
+        const orderCid = row.id_customer || row.customer?.id || row.customer_id || '';
+        if (cid && String(orderCid) !== String(cid)) return false;
+        // also allow matching by customer name if an object with name provided
+        if (customerFilter.nama && !((row.customer?.nama || row.nama_customer || row.customer?.name || '').toString().toLowerCase().includes((customerFilter.nama || customerFilter.name || '').toString().toLowerCase()))) return false;
+        // also match by phone if provided
+        if ((customerFilter.phone || customerFilter.no_hp) && !((row.customer?.phone || row.customer?.no_hp || row.phone || '').toString().toLowerCase().includes((customerFilter.phone || customerFilter.no_hp || '').toString().toLowerCase()))) return false;
+      }
     }
     if (totalMinFilter) {
       const min = Number(totalMinFilter) || 0;
@@ -591,11 +651,23 @@ function Orders() {
                   <Autocomplete
                     size="small"
                     options={customersList || []}
-                    getOptionLabel={(o) => o.nama || o.name || (o.phone || '')}
+                    getOptionLabel={(o) => {
+                      if (!o) return '';
+                      return String(o.nama || o.name || o.phone || o.no_hp || o).toString();
+                    }}
+                    isOptionEqualToValue={(option, value) => {
+                      // compare by common id fields or by phone/name string
+                      const oid = option?.id_customer || option?.id || option?.customer_id || null;
+                      const vid = value?.id_customer || value?.id || value?.customer_id || null;
+                      if (oid && vid) return String(oid) === String(vid);
+                      // fallback to compare phone or name
+                      return String(option?.phone || option?.no_hp || option?.nama || option?.name || option || '').toLowerCase() === String(value?.phone || value?.no_hp || value?.nama || value?.name || value || '').toLowerCase();
+                    }}
                     value={customerFilter}
                     onChange={(e, v) => setCustomerFilter(v)}
-                    renderInput={(params) => <TextField {...params} label="Customer" variant="outlined" size="small" sx={{ bgcolor: 'rgba(var(--bg-rgb),0.02)' }} />}
+                    renderInput={(params) => <TextField {...params} label="Customer" variant="outlined" size="small" fullWidth sx={{ bgcolor: 'rgba(var(--bg-rgb),0.02)' }} />}
                     sx={{ minWidth: 240 }}
+                    clearOnBlur={false}
                   />
                   <TextField size="small" variant="outlined" label="Total Min" value={totalMinFilter} onChange={(e) => setTotalMinFilter(e.target.value)} sx={{ width: 120 }} />
                   <TextField size="small" variant="outlined" label="Total Max" value={totalMaxFilter} onChange={(e) => setTotalMaxFilter(e.target.value)} sx={{ width: 120 }} />
@@ -675,7 +747,7 @@ function Orders() {
           </Box>
         </Box>
       </Box>
-      <OrderDialog open={dialogOpen} onClose={handleDialogClose} productsList={productsList} customersList={customersList} onCreated={() => { reloadOrders(); }} />
+    <OrderDialog open={dialogOpen} onClose={handleDialogClose} productsList={productsList} customersList={customersList} onCreated={() => { reloadOrders(); setDetailsMap({}); }} initialOrder={editingOrder} />
     
     <Dialog open={deleteConfirmOpen} onClose={cancelDelete}>
       <DialogTitle>Confirm delete</DialogTitle>

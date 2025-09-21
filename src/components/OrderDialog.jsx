@@ -26,7 +26,7 @@ import { createCustomer, getCustomersByPhone } from '../api/customers';
 import { createOrder as apiCreateOrder, updateOrder } from '../api/orders';
 import { createOrderDetail } from '../api/orderDetail';
 
-export default function OrderDialog({ open, onClose, productsList = [], customersList = [], onCreated }) {
+export default function OrderDialog({ open, onClose, productsList = [], customersList = [], onCreated, initialOrder = null }) {
   const [step, setStep] = useState('customer');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form, setForm] = useState({});
@@ -50,12 +50,27 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
 
   useEffect(() => {
     if (open) {
-      setStep('customer');
-      setSelectedCustomer(null);
-      setForm({});
-      setOrderLines([{ produk_id: null, quantity: 1 }]);
+      // if initialOrder provided, populate fields for edit
+      if (initialOrder) {
+        setStep('items');
+        const cust = initialOrder.customer || null;
+        setSelectedCustomer(cust || (initialOrder.id_customer ? { id_customer: initialOrder.id_customer, nama: initialOrder.nama_customer || initialOrder.customer_name, phone: initialOrder.customer?.phone || null } : null));
+        setForm({
+          ...initialOrder,
+          customer_name: initialOrder.nama_customer || initialOrder.customer?.nama || initialOrder.customer_name || '',
+          customer_phone: initialOrder.customer?.phone || initialOrder.customer?.no_hp || initialOrder.customer_phone || '',
+        });
+        // map details to orderLines shape
+        const lines = (initialOrder.details || initialOrder.order_details || []).map((d) => ({ produk_id: d.id_produk || d.produk_id || d.product_id || d.id_product || null, quantity: d.quantity || d.qty || d.jumlah || 1 }));
+        setOrderLines(lines.length ? lines : [{ produk_id: null, quantity: 1 }]);
+      } else {
+        setStep('customer');
+        setSelectedCustomer(null);
+        setForm({});
+        setOrderLines([{ produk_id: null, quantity: 1 }]);
+      }
     }
-  }, [open]);
+  }, [open, initialOrder]);
 
   useEffect(() => { setLocalCustomers(customersList || []); }, [customersList]);
 
@@ -184,10 +199,11 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
       });
       return Promise.all(promises).then(() => orderId);
     }).then((orderId) => {
-      showNotification('Order dibuat', 'success');
+      const isEdit = Boolean(form && (form.id_order || form.id));
+      showNotification(isEdit ? 'Order diperbarui' : 'Order dibuat', 'success');
       onClose();
       if (onCreated) onCreated(orderId);
-    }).catch(() => showNotification('Gagal membuat order', 'error'));
+    }).catch(() => showNotification('Gagal membuat atau memperbarui order', 'error'));
   };
 
   const resetAndClose = () => {
@@ -537,7 +553,7 @@ export default function OrderDialog({ open, onClose, productsList = [], customer
               <Button variant="contained" onClick={() => setStep('summary')} disabled={!itemsValid()} sx={{ '&.Mui-disabled': { backgroundColor: 'rgba(148,163,184,0.06)', color: 'rgba(148,163,184,0.9)', borderColor: 'rgba(148,163,184,0.15)' } }}>Lanjut ke Summary</Button>
             )}
             {step === 'summary' && (
-              <Button variant="contained" onClick={handleConfirm}>Konfirmasi & Buat Order</Button>
+              <Button variant="contained" onClick={handleConfirm}>{form && (form.id_order || form.id) ? 'Simpan Perubahan' : 'Konfirmasi & Buat Order'}</Button>
             )}
           </Box>
         </Box>

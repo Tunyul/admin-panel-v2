@@ -47,21 +47,9 @@ function App() {
               <SocketProvider>
                 <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
                   <Header />
-                  <div style={{ display: 'flex', flex: '0 1 auto', alignItems: 'stretch', minHeight: 0 }}>
-                    <Sidebar />
-                    <div
-                      style={{
-                        // main content area — fixed height and scrollable
-                        marginTop: 72,
-                        marginLeft: 230,
-                        height: 'calc(100vh - 72px)',
-                        display: 'block',
-                        padding: window.innerWidth < 600 ? '8px' : '24px 20px',
-                        width: 'calc(100% - 230px)',
-                        overflowY: 'auto',
-                        overflowX: 'hidden',
-                      }}
-                    >
+                   <div className="app-frame">
+                     <Sidebar className="app-sidebar" />
+                     <div className="app-main">
                       {/* route-aware transitions */}
                       <PageTransition pathname={displayLocation.pathname}>
                         <Suspense fallback={<div /> }>
@@ -85,6 +73,7 @@ function App() {
         />
       </Routes>
       <Notification />
+  {/* dev demo removed: DevSocketTester no longer rendered */}
     </>
   )
 }

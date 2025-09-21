@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TextField, InputAdornment, IconButton, Box, Paper, Badge } from '@mui/material';
+import { TextField, InputAdornment, IconButton, Box, Paper, Badge, Popover, Button } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { useLocation } from 'react-router-dom';
 
 import ThemeSwitcher from './ThemeSwitcher';
@@ -9,6 +10,7 @@ import LogoutButton from './LogoutButton';
 import { getApiHealth, getDbHealth } from '../api/health';
 import NotificationsCenter from './NotificationsCenter';
 import useNotificationStore from '../store/notificationStore';
+import { markAllAsRead, getNotifications, getUnreadCount } from '../api/notifications';
 
 export default function Header() {
   const [search, setSearch] = useState('');
@@ -21,9 +23,14 @@ export default function Header() {
   // const navigate = useNavigate();
   const location = useLocation();
 
-  const [notifOpen, setNotifOpen] = useState(false);
+  // const [notifOpen, setNotifOpen] = useState(false);
   const [apiFlash, setApiFlash] = useState(false);
   const [dbFlash, setDbFlash] = useState(false);
+  const [socketStatus, setSocketStatus] = useState({ connected: null });
+  const [socketAnchor, setSocketAnchor] = useState(null);
+  const [socketFlash, setSocketFlash] = useState(false);
+  const [lastSocketError, setLastSocketError] = useState(null);
+  const [socketId, setSocketId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -46,7 +53,64 @@ export default function Header() {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
+  // listen for socket status events emitted from useSocket
+  useEffect(() => {
+    const h = (e) => {
+      try {
+        const d = e?.detail || {};
+        setSocketStatus({ connected: Boolean(d.connected) });
+        if (d.id) setSocketId(d.id);
+        // flash animation on status change
+        setSocketFlash(true);
+        setTimeout(() => setSocketFlash(false), 1000);
+      } catch {
+        setSocketStatus({ connected: null });
+      }
+    };
+    window.addEventListener('app:socket:status', h);
+    const eh = (ev) => {
+      try {
+        const err = ev?.detail?.error || null;
+        setLastSocketError(err);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('app:socket:error', eh);
+    // hydrate from global manager if present
+    try {
+      const m = (typeof window !== 'undefined' && window.__APP_SOCKET_MANAGER__) ? window.__APP_SOCKET_MANAGER__ : null;
+      if (m) {
+        setSocketId(m.socket && m.socket.id ? m.socket.id : null);
+        setLastSocketError(m.lastError || null);
+      }
+    } catch { /* ignore */ }
+    return () => window.removeEventListener('app:socket:status', h);
+  }, []);
+
+  // notification store hooks must be declared before effects that use them
   const unreadCount = useNotificationStore((s) => s.unreadCount || 0);
+  // local anchor for popover anchored to bell
+  const notifOpen = useNotificationStore((s) => s.centerOpen);
+  const openCenter = useNotificationStore((s) => s.openCenter);
+  const closeCenter = useNotificationStore((s) => s.closeCenter);
+  const [anchorEl, setAnchorEl] = React.useState(null);
+
+  // when a socket event arrives, open the notifications center and anchor to the bell
+  useEffect(() => {
+    const onSocketEvent = () => {
+      try {
+        // find the notifications button and use it as anchor
+        const btn = document.querySelector('button[aria-label="Notifications"]');
+        if (btn) setAnchorEl(btn);
+        // open the center (store) — it will render anchored to anchorEl
+        openCenter();
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('app:socket:event', onSocketEvent);
+    return () => window.removeEventListener('app:socket:event', onSocketEvent);
+  }, [openCenter]);
+
 
   useEffect(() => {
     const check = async () => {
@@ -88,7 +152,7 @@ export default function Header() {
 
   return (
     <>
-      <Paper elevation={0} sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'var(--panel)', height: 72, position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1200 }}>
+  <Paper elevation={0} sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'var(--panel)', height: 'var(--header-height)', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1200 }}>
         <h1 style={{ color: 'var(--accent)', paddingLeft: 24, letterSpacing: 1.5 }}>ehe</h1>
 
         <Box display="flex" alignItems="center" gap={2} sx={{ pr: 4 }}>
@@ -117,17 +181,71 @@ export default function Header() {
                 DB: {dbStatus.ok ? 'Terhubung' : (dbStatus.ok === null ? 'N/A' : 'Terputus')}
               </Box>
             </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                onClick={(e) => setSocketAnchor(e.currentTarget)}
+                sx={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  bgcolor: socketStatus.connected === true ? 'var(--status-success)' : (socketStatus.connected === null ? 'var(--status-muted)' : 'var(--status-error)'),
+                  cursor: 'pointer'
+                }}
+                className={socketFlash ? (socketStatus.connected ? 'neon-pulse-green' : 'neon-pulse-red') : (socketStatus.connected ? 'neon-green' : (socketStatus.connected === null ? '' : 'neon-red'))}
+                aria-hidden
+                title="Socket status — click for details"
+              />
+              <Box component="span" sx={{ fontSize: 12, cursor: 'pointer' }} onClick={(e) => setSocketAnchor(e.currentTarget)} className={socketStatus.connected === true ? 'neon-text-green' : (socketStatus.connected === null ? '' : 'neon-text-red')}>
+                Socket: {socketStatus.connected === true ? 'Terhubung' : (socketStatus.connected === null ? 'N/A' : 'Terputus')}
+              </Box>
+              {/* socket popover removed (dev-only) */}
+            </Box>
           </Box>
 
           {/* Notification badge (header) */}
           {!(location.pathname && location.pathname.startsWith('/invoice')) && (
             <>
-              <IconButton size="small" onClick={() => setNotifOpen(true)} aria-label="Notifications" sx={{ color: 'var(--accent-2)' }}>
-                <Badge badgeContent={Math.max(0, unreadCount)} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-              <NotificationsCenter open={notifOpen} onClose={() => setNotifOpen(false)} />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton size="small" onClick={(e) => { setAnchorEl(e.currentTarget); openCenter(); }} aria-label="Notifications" sx={{ color: 'var(--accent-2)' }}>
+                  <Badge badgeContent={Math.max(0, unreadCount)} color="error">
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+                  {/* quick action: mark all read from header */}
+                <IconButton
+                  size="small"
+                  onClick={async () => {
+                    const store = useNotificationStore.getState();
+                    const prev = store.items;
+                    // optimistic local update
+                    store.markAllRead && store.markAllRead();
+                    try {
+                      await markAllAsRead();
+                      // clear UI items after success
+                      const s = useNotificationStore.getState();
+                      s.clearItems && s.clearItems();
+                    } catch {
+                      // rollback: refetch items and unread count from server
+                      try {
+                        const res = await getNotifications({ limit: 50 });
+                        const data = res?.data?.body_parsed ?? res?.data?.data ?? res?.data ?? [];
+                        store.setItems(Array.isArray(data) ? data : []);
+                        const unreadRes = await getUnreadCount();
+                        const serverUnread = unreadRes?.data?.data?.unread ?? unreadRes?.data?.unread ?? 0;
+                        store.setUnread(serverUnread);
+                      } catch {
+                        // ignore
+                        store.setItems(Array.isArray(prev) ? prev : []);
+                      }
+                    }
+                  }}
+                  aria-label="Mark all read"
+                  title="Mark all read"
+                >
+                  <DoneAllIcon />
+                </IconButton>
+              </Box>
+              <NotificationsCenter open={notifOpen} onClose={() => { closeCenter(); setAnchorEl(null); }} anchorEl={anchorEl} />
             </>
           )}
 

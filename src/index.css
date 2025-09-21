@@ -29,6 +29,8 @@
   --gradient: linear-gradient(90deg, #fff8ec 0%, #eef6ff 100%); /* gentle warm -> cool */
   --button-text: #081423;  /* dark button text */
   --header-bg: rgba(var(--bg-rgb),0.06);
+  /* responsive header height token (default desktop) */
+  --header-height: 64px;
 }
 .dark {
   --bg: #0f1724;        /* neutral dark page background */
@@ -104,8 +106,8 @@ input::placeholder, textarea::placeholder {
   color: var(--placeholder);
 }
 
-/* Buttons default neutral style — components may override */
-button {
+/* Buttons default neutral style for non-MUI buttons — MUI components use their own classes */
+button:not(.MuiButton-root) {
   background: var(--gradient);
   color: var(--button-text);
   border: 1px solid rgba(11,33,53,0.06);
@@ -113,6 +115,20 @@ button {
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 6px 18px rgba(11,33,53,0.06);
+}
+
+/* IconButtons (MUI) should show only the icon without the button background */
+.MuiIconButton-root, .MuiIconButton-root button, button.MuiIconButton-root {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important; /* keep MUI default internal padding handled by component classes */
+}
+
+/* Ensure small circular IconButtons keep their clickable area while remaining visually icon-only */
+.MuiIconButton-root svg, .MuiIconButton-root .MuiSvgIcon-root {
+  display: inline-block;
+  vertical-align: middle;
 }
 
 /* Icon default color - prefer MUI SvgIcon too */
@@ -159,7 +175,7 @@ html:not(.dark) ::-webkit-scrollbar-track {
 }
 
 /* Make MUI Paper and other cards follow CSS tokens where possible */
-.MuiPaper-root, .card, .paper {
+.MuiPaper-root:not(.MuiAlert-root):not(.MuiSnackbar-root), .card, .paper {
   background: var(--panel);
 }
 
@@ -360,7 +376,7 @@ table thead tr th, .MuiTableCell-head, .MuiTableCell-head * {
 .dark .main-card {
   background-color: var(--main-card-bg) !important;
 }
-.dark .MuiPaper-root:not(.public-invoice-paper) {
+.dark .MuiPaper-root:not(.MuiAlert-root):not(.MuiSnackbar-root):not(.public-invoice-paper) {
   background: var(--panel) !important;
 }
 
@@ -374,6 +390,75 @@ table thead tr th, .MuiTableCell-head, .MuiTableCell-head * {
 @media print {
   body { background: #ffffff !important; }
   .public-invoice-paper { box-shadow: none !important; border: none !important; }
+}
+
+/* Layout helpers for responsive main content and sidebar */
+.app-frame {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: stretch;
+  min-height: 0;
+}
+
+/* Sidebar: fixed on desktop, collapsible on smaller screens */
+.app-sidebar {
+  width: 230px;
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  height: calc(100vh - var(--header-height));
+  z-index: 1100;
+}
+
+/* Main content: sits to the right of the sidebar on wide screens. Be scrollable and responsive. */
+.app-main {
+  /* main layout uses the global --header-height token defined in :root */
+  margin-top: var(--header-height);
+  margin-left: 230px;
+  height: calc(100vh - var(--header-height));
+  padding: 0 18px 8px 18px; /* remove top padding so main content sits flush under header */
+  width: calc(100% - 230px);
+  overflow-y: auto;
+  overflow-x: auto;
+  min-height: 0; /* allow inner flex children to scroll */
+  box-sizing: border-box;
+}
+
+/* Make the first item in the sidebar sit flush with the header */
+.app-sidebar .MuiList-root,
+.app-sidebar .modal-scroll {
+  padding-top: 0 !important;
+}
+
+/* Ensure main-card does not add extra gap at the top */
+.app-main .main-card {
+  margin-top: 0 !important;
+  padding-top: 12px !important; /* keep content inside card readable and not cramped */
+}
+
+/* Tablet: reduce sidebar width slightly and increase main padding" */
+@media (max-width: 900px) {
+  /* slightly smaller header and sidebar on tablet */
+  :root { --header-height: 60px; }
+  .app-sidebar { width: 200px; }
+  .app-main { margin-left: 200px; width: calc(100% - 200px); padding: 16px; }
+}
+
+/* Mobile: hide sidebar and make main content full-width with mobile padding */
+@media (max-width: 600px) {
+  /* compact header + full-width content on small/mobile screens */
+  :root { --header-height: 56px; }
+  .app-sidebar { display: none; position: static; width: 0; height: auto; }
+  .app-main { margin-left: 0; width: 100%; padding: 8px; }
+  /* use the responsive header height token */
+  .app-main { margin-top: var(--header-height); height: calc(100vh - var(--header-height)); }
+}
+
+/* Large desktop: slightly taller header and wider sidebar for roomy layouts */
+@media (min-width: 1280px) {
+  :root { --header-height: 72px; }
+  .app-sidebar { width: 250px; }
+  .app-main { margin-left: 250px; width: calc(100% - 250px); padding: 20px; }
 }
 
 /* Utility: always-show scrollbar for scrollable containers (WebKit + Firefox)

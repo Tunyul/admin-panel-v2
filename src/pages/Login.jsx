@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TextField, Button, Box, Typography, Paper, Avatar, Card, CardContent } from '@mui/material';
 import axios from 'axios';
+import client from '../api/client';
 import useNotificationStore from '../store/notificationStore';
 import LockIcon from '@mui/icons-material/Lock';
 
@@ -18,8 +19,15 @@ export default function Login({ onLogin }) {
 		e.preventDefault();
 		setLoading(true);
 		try {
-			const res = await axios.post('http://192.168.69.104:3000/api/auth/login', form);
+			// use shared API client so baseURL and auth headers are handled centrally
+			const res = await client.post('/api/auth/login', form);
 			localStorage.setItem('token', res.data.token);
+			// notify SocketProvider (same-tab) to reconnect using the newly stored token
+			try {
+				window.dispatchEvent(new CustomEvent('app:socket:reconnect', { detail: { token: res.data.token } }));
+			} catch (err) {
+				// ignore if dispatch fails in older browsers
+			}
 			showNotification('Login sukses!', 'success');
 			setTimeout(() => {
 				setLoading(false);
@@ -34,8 +42,9 @@ export default function Login({ onLogin }) {
 
 	return (
 		<Box className="min-h-screen flex items-center justify-center bg-transparent" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
-			<Card sx={{ maxWidth: 320, width: '100%', borderRadius: 6, boxShadow: '0 8px 32px 0 rgba(var(--accent-rgb),0.12)', bgcolor: 'var(--panel)', p: 2, transition: 'box-shadow 0.3s, transform 0.3s', fontFamily: 'Inter, Arial, sans-serif', '&:hover': { boxShadow: '0 12px 48px 0 rgba(var(--accent-rgb),0.14)', transform: 'scale(1.02)' } }} className="animate-fade-in">
-				<CardContent>
+			<div className="neon-card neon-card--yellow animate-fade-in" style={{ borderRadius: 24 }}>
+				<Card sx={{ maxWidth: 320, width: '100%', borderRadius: 6, boxShadow: 'none', bgcolor: 'var(--panel)', p: 2, transition: 'box-shadow 0.3s, transform 0.3s', fontFamily: 'Inter, Arial, sans-serif', '&:hover': { boxShadow: '0 12px 48px 0 rgba(var(--accent-rgb),0.14)', transform: 'scale(1.02)' } }} className="neon-inner-glow">
+					<CardContent>
 					<Box display="flex" flexDirection="column" alignItems="center" mb={3}>
 						<Avatar sx={{ bgcolor: 'var(--accent-2)', width: 56, height: 56, mb: 2, boxShadow: 'none', fontFamily: 'Inter, Arial, sans-serif' }}>
 							<LockIcon sx={{ color: 'var(--button-text)', fontSize: 32 }} />
@@ -145,14 +154,15 @@ export default function Login({ onLogin }) {
 						</Button>
 					</Box>
 					<Typography variant="caption" color="#bbb" align="center" sx={{ mt: 3, display: 'block', letterSpacing: 1, fontFamily: 'Inter, Arial, sans-serif' }}>© 2025 CS Bot Admin. All rights reserved.</Typography>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			</div>
 			<style>{`
-				.animate-fade-in { animation: fadeIn 0.7s cubic-bezier(.4,0,.2,1); }
-				@keyframes fadeIn { from { opacity: 0; transform: translateY(24px) scale(0.98); } to { opacity: 1; transform: none; } }
-				.animate-shake { animation: shake 0.3s linear; }
-				@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-4px); } 100% { transform: translateX(0); } }
-			`}</style>
-		</Box>
+					.animate-fade-in { animation: fadeIn 0.7s cubic-bezier(.4,0,.2,1); }
+					@keyframes fadeIn { from { opacity: 0; transform: translateY(24px) scale(0.98); } to { opacity: 1; transform: none; } }
+					.animate-shake { animation: shake 0.3s linear; }
+					@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-4px); } 100% { transform: translateX(0); } }
+				`}</style>
+			</Box>
 	);
 }

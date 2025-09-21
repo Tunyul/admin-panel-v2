@@ -27,14 +27,14 @@ export default function Sidebar() {
     { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon />, color: '#c4b5fd' }, // ungu soft
   ];
   return (
-    <Box
+    <Box className="app-sidebar"
   sx={{
     width: 230,
     position: 'fixed',
-    top: 72,
     left: 0,
     alignSelf: 'flex-start',
-    height: 'calc(100vh - 72px)',
+  top: 'var(--header-height)',
+  height: 'calc(100vh - var(--header-height))',
     background: 'var(--panel)',
   color: 'var(--text)',
         boxSizing: 'border-box',

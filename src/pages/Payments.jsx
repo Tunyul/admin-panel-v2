@@ -23,13 +23,52 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
 
-import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, approvePaymentNominal } from '../api/payments';
+import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, approvePaymentNominal, getPaymentsByTransaksi } from '../api/payments';
 import { verifyPayment } from '../api/payments';
+import { getOrderByTransaksi } from '../api/orders';
 import useNotificationStore from '../store/notificationStore';
 import useLoadingStore from '../store/loadingStore';
 import TableToolbar from '../components/TableToolbar';
+import { debounce } from '../utils/format';
+import DrivePreview from '../components/DrivePreview';
 
 export default function Payments() {
+  // Normalize transaction id fields coming from different backend shapes
+  const resolveTransaksi = (obj) => {
+    if (!obj) return null;
+    return obj.no_transaksi || obj.noTransaksi || obj.transaksi || obj.no_transaksi_lama || obj.transaction || obj.noTransaksiLama || null;
+  };
+  // Helper: compute order total from common fields or by summing details when needed
+  const computeOrderTotal = (order) => {
+    if (!order) return 0;
+    // common total fields used across backends
+    const rawTotal = Number(order.total_bayar || order.total_tagihan || order.total || order.grand_total || order.total_harga || order.total_order || 0) || 0;
+    if (rawTotal > 0) return rawTotal;
+    // try to sum OrderDetails if present
+    const dets = order.OrderDetails || order.order_details || order.order_items || order.items || order.products || order.details || [];
+    if (Array.isArray(dets) && dets.length) {
+      return dets.reduce((s, d) => {
+        const qty = Number(d.quantity ?? d.qty ?? d.jumlah ?? d.qty_purchased ?? 1) || 1;
+        const price = Number(d.harga_satuan ?? d.harga ?? d.price ?? d.unit_price ?? d.subtotal ?? d.total ?? 0) || 0;
+        return s + qty * price;
+      }, 0);
+    }
+    return 0;
+  };
+
+  // Helper: derive a display status for payments
+  const derivePaymentStatus = (p) => {
+    if (!p) return { label: 'unknown', color: 'default' };
+    // Prefer explicit status strings from backend
+    const s = (p.status || p.state || p.verification_status || '').toString().toLowerCase();
+    if (s === 'verified' || s === 'approved' || p.verified === true || p.is_verified === true) return { label: 'Verified', color: 'success' };
+    if (s === 'pending' || s === 'new' || s === '') return { label: 'Pending', color: 'warning' };
+    if (s === 'rejected' || s === 'failed' || s === 'error') return { label: 'Failed', color: 'error' };
+    // fallback: map boolean-ish fields
+    if (p.verified === false) return { label: 'Pending', color: 'warning' };
+    // default: show raw status or 'Unknown'
+    return { label: p.status ? String(p.status) : 'Unknown', color: 'default' };
+  };
   const [data, setData] = useState([]);
   // loading and error states are used internally; keep them for future UX improvements
   const [_loading, setLoading] = useState(true);
@@ -39,6 +78,7 @@ export default function Payments() {
   const [errors, setErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [verifyConfirm, setVerifyConfirm] = useState({ open: false, id: null, loading: false, data: null, form: {} });
+  const [addMeta, setAddMeta] = useState({});
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
@@ -91,6 +131,32 @@ export default function Payments() {
     reloadPayments();
   }, []);
 
+  // Auto-refresh when a payment-related socket event arrives.
+  useEffect(() => {
+    // debounce multiple events into a single reload within 1s
+    const debouncedReload = debounce(() => {
+      try { reloadPayments(); } catch (e) { /* ignore */ }
+    }, 1000);
+
+    const handler = (ev) => {
+      try {
+        const detail = ev?.detail || {};
+        const type = (detail.type || '').toString();
+        if (!type) return;
+        if (type === 'payment.created' || type === 'payment.updated' || /payment/i.test(type)) {
+          debouncedReload();
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('app:socket:event', handler);
+    return () => {
+      window.removeEventListener('app:socket:event', handler);
+      debouncedReload.cancel && debouncedReload.cancel();
+    };
+  }, []);
+
   // auto-open verify modal if query param present
   const location = useLocation();
   const autoOpenedRef = useRef(false);
@@ -126,9 +192,66 @@ export default function Payments() {
     setForm(item);
     setErrors({});
     setOpen(true);
+    // if opening Add/Edit with a transaction, fetch order/payments meta to suggest tipe and show totals
+    const tx = resolveTransaksi(item) || item?.no_transaksi || item?.noTransaksi || item?.transaksi;
+    if (tx) {
+      (async () => {
+        try {
+          useLoadingStore.getState().start();
+          const [orderRes, paymentsRes] = await Promise.allSettled([getOrderByTransaksi(tx), getPaymentsByTransaksi(tx)]);
+          let order = {};
+          if (orderRes.status === 'fulfilled') order = orderRes.value?.data?.data || orderRes.value?.data || {};
+          let payments = [];
+          if (paymentsRes.status === 'fulfilled') payments = paymentsRes.value?.data?.data || paymentsRes.value?.data || [];
+          // Prefer explicit top-level total fields (total_bayar commonly used) before falling back
+          const orderTotal = Number(order?.total_bayar ?? order?.total_tagihan ?? order?.total ?? order?.grand_total ?? order?.total_harga ?? order?.total_order ?? computeOrderTotal(order)) || 0;
+          const verifiedPayments = (payments || []).filter((p) => p.verified || p.status === 'verified' || p.is_verified);
+          const paidTotal = verifiedPayments.reduce((s, p) => s + (Number(p.nominal || p.amount || p.jumlah || 0) || 0), 0);
+          const remaining = Math.max(0, orderTotal - paidTotal);
+          // suggest tipe if none set
+          const suggest = (() => {
+            if (!orderTotal) return '';
+            if (paidTotal <= 0) return 'dp';
+            if (remaining <= 0) return 'pelunasan';
+            return 'dp';
+          })();
+          setAddMeta({ orderTotal, paidTotal, remaining });
+          // if order is already fully paid, force tipe to pelunasan and disable selection
+          if (remaining <= 0) {
+            setForm((f) => ({ ...f, tipe: 'pelunasan' }));
+          } else if (!item?.tipe) {
+            setForm((f) => ({ ...f, tipe: suggest }));
+          }
+        } catch (e) {
+          // ignore
+        } finally {
+          useLoadingStore.getState().done();
+        }
+      })();
+    } else {
+      setAddMeta({});
+    }
   };
   const handleClose = () => setOpen(false);
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // if changing nominal and we have order meta, recompute suggested tipe (only if user hasn't chosen tipe)
+    if (name === 'nominal' && addMeta && typeof addMeta.paidTotal !== 'undefined') {
+      const nominalNum = Number(value || 0) || 0;
+      const paidTotal = Number(addMeta.paidTotal || 0) || 0;
+      const remaining = Number(addMeta.remaining || 0) || 0;
+      const orderTotal = Number(addMeta.orderTotal || 0) || 0;
+      let suggest = '';
+      if (!orderTotal) suggest = '';
+      else if (paidTotal <= 0) suggest = 'dp';
+      else if (remaining <= 0) suggest = 'pelunasan';
+      else if (nominalNum >= remaining) suggest = 'pelunasan';
+      else suggest = 'dp';
+      setForm((f) => ({ ...f, [name]: value, tipe: f.tipe || suggest }));
+      return;
+    }
+    setForm({ ...form, [name]: value });
+  };
 
   const handleSave = () => {
     const newErrors = {};
@@ -171,13 +294,57 @@ export default function Payments() {
   const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
 
   const handleVerify = (id) => {
-    setVerifyConfirm({ open: true, id, loading: true, data: null, form: {} });
+    setVerifyConfirm({ open: true, id, loading: true, data: null, form: {}, meta: {} });
     // fetch detail to prefill form and show bukti preview
     useLoadingStore.getState().start();
     getPaymentById(id)
       .then((res) => {
         const details = res?.data?.data || res?.data || {};
-        setVerifyConfirm({ open: true, id, loading: false, data: details, form: { nominal: details.nominal, tipe: details.tipe } });
+        setVerifyConfirm({ open: true, id, loading: false, data: details, form: { nominal: details.nominal, tipe: details.tipe }, meta: {} });
+        // if we have a transaction number, fetch order & payments to compute totals
+    const tx = resolveTransaksi(details) || details?.no_transaksi || details?.noTransaksi || details?.transaksi;
+        if (tx) {
+          // async fetch meta, don't block dialog render
+          (async () => {
+            try {
+              useLoadingStore.getState().start();
+              const [orderRes, paymentsRes] = await Promise.allSettled([
+                getOrderByTransaksi(tx),
+                getPaymentsByTransaksi(tx),
+              ]);
+              let order = {};
+              if (orderRes.status === 'fulfilled') order = orderRes.value?.data?.data || orderRes.value?.data || {};
+              let payments = [];
+              if (paymentsRes.status === 'fulfilled') payments = paymentsRes.value?.data?.data || paymentsRes.value?.data || [];
+
+              const orderTotal = Number(order?.total_bayar ?? order?.total_tagihan ?? order?.total ?? order?.grand_total ?? order?.total_harga ?? order?.total_order ?? computeOrderTotal(order)) || 0;
+              const verifiedPayments = (payments || []).filter((p) => p.verified || p.status === 'verified' || p.is_verified);
+              const paidTotal = verifiedPayments.reduce((s, p) => s + (Number(p.nominal || p.amount || p.jumlah || 0) || 0), 0);
+              const remaining = Math.max(0, orderTotal - paidTotal);
+
+              // determine suggested tipe based on current form nominal and totals
+              const currentNominal = Number(details.nominal || 0) || 0;
+              const suggestTipe = (() => {
+                if (!orderTotal) return '';
+                if (paidTotal <= 0) return 'dp';
+                if (remaining <= 0) return 'pelunasan';
+                if (currentNominal >= remaining) return 'pelunasan';
+                return 'dp';
+              })();
+
+              setVerifyConfirm((s) => ({
+                ...s,
+                meta: { orderTotal, paidTotal, remaining },
+                // if remaining is zero, force pelunasan so the select is consistent and confirm passes
+                form: { ...s.form, tipe: (remaining <= 0 ? 'pelunasan' : (s.form.tipe || suggestTipe)) },
+              }));
+            } catch (e) {
+              // ignore meta fetch errors
+            } finally {
+              useLoadingStore.getState().done();
+            }
+          })();
+        }
       })
       .catch(() => {
         setVerifyConfirm({ open: true, id, loading: false, data: null, form: {} });
@@ -189,6 +356,31 @@ export default function Payments() {
   const cancelVerify = () => setVerifyConfirm({ open: false, id: null, loading: false, data: null, form: {} });
 
   const handleVerifyFormChange = (e) => setVerifyConfirm((s) => ({ ...s, form: { ...s.form, [e.target.name]: e.target.value } }));
+
+  // recompute suggested tipe when nominal input changes (only set if user hasn't selected tipe)
+  const handleVerifyFormChangeWithSuggest = (e) => {
+    const name = e.target.name;
+    const value = e.target.value;
+    setVerifyConfirm((s) => {
+      const nextForm = { ...s.form, [name]: value };
+      let nextMeta = s.meta || {};
+      // only recompute suggestion for nominal changes when meta is available
+      if (name === 'nominal' && nextMeta && typeof nextMeta.paidTotal !== 'undefined') {
+        const nominalNum = Number(value || 0) || 0;
+        const paidTotal = Number(nextMeta.paidTotal || 0) || 0;
+        const remaining = Number(nextMeta.remaining || 0) || 0;
+        const orderTotal = Number(nextMeta.orderTotal || 0) || 0;
+        let suggest = '';
+        if (!orderTotal) suggest = '';
+        else if (paidTotal <= 0) suggest = 'dp';
+        else if (remaining <= 0) suggest = 'pelunasan';
+        else if (nominalNum >= remaining) suggest = 'pelunasan';
+        else suggest = 'dp';
+        if (!nextForm.tipe) nextForm.tipe = suggest;
+      }
+      return { ...s, form: nextForm };
+    });
+  };
 
   const confirmVerify = () => {
     const id = verifyConfirm.id;
@@ -360,6 +552,7 @@ export default function Payments() {
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '220px' }} />
                 <col style={{ width: '200px' }} />
+                <col style={{ width: '120px' }} />
                 <col style={{ width: '160px' }} />
                 <col style={{ width: '220px' }} />
                 <col style={{ width: '200px' }} />
@@ -370,6 +563,7 @@ export default function Payments() {
                   <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
                   <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tanggal</TableCell>
                   <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Nominal</TableCell>
+                  <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Status</TableCell>
                   <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Tipe</TableCell>
                   <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>No Transaksi</TableCell>
                   <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>No HP</TableCell>
@@ -384,6 +578,12 @@ export default function Payments() {
                         <TableCell sx={{ color: 'var(--text)' }}>{row.id_payment || row.id}</TableCell>
                         <TableCell sx={{ color: 'var(--text)' }}>{row.tanggal || '-'}</TableCell>
                         <TableCell sx={{ color: 'var(--accent)' }}>{row.nominal != null ? `Rp${Number(row.nominal).toLocaleString('id-ID')}` : '-'}</TableCell>
+                        <TableCell sx={{ color: 'var(--muted)' }}>
+                          {(() => {
+                            const s = derivePaymentStatus(row);
+                            return <span style={{ fontWeight: 700, color: s.color === 'success' ? 'var(--status-success)' : s.color === 'error' ? '#ef4444' : s.color === 'warning' ? 'var(--status-warning)' : 'var(--muted)' }}>{s.label}</span>;
+                          })()}
+                        </TableCell>
                         <TableCell sx={{ color: 'var(--accent-2)' }}>{row.tipe || '-'}</TableCell>
                         <TableCell sx={{ color: 'var(--text)' }}>{row.no_transaksi || '-'}</TableCell>
                         <TableCell sx={{ color: 'var(--text)' }}>{row.no_hp || '-'}</TableCell>
@@ -405,7 +605,14 @@ export default function Payments() {
                                 <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
                               ) : (
                                 <Box sx={{ color: 'var(--text)' }}>
-                                  <Typography><strong>Bukti:</strong> {detailsMap[row.id_payment || row.id]?.bukti || row.bukti || '-'}</Typography>
+                                  <Typography><strong>Bukti:</strong></Typography>
+                                  { (detailsMap[row.id_payment || row.id]?.bukti || row.bukti) ? (
+                                    <Box sx={{ mt: 1 }}>
+                                      <DrivePreview url={detailsMap[row.id_payment || row.id]?.bukti || row.bukti} thumbHeight={120} />
+                                    </Box>
+                                  ) : (
+                                    <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>-</Typography>
+                                  )}
                                   <Typography><strong>No Transaksi:</strong> {detailsMap[row.id_payment || row.id]?.no_transaksi || row.no_transaksi || '-'}</Typography>
                                   <Typography><strong>No HP:</strong> {detailsMap[row.id_payment || row.id]?.no_hp || row.no_hp || '-'}</Typography>
                                   <Typography sx={{ mt: 1 }}><strong>Tipe:</strong> {detailsMap[row.id_payment || row.id]?.tipe || row.tipe || '-'}</Typography>
@@ -419,7 +626,7 @@ export default function Payments() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>Belum ada data payment.</TableCell>
+                    <TableCell colSpan={8} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>Belum ada data payment.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -436,13 +643,32 @@ export default function Payments() {
           <TextField autoFocus margin="dense" name="tanggal" label="Tanggal" type="datetime-local" fullWidth value={form.tanggal ? form.tanggal.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.tanggal} helperText={errors.tanggal || ''} />
           <TextField margin="dense" name="nominal" label="Nominal" type="number" fullWidth value={form.nominal != null ? form.nominal : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent)' } }} error={!!errors.nominal} helperText={errors.nominal || ''} />
           <TextField margin="dense" name="bukti" label="Bukti (URL/file)" type="text" fullWidth value={form.bukti || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
-          <TextField select margin="dense" name="tipe" label="Tipe" fullWidth value={form.tipe || ''} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}>
+          <TextField
+            select
+            margin="dense"
+            name="tipe"
+            label="Tipe"
+            fullWidth
+            value={(addMeta && Number(addMeta.remaining || 0) <= 0) ? 'pelunasan' : (form.tipe || '')}
+            onChange={handleChange}
+            SelectProps={{ native: true }}
+            InputProps={{ sx: { color: 'var(--text)' } }}
+            InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}
+            disabled={addMeta && Number(addMeta.remaining || 0) <= 0}
+          >
             <option value="">(pilih)</option>
             <option value="dp">dp</option>
             <option value="pelunasan">pelunasan</option>
           </TextField>
           <TextField margin="dense" name="no_transaksi" label="No Transaksi" type="text" fullWidth value={form.no_transaksi || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
           <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
+          {addMeta && typeof addMeta.orderTotal !== 'undefined' && (
+            <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.02)' }}>
+              <Typography sx={{ color: 'var(--muted)' }}>Order Total: {addMeta.orderTotal != null ? `Rp${Number(addMeta.orderTotal).toLocaleString('id-ID')}` : '-'}</Typography>
+              <Typography sx={{ color: 'var(--muted)' }}>Total Paid: {addMeta.paidTotal != null ? `Rp${Number(addMeta.paidTotal).toLocaleString('id-ID')}` : 'Rp0'}</Typography>
+              <Typography sx={{ color: 'var(--muted)' }}>Remaining: {addMeta.remaining != null ? `Rp${Number(addMeta.remaining).toLocaleString('id-ID')}` : 'Rp0'}</Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
@@ -469,14 +695,12 @@ export default function Payments() {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                   <Box sx={{ minWidth: 220, flex: '0 0 220px' }}>
-                {verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file || verifyConfirm.data?.bukti ? (
-                  <Box component="a" href={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} target="_blank" rel="noopener noreferrer">
-                    <Box component="img" src={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} alt="Bukti pembayaran" sx={{ width: '100%', borderRadius: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }} />
+                    {verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file || verifyConfirm.data?.bukti ? (
+                      <DrivePreview url={verifyConfirm.data?.bukti || verifyConfirm.data?.bukti_url || verifyConfirm.data?.bukti_link || verifyConfirm.data?.bukti_file} thumbHeight={160} />
+                    ) : (
+                      <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>Tidak ada bukti</Typography>
+                    )}
                   </Box>
-                ) : (
-                  <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>Tidak ada bukti</Typography>
-                )}
-              </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Detail Pembayaran</Typography>
                 <TextField
@@ -486,7 +710,7 @@ export default function Payments() {
                   type="number"
                   fullWidth
                   value={verifyConfirm.form.nominal != null ? verifyConfirm.form.nominal : (verifyConfirm.data?.nominal ?? '')}
-                  onChange={handleVerifyFormChange}
+                  onChange={handleVerifyFormChangeWithSuggest}
                   sx={inputSx}
                   InputProps={{
                     // Merge styling and numeric input tweaks into a single `sx` object and keep inputProps
@@ -508,7 +732,7 @@ export default function Payments() {
                   name="tipe"
                   label="Tipe"
                   fullWidth
-                  value={verifyConfirm.form.tipe || verifyConfirm.data?.tipe || ''}
+                  value={(verifyConfirm.meta && Number(verifyConfirm.meta.remaining || 0) <= 0) ? 'pelunasan' : (verifyConfirm.form.tipe || verifyConfirm.data?.tipe || '')}
                   onChange={handleVerifyFormChange}
                   SelectProps={{
                     MenuProps: { PaperProps: { sx: { bgcolor: 'var(--panel)', color: 'var(--text)' } } },
@@ -516,6 +740,7 @@ export default function Payments() {
                   sx={inputSx}
                   InputProps={{ sx: { color: 'var(--text)' } }}
                   InputLabelProps={{ sx: { color: 'var(--accent-2)' } }}
+                  disabled={verifyConfirm.meta && Number(verifyConfirm.meta.remaining || 0) <= 0}
                 >
                   <MenuItem value="">(pilih)</MenuItem>
                   <MenuItem value="dp">dp</MenuItem>
@@ -523,6 +748,13 @@ export default function Payments() {
                 </TextField>
                 <Typography sx={{ color: '#cbd5e1', mt: 1 }}>No Transaksi: {verifyConfirm.data?.no_transaksi || '-'}</Typography>
                 <Typography sx={{ color: '#cbd5e1' }}>No HP: {verifyConfirm.data?.no_hp || '-'}</Typography>
+                {verifyConfirm.meta && typeof verifyConfirm.meta.orderTotal !== 'undefined' && (
+                  <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.02)' }}>
+                    <Typography sx={{ color: 'var(--muted)' }}>Order Total: {verifyConfirm.meta.orderTotal != null ? `Rp${Number(verifyConfirm.meta.orderTotal).toLocaleString('id-ID')}` : '-'}</Typography>
+                    <Typography sx={{ color: 'var(--muted)' }}>Total Paid: {verifyConfirm.meta.paidTotal != null ? `Rp${Number(verifyConfirm.meta.paidTotal).toLocaleString('id-ID')}` : 'Rp0'}</Typography>
+                    <Typography sx={{ color: 'var(--muted)' }}>Remaining: {verifyConfirm.meta.remaining != null ? `Rp${Number(verifyConfirm.meta.remaining).toLocaleString('id-ID')}` : 'Rp0'}</Typography>
+                  </Box>
+                )}
               </Box>
             </Box>
           )}

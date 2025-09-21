@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Button, Typography, Box } from '@mui/material';
+import { Popover, List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Button, Typography, Box } from '@mui/material';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import CheckIcon from '@mui/icons-material/Check';
 import useNotificationStore from '../store/notificationStore';
 import { getNotifications, markAsRead, markAllAsRead, getUnreadCount } from '../api/notifications';
 
-export default function NotificationsCenter({ open, onClose } = {}) {
+export default function NotificationsCenter({ open, onClose, anchorEl } = {}) {
   const items = useNotificationStore((s) => s.items || []);
   const setItemsStore = useNotificationStore((s) => s.setItems);
   const markItemRead = useNotificationStore((s) => s.markItemRead);
@@ -15,11 +15,12 @@ export default function NotificationsCenter({ open, onClose } = {}) {
   useEffect(() => {
   if (!open) return undefined;
   let mounted = true;
-  (async () => {
+      (async () => {
       setLoading(true);
       try {
-        const res = await getNotifications({ limit: 50 });
-        const data = res?.data?.data || res?.data || [];
+  const res = await getNotifications({ limit: 50 });
+  // backend may send parsed object under `body_parsed` or `data`/direct
+  const data = res?.data?.body_parsed ?? res?.data?.data ?? res?.data ?? [];
         if (!mounted) return;
   const arr = Array.isArray(data) ? data : [];
   setItemsStore(arr);
@@ -65,12 +66,22 @@ export default function NotificationsCenter({ open, onClose } = {}) {
   };
 
   const handleMarkAll = async () => {
+    // optimistic update: mark all locally first, then call API
+    const prevItems = items;
     try {
-      await markAllAsRead();
+      // update local store immediately (mark read)
       setItemsStore((prev) => (Array.isArray(prev) ? prev.map((i) => ({ ...i, read: true })) : []));
       setUnread(0);
+      // call backend
+      await markAllAsRead();
+      // on success, clear UI list (user intent is to remove/acknowledge notifications)
+      useNotificationStore.getState().clearItems && useNotificationStore.getState().clearItems();
     } catch {
-      // ignore
+      // rollback to previous items and recompute unread
+      setItemsStore(Array.isArray(prevItems) ? prevItems : []);
+      const prevUnread = (Array.isArray(prevItems) ? prevItems : []).filter((n) => !n.read).length;
+      setUnread(prevUnread);
+      // ignore further
     }
   };
 
@@ -78,14 +89,22 @@ export default function NotificationsCenter({ open, onClose } = {}) {
   const [serverUnread, setServerUnread] = useState(0);
 
   return (
-    <Dialog open={Boolean(open)} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>
-        Notifikasi
-        <Box sx={{ float: 'right' }}>
+    <Popover
+      open={Boolean(open)}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      PaperProps={{ sx: { width: 360, maxWidth: '90%' } }}
+    >
+      {/* limit height so popover won't extend too far down; make content scrollable */}
+      {/* Use column flex so header/footer keep their size and the List can scroll */}
+      <Box sx={{ p: 1, minWidth: 280, maxHeight: 320, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="h6">Notifikasi</Typography>
           <Button size="small" startIcon={<DoneAllIcon />} onClick={handleMarkAll}>Mark all read</Button>
         </Box>
-      </DialogTitle>
-      <DialogContent>
+
         {!loading && items.length === 0 && serverUnread === 0 && <Typography>Tidak ada notifikasi</Typography>}
         {!loading && items.length === 0 && serverUnread > 0 && (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
@@ -96,7 +115,7 @@ export default function NotificationsCenter({ open, onClose } = {}) {
                 try {
                   setLoading(true);
                   const res = await getNotifications({ limit: 50 });
-                  const data = res?.data?.data || res?.data || [];
+                  const data = res?.data?.body_parsed ?? res?.data?.data ?? res?.data ?? [];
                   setItemsStore(Array.isArray(data) ? data : []);
                   const unread2 = (Array.isArray(data) ? data : []).filter((n) => !n.read).length;
                   setUnread(unread2);
@@ -109,7 +128,7 @@ export default function NotificationsCenter({ open, onClose } = {}) {
             }}>Refresh</Button>
           </Box>
         )}
-        <List>
+  <List sx={{ overflowY: 'auto', flex: '1 1 auto' }}>
           {items.map((it, i) => (
             <ListItem key={it.id || `${it.no_transaksi}-${i}`} divider>
               <ListItemText primary={it.title || it.no_transaksi || it.message || 'Notifikasi'} secondary={it.message || it.status || it.timestamp} />
@@ -123,7 +142,7 @@ export default function NotificationsCenter({ open, onClose } = {}) {
             </ListItem>
           ))}
         </List>
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </Popover>
   );
 }

@@ -126,7 +126,7 @@ export default function Dashboard() {
   const GROUP_B_DEFAULTS = [
   { key: 'uang_masuk', title: 'Uang Masuk', value: '—', icon: <MonetizationOnIcon />, color: 'bg-yellow-400' },
   { key: 'belum_dibayar', title: 'Belum Dibayar', value: '—', icon: <PaymentsIcon />, color: 'bg-red-400' },
-  { key: 'orders_selesai', title: 'Selesai', value: '—', icon: <TrendingUpIcon />, color: 'bg-green-400' },
+  { key: 'orders_selesai', title: 'Orders Selesai', value: '—', icon: <TrendingUpIcon />, color: 'bg-green-400' },
   { key: 'orders_pending', title: 'Pending', value: '—', icon: <ShoppingCartIcon />, color: 'bg-blue-400' },
   ];
 
@@ -171,12 +171,63 @@ export default function Dashboard() {
         const uniq = new Set(arr.map((it) => it[idKey] ?? it.id ?? JSON.stringify(it)));
         return uniq.size;
       };
+      // compute uang_masuk from verified/approved payments
+      const paymentsArr = Array.isArray(payP?.data?.data) ? payP.data.data : (Array.isArray(payP?.data) ? payP.data : []);
+      // build payments map keyed by transaction/no_transaksi to sum verified payments per order
+      const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
+        const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
+        if (!tx) return acc;
+        const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+        const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+        if (!verified) return acc;
+        acc[tx] = (acc[tx] || 0) + nominal;
+        return acc;
+      }, {});
+      const uangMasukSum = Object.values(paymentsByTx).reduce((a, b) => a + (Number(b) || 0), 0);
+
+      // compute order status counts and unpaid total
+      const ordersArr = Array.isArray(oP?.data?.data) ? oP.data.data : (Array.isArray(oP?.data) ? oP.data : []);
+      if (import.meta.env.DEV) {
+        try {
+          console.debug('[Dashboard.refreshCounts] ordersArr length:', Array.isArray(ordersArr) ? ordersArr.length : 0);
+          console.debug('[Dashboard.refreshCounts] sample orders:', (Array.isArray(ordersArr) ? ordersArr.slice(0, 6) : []).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
+        } catch (e) { /* ignore */ }
+      }
+      let selesai = 0; let pending = 0; let belum = 0; let unpaidTotal = 0;
+      (Array.isArray(ordersArr) ? ordersArr : []).forEach((o) => {
+        // Count orders_selesai strictly by status_order === 'selesai'
+        const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
+        if (statusOrder === 'selesai') {
+          selesai += 1;
+        }
+
+        // compute unpaid/paid and pending/belum as before but do NOT use these to mark 'selesai'
+        const total = Number(o?.total_bayar || o?.total || o?.total_tagihan || o?.jumlah || 0) || 0;
+        const tx = o?.no_transaksi || o?.no_transaksi_lama || o?.transaksi || o?.id_order || '';
+        const paid = Number(o?.paid_amount || o?.paid_verified_total || o?.total_dibayar || paymentsByTx[tx] || 0) || 0;
+        if (total > 0) {
+          const remaining = Math.max(0, total - paid);
+          unpaidTotal += remaining;
+          if (paid <= 0) belum += 1;
+          else if (remaining > 0) pending += 1;
+          // NOTE: do not increment `selesai` here; only status_order === 'selesai' counts
+        } else {
+          const st = String(o?.status || o?.status_bot || '').toLowerCase();
+          if (st.includes('pend')) pending += 1;
+          else belum += 1;
+        }
+      });
+
       setStats((prev) => prev.map((s) => {
-  if (s.key === 'customers') return { ...s, value: mapLen(cP, 'id_customer') };
-  if (s.key === 'products') return { ...s, value: mapLen(pP, 'id_produk') };
-  if (s.key === 'payments') return { ...s, value: mapLen(payP, 'id_payment') };
-  if (s.key === 'piutangs') return { ...s, value: mapLen(piuP, 'id_piutang') };
-  if (s.key === 'orders') return { ...s, value: mapLen(oP, 'id_order') };
+        if (s.key === 'customers') return { ...s, value: mapLen(cP, 'id_customer') };
+        if (s.key === 'products') return { ...s, value: mapLen(pP, 'id_produk') };
+        if (s.key === 'payments') return { ...s, value: mapLen(payP, 'id_payment') };
+        if (s.key === 'piutangs') return { ...s, value: mapLen(piuP, 'id_piutang') };
+        if (s.key === 'orders') return { ...s, value: mapLen(oP, 'id_order') };
+        if (s.key === 'uang_masuk') return { ...s, value: `Rp${Number(uangMasukSum).toLocaleString('id-ID')}` };
+        if (s.key === 'belum_dibayar') return { ...s, value: `Rp${Number(unpaidTotal).toLocaleString('id-ID')}` };
+        if (s.key === 'orders_selesai') return { ...s, value: selesai };
+        if (s.key === 'orders_pending') return { ...s, value: pending };
         return s;
       }));
     } catch {
@@ -185,6 +236,22 @@ export default function Dashboard() {
       useLoadingStore.getState().done();
     }
   };
+
+  // react to socket events elsewhere in the app to keep dashboard counts in sync
+  useEffect(() => {
+    let t = null;
+    const handler = (e) => {
+      const tp = e?.detail?.type || '';
+      // only refresh for relevant events
+      if (/payment|order|invoice/i.test(tp)) {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => { refreshCounts(); t = null; }, 2000);
+      }
+    };
+    window.addEventListener('app:socket:event', handler);
+    return () => { window.removeEventListener('app:socket:event', handler); if (t) clearTimeout(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Lazy-mount wrapper for heavy charts — uses IntersectionObserver to defer rendering
   function ChartLazyMount({ children }) {
@@ -263,7 +330,23 @@ export default function Dashboard() {
     getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setStats((prev) => prev.map((s) => (s.key === 'payments' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
+        const arr = Array.isArray(items) ? items : [];
+        if (import.meta.env.DEV) {
+          try {
+            console.debug('[Dashboard.initOrders] items length:', arr.length);
+            console.debug('[Dashboard.initOrders] sample orders:', arr.slice(0, 8).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
+          } catch (e) { /* ignore */ }
+        }
+        const uangMasuk = arr.reduce((acc, p) => {
+          const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+          const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+          return acc + (verified ? nominal : 0);
+        }, 0);
+        setStats((prev) => prev.map((s) => {
+          if (s.key === 'payments') return { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') };
+          if (s.key === 'uang_masuk') return { ...s, value: `Rp${Number(uangMasuk).toLocaleString('id-ID')}` };
+          return s;
+        }));
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
@@ -295,9 +378,56 @@ export default function Dashboard() {
     // Fetch orders count
     useLoadingStore.getState().start();
     getOrders()
-      .then((res) => {
+      .then(async (res) => {
         const items = res?.data?.data || res?.data || [];
-        setStats((prev) => prev.map((s) => (s.key === 'orders' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
+        const arr = Array.isArray(items) ? items : [];
+        // fetch payments so we can sum verified payments per transaction
+        let paymentsArr = [];
+        try {
+          const pRes = await getPayments();
+          paymentsArr = Array.isArray(pRes?.data?.data) ? pRes.data.data : (Array.isArray(pRes?.data) ? pRes.data : []);
+        } catch (e) {
+          paymentsArr = [];
+        }
+        const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
+          const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
+          if (!tx) return acc;
+          const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+          const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+          if (!verified) return acc;
+          acc[tx] = (acc[tx] || 0) + nominal;
+          return acc;
+        }, {});
+
+        // compute order status counts for dashboard and unpaid total
+        // Note: `orders_selesai` is counted ONLY when `status_order === 'selesai'`.
+        let selesai = 0; let pending = 0; let belum = 0; let unpaidTotal = 0;
+        arr.forEach((o) => {
+          const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
+          if (statusOrder === 'selesai') selesai += 1;
+
+          const total = Number(o?.total_bayar || o?.total || o?.total_tagihan || o?.jumlah || 0) || 0;
+          const tx = o?.no_transaksi || o?.no_transaksi_lama || o?.transaksi || o?.id_order || '';
+          const paid = Number(o?.paid_amount || o?.paid_verified_total || o?.total_dibayar || paymentsByTx[tx] || 0) || 0;
+          if (total > 0) {
+            const remaining = Math.max(0, total - paid);
+            unpaidTotal += remaining;
+            if (paid <= 0) belum += 1;
+            else if (remaining > 0) pending += 1;
+            // do not treat remaining <= 0 as 'selesai' anymore
+          } else {
+            const st = String(o?.status || o?.status_bot || '').toLowerCase();
+            if (st.includes('pend')) pending += 1;
+            else belum += 1;
+          }
+        });
+        setStats((prev) => prev.map((s) => {
+          if (s.key === 'orders') return { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') };
+          if (s.key === 'orders_selesai') return { ...s, value: selesai };
+          if (s.key === 'orders_pending') return { ...s, value: pending };
+          if (s.key === 'belum_dibayar') return { ...s, value: `Rp${Number(unpaidTotal).toLocaleString('id-ID')}` };
+          return s;
+        }));
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
