@@ -8,7 +8,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Paper,
   Collapse,
   Dialog,
   DialogActions,
@@ -20,43 +19,47 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
+import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { useSearchParams } from 'react-router-dom';
 
 import { getCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer } from '../api/customers';
 import useNotificationStore from '../store/notificationStore';
-import useLoadingStore from '../store/loadingStore';
 import TableToolbar from '../components/TableToolbar';
 
 const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
   const id = row.id_customer || row.id;
   return (
     <>
-  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
-        <TableCell sx={{ color: 'var(--text)' }}>{id}</TableCell>
-        <TableCell sx={{ color: 'var(--text)' }}>{row.nama || '-'}</TableCell>
-        <TableCell sx={{ color: 'var(--accent)' }}>{row.no_hp || '-'}</TableCell>
-        <TableCell sx={{ color: 'var(--accent-2)' }}>{row.tipe_customer || '-'}</TableCell>
+      <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+        <TableCell>{id}</TableCell>
+        <TableCell>{row.nama || row.nama_customer || '-'}</TableCell>
+        <TableCell>{row.no_hp || '-'}</TableCell>
+        <TableCell>{row.tipe_customer || '-'}</TableCell>
+        <TableCell>{row.alamat || '-'}</TableCell>
         <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)}><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)}><InfoIcon /></IconButton>
+          <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon /></IconButton>
+          <IconButton color="error" onClick={() => onDelete(id)} size="small"><DeleteIcon /></IconButton>
+          <IconButton color="info" onClick={() => onExpand(id)} size="small"><InfoIcon /></IconButton>
         </TableCell>
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={5} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
+        <TableCell colSpan={6} sx={{ p: 0, border: 0 }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Customer Details</Typography>
+            <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle2" gutterBottom>Customer Details</Typography>
               {detailsLoading[id] ? (
-                <Typography sx={{ color: 'var(--accent)', fontStyle: 'italic' }}>Loading details...</Typography>
-              ) : (
-                <Box sx={{ color: 'var(--text)' }}>
-                  <Typography><strong>Nama:</strong> {detailsMap[id]?.nama || row.nama}</Typography>
-                  <Typography><strong>No HP:</strong> {detailsMap[id]?.no_hp || row.no_hp}</Typography>
-                  <Typography><strong>Tipe:</strong> {detailsMap[id]?.tipe_customer || row.tipe_customer}</Typography>
-                  <Typography><strong>Batas Piutang:</strong> {detailsMap[id]?.batas_piutang || row.batas_piutang || '-'}</Typography>
-                  <Typography sx={{ mt: 1 }}><strong>Catatan:</strong> {detailsMap[id]?.catatan || row.catatan || '-'}</Typography>
+                <Typography>Loading details...</Typography>
+              ) : detailsMap[id] ? (
+                <Box>
+                  <Typography><strong>Full Address:</strong> {detailsMap[id].alamat_lengkap || detailsMap[id].alamat || '-'}</Typography>
+                  <Typography><strong>Email:</strong> {detailsMap[id].email || '-'}</Typography>
+                  <Typography><strong>Registration Date:</strong> {detailsMap[id].tanggal_daftar ? new Date(detailsMap[id].tanggal_daftar).toLocaleDateString() : '-'}</Typography>
+                  <Typography><strong>Notes:</strong> {detailsMap[id].catatan || '-'}</Typography>
                 </Box>
+              ) : (
+                <Typography>No additional details available</Typography>
               )}
             </Box>
           </Collapse>
@@ -66,40 +69,32 @@ const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap,
   );
 });
 
-// reuse modal scrollbar style from Orders for consistent look
-const scrollbarStyle = `
-  ::-webkit-scrollbar {
-    width: 10px;
-    background: transparent;
-    border-radius: 8px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.26), rgba(var(--accent-rgb),0.26));
-    border-radius: 8px;
-    box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.36), rgba(var(--accent-rgb),0.36));
-  }
-`;
-
 function Customers() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
-  const [errors, setErrors] = useState({});
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
+  const [errors, setErrors] = useState({});
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const { showNotification } = useNotificationStore();
+
+  const updateParam = (key, value) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === '' || value == null) {
+      params.delete(key)
+    } else {
+      params.set(key, value)
+    }
+    setSearchParams(params)
+  }
 
   const reloadCustomers = useCallback(() => {
     setLoading(true);
-    // mark global busy
-    useLoadingStore.getState().start();
     return getCustomers()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -116,7 +111,6 @@ function Customers() {
       })
       .finally(() => {
         setLoading(false);
-        useLoadingStore.getState().done();
       });
   }, []);
 
@@ -124,12 +118,28 @@ function Customers() {
     reloadCustomers();
   }, [reloadCustomers]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      showNotification('🔄 Refreshing customers...', 'info')
+      reloadCustomers().then(() => {
+        showNotification(`✅ ${data.length} customers loaded`, 'success')
+      }).catch(() => {
+        showNotification('❌ Failed to refresh customers', 'error')
+      })
+    }
+    
+    window.addEventListener('app:refresh:customers', handleRefresh)
+    return () => window.removeEventListener('app:refresh:customers', handleRefresh)
+  }, [reloadCustomers, data.length, showNotification])
+
+  const searchQuery = searchParams.get('q') || ''
+  const typeFilter = searchParams.get('type') || ''
+  
   const filteredData = data.filter((row) => {
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      const hay = `${row.nama || ''} ${row.no_hp || ''} ${row.tipe_customer || ''}`.toLowerCase();
+      const hay = `${row.nama || row.nama_customer || ''} ${row.no_hp || ''} ${row.alamat || ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     if (typeFilter) {
@@ -138,187 +148,254 @@ function Customers() {
     return true;
   });
 
+  const handleOpen = useCallback((item = {}) => {
+    setForm(item);
+    setErrors({});
+    setOpen(true);
+  }, []);
 
-  const handleOpen = useCallback((item = {}) => { setForm(item); setOpen(true); }, []);
   const handleClose = useCallback(() => setOpen(false), []);
   const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
-  const handleSave = () => {
-    // Validation
-    const newErrors = {};
-    if (!form.nama || !form.nama.trim()) newErrors.nama = 'Nama wajib diisi';
-    if (!form.no_hp || !form.no_hp.trim()) newErrors.no_hp = 'No HP wajib diisi';
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length) return;
 
-    // Build payload matching MySQL schema
-    const payload = {
-      nama: form.nama,
-      no_hp: form.no_hp,
-      tipe_customer: form.tipe_customer || 'reguler',
-      batas_piutang: form.batas_piutang || null,
-      catatan: form.catatan || null,
+  const handleSave = () => {
+    const newErrors = {};
+    if (!form.nama?.trim() && !form.nama_customer?.trim()) {
+      newErrors.nama = 'Customer name is required';
+    }
+    if (!form.no_hp?.trim()) newErrors.no_hp = 'Phone number is required';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Normalize field names
+    const customerData = {
+      ...form,
+      nama: form.nama || form.nama_customer,
+      nama_customer: form.nama || form.nama_customer
     };
-    const op = form.id_customer ? updateCustomer(form.id_customer, payload) : createCustomer(payload);
-    op
+
+    const promise = form.id_customer || form.id ? 
+      updateCustomer(form.id_customer || form.id, customerData) : 
+      createCustomer(customerData);
+      
+    promise
       .then(() => {
-        showNotification('Saved customer', 'success');
+        showNotification(`Customer ${form.id_customer || form.id ? 'updated' : 'created'} successfully`, 'success');
         handleClose();
         reloadCustomers();
       })
-      .catch(() => showNotification('Gagal menyimpan customer', 'error'));
+      .catch((err) => {
+        showNotification(`Failed to ${form.id_customer || form.id ? 'update' : 'create'} customer`, 'error');
+        console.error(err);
+      });
   };
 
-  const handleDelete = useCallback((id) => { setDeleteConfirm({ open: true, id }); }, []);
+  const handleDelete = (id) => setDeleteConfirm({ open: true, id });
 
   const confirmDelete = () => {
     const id = deleteConfirm.id;
     setDeleteConfirm({ open: false, id: null });
     if (!id) return;
+    
     deleteCustomer(id)
       .then(() => {
-        showNotification('Customer deleted', 'info');
+        showNotification('Customer deleted successfully', 'success');
         reloadCustomers();
       })
-      .catch(() => showNotification('Gagal menghapus customer', 'error'));
+      .catch((err) => {
+        showNotification('Failed to delete customer', 'error');
+        console.error(err);
+      });
   };
 
-  const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
-
   const handleExpandWithDetails = useCallback((id) => {
-    setExpanded((prev) => (prev !== id ? id : null));
-    if (!detailsMap[id]) {
-      setDetailsLoading((s) => ({ ...s, [id]: true }));
-      useLoadingStore.getState().start();
+    if (expanded === id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(id);
+    if (!detailsMap[id] && !detailsLoading[id]) {
+      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
       getCustomerById(id)
         .then((res) => {
-          const details = res?.data?.data || res?.data || {};
-          setDetailsMap((s) => ({ ...s, [id]: details }));
+          setDetailsMap((prev) => ({ ...prev, [id]: res?.data || res }));
         })
-        .catch(() => {
-          setDetailsMap((s) => ({ ...s, [id]: {} }));
-          showNotification('Gagal memuat detail customer', 'error');
+        .catch((err) => {
+          console.error(`Failed to load details for customer ${id}`, err);
+          setDetailsMap((prev) => ({ ...prev, [id]: null }));
         })
         .finally(() => {
-          setDetailsLoading((s) => ({ ...s, [id]: false }));
-          useLoadingStore.getState().done();
+          setDetailsLoading((prev) => ({ ...prev, [id]: false }));
         });
     }
-  }, [detailsMap, showNotification]);
+  }, [expanded, detailsMap, detailsLoading]);
 
-  // Loading early-return removed — always render page; _loading only disables actions where used.
+  // Customer type filter options
+  const typeFilterOptions = [
+    ...new Set(data.map(d => d.tipe_customer))
+  ].filter(Boolean).map(c => ({ value: c, label: c }))
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', px: { xs: 2, md: 2 }, pt: { xs: 1.5, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-    <style>{scrollbarStyle}</style>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1, mt: 0 }}>
-            Customers
-          </Typography>
-          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search customers by name or phone" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'reguler', label: 'Reguler' }, { value: 'vip', label: 'VIP' }, { value: 'hutang', label: 'Hutang' }]} noWrap={true} />
-          </Box>
+    <Box>
+      {/* Header with actions */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+          <TableToolbar
+            value={searchQuery}
+            onChange={(value) => updateParam('q', value)}
+            placeholder="Search customers (name, phone, address)"
+            hideFilters
+          />
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button 
+            startIcon={<RefreshIcon />} 
+            variant="outlined" 
+            size="small" 
+            onClick={() => window.dispatchEvent(new CustomEvent('app:refresh:customers'))}
+          >
+            Refresh
+          </Button>
+          <Button 
+            startIcon={<AddIcon />} 
+            variant="contained" 
+            size="small" 
+            onClick={() => handleOpen()}
+          >
             Add Customer
           </Button>
         </Box>
       </Box>
 
-          <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-            <Box sx={{ width: '100%', height: { xs: 520, md: 720 }, borderRadius: 0, p: 0, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', minHeight: 0 }}>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', pt: 0, px: 0, pb: 2, minHeight: 0 }}>
-                <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2, px: 2 }}>
-                  <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search customers by name or phone" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'reguler', label: 'Reguler' }, { value: 'vip', label: 'VIP' }, { value: 'hutang', label: 'Hutang' }]} />
-                </Box>
-                <Box
-                  className="modal-scroll"
-                  sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    overflowY: 'auto',
-                    overflowX: 'auto',
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: 'var(--scroll-thumb-color) var(--scroll-track-color)',
-                    '&::-webkit-scrollbar': { width: 10, height: 10 },
-                    '&::-webkit-scrollbar-track': { background: 'var(--scroll-track, transparent)' },
-                    '&::-webkit-scrollbar-thumb': { background: 'var(--scroll-thumb)', borderRadius: 8, boxShadow: '0 0 8px rgba(var(--text-rgb),0.06)' },
-                    '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
-                  }}
-                >
-                  <Table sx={{ tableLayout: 'fixed', minWidth: { xs: 600, md: 900 }, width: '100%', '& .MuiTableCell-root': { boxSizing: 'border-box', padding: '0.75rem 0.75rem' } }}>
-                    <colgroup>
-                      <col style={{ width: '120px' }} />
-                      <col style={{ width: '320px' }} />
-                      <col style={{ width: '220px' }} />
-                      <col style={{ width: '200px' }} />
-                      <col style={{ width: '140px' }} />
-                    </colgroup>
-                    <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1200, background: 'var(--main-card-bg)' }}>
-                      <TableRow sx={{ bgcolor: 'transparent' }}>
-                        <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
-                        <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Nama</TableCell>
-                        <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>No HP</TableCell>
-                        <TableCell sx={{ color: 'var(--muted)', fontWeight: 700 }}>Tipe</TableCell>
-                        <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredData && filteredData.length > 0 ? (
-                        filteredData.map((row) => (
-                          <CustomerRow
-                            key={row.id_customer || row.id}
-                            row={row}
-                            expanded={expanded}
-                            detailsMap={detailsMap}
-                            detailsLoading={detailsLoading}
-                            onOpen={handleOpen}
-                            onDelete={handleDelete}
-                            onExpand={handleExpandWithDetails}
-                          />
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
-                            Belum ada data customer.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </Box>
-              </Box>
-            </Box>
-            <Box className="table-bottom-space" />
-          </Paper>
+      {/* Filters Row */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TableToolbar
+          hideSearch
+          filterValue={typeFilter}
+          onFilterChange={(value) => updateParam('type', value)}
+          filterOptions={typeFilterOptions}
+        />
+      </Box>
 
-  <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
-        <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_customer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
+      {/* Customers Table */}
+      <Box 
+        sx={{ 
+          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
+          overflow: 'auto',
+          overflowX: 'auto'
+        }}
+      >
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Address</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <Typography>
+                    {data.length === 0 ? 'No customers found' : 'No customers match current filters'}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map((row) => (
+                <CustomerRow
+                  key={row.id_customer || row.id}
+                  row={row}
+                  expanded={expanded}
+                  detailsLoading={detailsLoading}
+                  detailsMap={detailsMap}
+                  onOpen={handleOpen}
+                  onDelete={handleDelete}
+                  onExpand={handleExpandWithDetails}
+                />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Box>
+
+      {/* Add/Edit Customer Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>{form.id_customer || form.id ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="nama" label="Nama" type="text" fullWidth value={form.nama || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} error={!!errors.nama} helperText={errors.nama || ''} />
-          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent)' } }} error={!!errors.no_hp} helperText={errors.no_hp || ''} />
-          <TextField select margin="dense" name="tipe_customer" label="Tipe Customer" fullWidth value={form.tipe_customer || 'reguler'} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }}>
-            <option value="reguler">reguler</option>
-            <option value="vip">vip</option>
-            <option value="hutang">hutang</option>
-          </TextField>
-          <TextField margin="dense" name="batas_piutang" label="Batas Piutang" type="datetime-local" fullWidth value={form.batas_piutang ? form.batas_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--accent-2)' } }} />
-          <TextField margin="dense" name="catatan" label="Catatan" type="text" fullWidth multiline rows={3} value={form.catatan || ''} onChange={handleChange} InputProps={{ sx: { color: 'var(--text)' } }} InputLabelProps={{ sx: { color: 'var(--muted)' } }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              label="Customer Name"
+              name="nama"
+              value={form.nama || form.nama_customer || ''}
+              onChange={handleChange}
+              error={!!errors.nama}
+              helperText={errors.nama}
+              fullWidth
+            />
+            <TextField
+              label="Phone Number"
+              name="no_hp"
+              value={form.no_hp || ''}
+              onChange={handleChange}
+              error={!!errors.no_hp}
+              helperText={errors.no_hp}
+              fullWidth
+            />
+            <TextField
+              label="Customer Type"
+              name="tipe_customer"
+              value={form.tipe_customer || ''}
+              onChange={handleChange}
+              error={!!errors.tipe_customer}
+              helperText={errors.tipe_customer}
+              fullWidth
+            />
+            <TextField
+              label="Address"
+              name="alamat"
+              value={form.alamat || ''}
+              onChange={handleChange}
+              error={!!errors.alamat}
+              helperText={errors.alamat}
+              multiline
+              rows={3}
+              fullWidth
+            />
+            <TextField
+              label="Email"
+              name="email"
+              type="email"
+              value={form.email || ''}
+              onChange={handleChange}
+              error={!!errors.email}
+              helperText={errors.email}
+              fullWidth
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={deleteConfirm.open} onClose={cancelDelete} PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle>Hapus customer</DialogTitle>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, id: null })}>
+        <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>Yakin ingin menghapus customer ini?</Typography>
+          <Typography>Are you sure you want to delete this customer?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelDelete}>Batal</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">Hapus</Button>
+          <Button onClick={() => setDeleteConfirm({ open: false, id: null })}>Cancel</Button>
+          <Button onClick={confirmDelete} variant="contained" color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>
@@ -326,5 +403,3 @@ function Customers() {
 }
 
 export default Customers;
-
-

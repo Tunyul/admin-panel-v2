@@ -21,59 +21,58 @@ export default function Sidebar() {
   const menu = [
     { label: 'Dashboard', path: '/', icon: <DashboardIcon />, color: '#ffe066' }, // kuning soft
     { label: 'Orders', path: '/orders', icon: <ListAltIcon />, color: '#60a5fa' }, // biru soft
-  { label: 'Products', path: '/products', icon: <InventoryIcon />, color: '#34d399' }, // hijau soft (gunakan InventoryIcon)
+    { label: 'Products', path: '/products', icon: <InventoryIcon />, color: '#34d399' }, // hijau soft (gunakan InventoryIcon)
     { label: 'Customers', path: '/customers', icon: <PeopleIcon />, color: '#f9a8d4' }, // pink soft
     { label: 'Payments', path: '/payments', icon: <PaymentIcon />, color: '#67e8f9' }, // cyan soft
     { label: 'Piutangs', path: '/piutangs', icon: <MonetizationOnIcon />, color: '#c4b5fd' }, // ungu soft
   ];
   return (
-    <Box className="app-sidebar"
-  sx={{
-    width: 230,
-    position: 'fixed',
-    left: 0,
-    alignSelf: 'flex-start',
-  top: 'var(--header-height)',
-  height: 'calc(100vh - var(--header-height))',
-    background: 'var(--panel)',
-  color: 'var(--text)',
+    <Box
+      className="app-sidebar"
+      sx={{
+        width: { xs: '100%', md: '180px' },
+        position: { xs: 'relative', md: 'fixed' },
+        left: { xs: 0, md: 0 },
+        top: { xs: 0, md: 'var(--header-height)' },
+        alignSelf: 'flex-start',
+        height: { xs: 'auto', md: 'calc(100vh - var(--header-height))' },
+        color: 'var(--text)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         borderTopRightRadius: 0,
         borderBottomRightRadius: 0,
-      boxShadow: 'none',
-      border: 'none',
+        boxShadow: 'none',
+        border: 'none',
         margin: 0,
         padding: 0,
         fontFamily: 'Poppins, Inter, Arial, sans-serif',
-  /* make background/color switch immediate to avoid perceived delay on theme toggle */
-        transition: 'none',
+        transition: 'width 200ms ease, transform 180ms ease',
         zIndex: 1100,
       }}
     >
-  <List className="modal-scroll" sx={{ width: '100%', overflowY: 'auto', flex: 1 }}>
+  <List className="modal-scroll" sx={{ width: '100%', overflowY: { xs: 'visible', md: 'auto' }, flex: 1 }}>
         {menu.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ mb: 1.5 }}>
+          <ListItem key={item.path} disablePadding sx={{ mb: 1 }}>
             <ListItemButton
               component={Link}
               to={item.path}
               selected={location.pathname === item.path}
               sx={{
                 borderRadius: 0,
-                mx: 2,
-                py: 1.5,
-                px: 2,
+                mx: 1,
+                py: 0.75,
+                px: 1.5,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
-                fontWeight: 700,
-                fontSize: 18,
-                letterSpacing: 1,
+                gap: 1,
+                fontWeight: 600,
+                fontSize: 14,
+                letterSpacing: 0.4,
                 color: location.pathname === item.path ? item.color : '#e5e7eb',
                 background: location.pathname === item.path ? 'none' : 'none',
                 boxShadow: 'none',
-                borderLeft: location.pathname === item.path ? `5px solid ${item.color}` : '5px solid transparent',
+                borderLeft: location.pathname === item.path ? `4px solid ${item.color}` : '4px solid transparent',
                 /* make list items update instantly when theme toggles */
                 transition: 'none',
                 '&:hover': {
@@ -83,8 +82,8 @@ export default function Sidebar() {
                 },
                 '& .MuiListItemIcon-root': {
                   minWidth: 0,
-                  mr: 2,
-                  fontSize: 26,
+                  mr: 1,
+                  fontSize: 18,
                   color: location.pathname === item.path ? item.color : item.color + '99',
                   filter: 'none',
                   transition: 'color 0.2s, filter 0.2s',
@@ -97,9 +96,9 @@ export default function Sidebar() {
                 primaryTypographyProps={{
                   sx: {
                     fontFamily: 'Poppins, Inter, Arial, sans-serif',
-                    fontWeight: 700,
-                    fontSize: 18,
-                    letterSpacing: 1,
+                    fontWeight: 600,
+                    fontSize: 14,
+                    letterSpacing: 0.4,
                   },
                 }}
               />

@@ -27,10 +27,10 @@ export default function Header() {
   const [apiFlash, setApiFlash] = useState(false);
   const [dbFlash, setDbFlash] = useState(false);
   const [socketStatus, setSocketStatus] = useState({ connected: null });
-  const [socketAnchor, setSocketAnchor] = useState(null);
+  const [_socketAnchor, setSocketAnchor] = useState(null);
   const [socketFlash, setSocketFlash] = useState(false);
-  const [lastSocketError, setLastSocketError] = useState(null);
-  const [socketId, setSocketId] = useState(null);
+  const [_lastSocketError, setLastSocketError] = useState(null);
+  const [_socketId, setSocketId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -113,51 +113,113 @@ export default function Header() {
 
 
   useEffect(() => {
+    let mounted = true;
     const check = async () => {
+      if (!mounted) return;
+      
+      // Check API health
       try {
         const a = await getApiHealth();
-        setApiStatus({ ok: Boolean(a && a.status >= 200 && a.status < 300) });
-      } catch {
-        setApiStatus({ ok: false });
+        if (mounted) {
+          setApiStatus({ 
+            ok: Boolean(a && a.status >= 200 && a.status < 300),
+            lastCheck: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        if (mounted) {
+          setApiStatus({ 
+            ok: false, 
+            lastCheck: new Date().toISOString(),
+            error: err.message || 'Connection failed'
+          });
+        }
       }
+      
+      // Check DB health
       try {
         const d = await getDbHealth();
-        setDbStatus({ ok: Boolean(d && d.status >= 200 && d.status < 300) });
-      } catch {
-        setDbStatus({ ok: false });
+        if (mounted) {
+          setDbStatus({ 
+            ok: Boolean(d && d.status >= 200 && d.status < 300),
+            lastCheck: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        if (mounted) {
+          setDbStatus({ 
+            ok: false, 
+            lastCheck: new Date().toISOString(),
+            error: err.message || 'Connection failed'
+          });
+        }
       }
     };
+
+    // Initial check
     check();
-    const t = setInterval(check, 10000);
-    return () => clearInterval(t);
+    
+    // Realtime check every 5 seconds (reduced from 10s)
+    const t = setInterval(check, 5000);
+    
+    return () => {
+      mounted = false;
+      clearInterval(t);
+    };
   }, []);
 
   useEffect(() => {
     if (prevApiRef.current != null && prevApiRef.current !== apiStatus.ok) {
-      setAnnounce(apiStatus.ok ? 'API online' : 'API tidak terhubung');
+      const statusMsg = apiStatus.ok 
+        ? '✅ API connection restored' 
+        : `❌ API connection lost${apiStatus.error ? ': ' + apiStatus.error : ''}`;
+      setAnnounce(statusMsg);
       setApiFlash(true);
-      setTimeout(() => setApiFlash(false), 1000);
+      setTimeout(() => setApiFlash(false), 2000);
     }
     prevApiRef.current = apiStatus.ok;
   }, [apiStatus.ok]);
 
   useEffect(() => {
     if (prevDbRef.current != null && prevDbRef.current !== dbStatus.ok) {
-      setAnnounce(dbStatus.ok ? 'Database online' : 'Database tidak terhubung');
+      const statusMsg = dbStatus.ok 
+        ? '✅ Database connection restored' 
+        : `❌ Database connection lost${dbStatus.error ? ': ' + dbStatus.error : ''}`;
+      setAnnounce(statusMsg);
       setDbFlash(true);
-      setTimeout(() => setDbFlash(false), 1000);
+      setTimeout(() => setDbFlash(false), 2000);
     }
     prevDbRef.current = dbStatus.ok;
   }, [dbStatus.ok]);
 
   return (
     <>
-  <Paper elevation={0} sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'var(--panel)', height: 'var(--header-height)', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1200 }}>
-        <h1 style={{ color: 'var(--accent)', paddingLeft: 24, letterSpacing: 1.5 }}>ehe</h1>
+  <Paper
+    elevation={0}
+    className="app-header"
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: 'var(--header-height)',
+      position: { xs: 'relative', md: 'fixed' },
+      top: 0,
+      left: { xs: 0, md: 'var(--sidebar-width)' },
+      right: 0,
+      width: { xs: '100%', md: 'auto' },
+      zIndex: 1200,
+      backgroundColor: 'var(--accent-2)',
+      color: 'var(--button-text)'
+    }}
+  >
+  {/* title removed */}
 
         <Box display="flex" alignItems="center" gap={2} sx={{ pr: 4 }}>
           <TextField value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari..." size="small" variant="outlined" sx={{ minWidth: 180 }} InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton size="small"><SearchIcon /></IconButton></InputAdornment>) }} />
+        </Box>
 
+        {/* right side: health indicators, notifications, theme switcher and logout */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 2 }}>
           {/* API / DB indicators with labels */}
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -165,9 +227,15 @@ export default function Header() {
                 sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: apiStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }}
                 className={apiFlash ? (apiStatus.ok ? 'neon-pulse-green' : 'neon-pulse-red') : (apiStatus.ok ? 'neon-green' : 'neon-red')}
                 aria-hidden
+                title={apiStatus.lastCheck ? `Last check: ${new Date(apiStatus.lastCheck).toLocaleTimeString()}` : 'Checking...'}
               />
-              <Box component="span" sx={{ fontSize: 12 }} className={apiStatus.ok ? 'neon-text-green' : 'neon-text-red'}>
-                API: {apiStatus.ok ? 'Terhubung' : (apiStatus.ok === null ? 'N/A' : 'Terputus')}
+              <Box 
+                component="span" 
+                sx={{ fontSize: 12 }} 
+                className={apiStatus.ok ? 'neon-text-green' : 'neon-text-red'}
+                title={apiStatus.error || (apiStatus.lastCheck ? `Last check: ${new Date(apiStatus.lastCheck).toLocaleTimeString()}` : 'Checking...')}
+              >
+                API: {apiStatus.ok ? 'Connected' : (apiStatus.ok === null ? 'Checking...' : 'Disconnected')}
               </Box>
             </Box>
 
@@ -176,9 +244,15 @@ export default function Header() {
                 sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: dbStatus.ok ? 'var(--status-success)' : 'var(--status-error)' }}
                 className={dbFlash ? (dbStatus.ok ? 'neon-pulse-green' : 'neon-pulse-red') : (dbStatus.ok ? 'neon-green' : 'neon-red')}
                 aria-hidden
+                title={dbStatus.lastCheck ? `Last check: ${new Date(dbStatus.lastCheck).toLocaleTimeString()}` : 'Checking...'}
               />
-              <Box component="span" sx={{ fontSize: 12 }} className={dbStatus.ok ? 'neon-text-green' : 'neon-text-red'}>
-                DB: {dbStatus.ok ? 'Terhubung' : (dbStatus.ok === null ? 'N/A' : 'Terputus')}
+              <Box 
+                component="span" 
+                sx={{ fontSize: 12 }} 
+                className={dbStatus.ok ? 'neon-text-green' : 'neon-text-red'}
+                title={dbStatus.error || (dbStatus.lastCheck ? `Last check: ${new Date(dbStatus.lastCheck).toLocaleTimeString()}` : 'Checking...')}
+              >
+                DB: {dbStatus.ok ? 'Connected' : (dbStatus.ok === null ? 'Checking...' : 'Disconnected')}
               </Box>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -195,8 +269,14 @@ export default function Header() {
                 aria-hidden
                 title="Socket status — click for details"
               />
-              <Box component="span" sx={{ fontSize: 12, cursor: 'pointer' }} onClick={(e) => setSocketAnchor(e.currentTarget)} className={socketStatus.connected === true ? 'neon-text-green' : (socketStatus.connected === null ? '' : 'neon-text-red')}>
-                Socket: {socketStatus.connected === true ? 'Terhubung' : (socketStatus.connected === null ? 'N/A' : 'Terputus')}
+              <Box 
+                component="span" 
+                sx={{ fontSize: 12, cursor: 'pointer' }} 
+                onClick={(e) => setSocketAnchor(e.currentTarget)} 
+                className={socketStatus.connected === true ? 'neon-text-green' : (socketStatus.connected === null ? '' : 'neon-text-red')}
+                title="Click for socket details"
+              >
+                Socket: {socketStatus.connected === true ? 'Connected' : (socketStatus.connected === null ? 'Checking...' : 'Disconnected')}
               </Box>
               {/* socket popover removed (dev-only) */}
             </Box>
@@ -205,7 +285,7 @@ export default function Header() {
           {/* Notification badge (header) */}
           {!(location.pathname && location.pathname.startsWith('/invoice')) && (
             <>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{  display: 'flex', alignItems: 'center', pr: 2 }}>
                 <IconButton size="small" onClick={(e) => { setAnchorEl(e.currentTarget); openCenter(); }} aria-label="Notifications" sx={{ color: 'var(--accent-2)' }}>
                   <Badge badgeContent={Math.max(0, unreadCount)} color="error">
                     <NotificationsIcon />
@@ -251,7 +331,9 @@ export default function Header() {
 
           <ThemeSwitcher />
           <LogoutButton />
+
         </Box>
+
       </Paper>
       <span className="sr-only" aria-live="polite">{announce}</span>
       </>

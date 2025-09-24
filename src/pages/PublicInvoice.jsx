@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Paper, Typography, Button, Chip, Divider } from '@mui/material';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -32,6 +32,136 @@ export default function PublicInvoice() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   // debug panel removed in finalization
+
+  // Helper: normalize invoice shapes coming from different backends
+  const coerceValue = useCallback((v) => {
+    if (v == null) return null;
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'object') return v.name || v.nama || v.label || v.title || JSON.stringify(v);
+    return String(v);
+  }, []);
+
+  const normalizeInvoicePayload = useCallback(function normalizeInvoicePayload({ order = null, details = [], payments = [] }) {
+    // copy to avoid mutating original
+    const ord = order ? { ...order } : null;
+
+    // collect details from many possible locations
+    let dets = Array.isArray(details) ? details.slice() : [];
+    if ((!dets || dets.length === 0) && ord) {
+      dets = ord.order_details || ord.order_items || ord.items || ord.products || ord.details || ord.line_items || ord.cart || ord.items_list || [];
+    }
+    if (!Array.isArray(dets)) dets = [];
+
+    // normalize each detail item
+    const normalizedDetails = dets.map((d) => {
+      const item = d || {};
+      // Support backend shape where product info is nested under Product
+      const prod = item.Product || item.product || item.produk || item.item || null;
+      const name = item.nama || item.name || item.product_name || item.title || item.label || item.sku || (prod && (prod.nama_produk || prod.name || prod.nama || prod.title)) || item.description || '-';
+      const qty = Number(item.quantity ?? item.qty ?? item.jumlah ?? item.q ?? item.qty_purchased ?? item.amount ?? item.quantity ?? 1) || 1;
+      const unit_price = Number(item.harga_satuan ?? item.harga ?? item.price ?? item.unit_price ?? item.unitPrice ?? item.amount_unit ?? (prod && (prod.harga_per_pcs || prod.harga_per_m2 || prod.price || prod.harga)) ?? item.produk?.harga ?? 0) || 0;
+      return {
+        // preserve raw for any future need
+        _raw: item,
+        name,
+        qty,
+        unit_price,
+      };
+    });
+
+    // collect payments from common locations
+    let pays = Array.isArray(payments) ? payments.slice() : [];
+    if ((!pays || pays.length === 0) && ord) {
+      pays = ord.payments || ord.payment_history || ord.pembayaran || ord.payments_list || [];
+    }
+    if (!Array.isArray(pays)) pays = [];
+
+    const normalizedPayments = pays.map((p) => {
+      const pay = p || {};
+      return {
+        _raw: pay,
+        id: pay.id_payment || pay.id || pay.payment_id || pay.tx_id || null,
+        tanggal: pay.tanggal || pay.created_at || pay.date || pay.paid_at || null,
+        nominal: Number(pay.nominal ?? pay.amount ?? pay.value ?? 0) || 0,
+      };
+    });
+
+    // normalize customer into order.customer and top-level name fields used elsewhere
+    if (ord) {
+      // create customer object if missing
+      ord.customer = ord.customer || {};
+      const detectedNameRaw = ord.customer?.name ?? ord.nama_customer ?? ord.customer_name ?? ord.nama ?? ord.name ?? ord.customer ?? null;
+      const detectedPhoneRaw = ord.customer?.phone ?? ord.phone ?? ord.no_hp ?? ord.customer_phone ?? ord.telp ?? null;
+      const detectedAddressRaw = ord.customer?.address ?? ord.address ?? ord.alamat ?? ord.customer_address ?? ord.alamat_pengiriman ?? null;
+
+      const detectedName = coerceValue(detectedNameRaw);
+      const detectedPhone = coerceValue(detectedPhoneRaw);
+      const detectedAddress = coerceValue(detectedAddressRaw);
+
+      if (!ord.customer || typeof ord.customer !== 'object') ord.customer = { name: detectedName };
+      ord.customer.name = coerceValue(ord.customer.name) || detectedName;
+      ord.customer.phone = coerceValue(ord.customer.phone) || detectedPhone;
+      ord.customer.address = coerceValue(ord.customer.address) || detectedAddress;
+
+      // also populate common top-level aliases so existing components pick them up
+      ord.nama_customer = coerceValue(ord.nama_customer) || coerceValue(ord.customer_name) || coerceValue(ord.nama) || coerceValue(ord.name) || ord.customer?.name || detectedName || ord.nama_customer;
+      ord.customer_name = coerceValue(ord.customer_name) || ord.nama_customer;
+      ord.nama = coerceValue(ord.nama) || ord.nama_customer;
+    }
+
+    // For compatibility with existing components which expect harga/price fields inside details
+    const detailsForUI = normalizedDetails.map((nd) => ({
+      nama: nd.name,
+      name: nd.name,
+      quantity: nd.qty,
+      qty: nd.qty,
+      jumlah: nd.qty,
+      harga: nd.unit_price,
+      price: nd.unit_price,
+      unit_price: nd.unit_price,
+      _raw: nd._raw,
+    }));
+
+    // payments for UI
+    const paymentsForUI = normalizedPayments.map((np) => ({
+      id_payment: np.id,
+      id: np.id,
+      tanggal: np.tanggal,
+      created_at: np.tanggal,
+      nominal: np.nominal,
+      amount: np.nominal,
+      _raw: np._raw,
+    }));
+
+    // If customer is missing or contains an empty-object string like '{}', try to extract from payments raw payloads
+    const looksLikeEmptyObjectString = (v) => typeof v === 'string' && v.trim() === '{}';
+    if (ord) {
+      const currentName = ord.customer?.name || ord.nama_customer || ord.customer_name || ord.nama;
+      if (!currentName || looksLikeEmptyObjectString(currentName)) {
+        // search payments raw payloads for nested Customer
+        for (const p of paymentsForUI) {
+          const raw = p._raw || {};
+          const nested = raw.Customer || raw.customer || (raw.Order && raw.Order.Customer) || (raw.Order && raw.Order.Customer);
+          if (nested) {
+            const cn = coerceValue(nested.nama ?? nested.name ?? null);
+            const cp = coerceValue(nested.no_hp ?? nested.phone ?? nested.nohp ?? null);
+            if (cn) {
+              ord.customer = ord.customer || {};
+              ord.customer.name = cn;
+              ord.customer.phone = ord.customer.phone || cp;
+              ord.nama_customer = ord.nama_customer || cn;
+              ord.customer_name = ord.customer_name || cn;
+              ord.nama = ord.nama || cn;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return { order: ord, details: detailsForUI, payments: paymentsForUI };
+  }, [coerceValue]);
 
   useEffect(() => {
     // If token is present, try token endpoint first
@@ -141,139 +271,9 @@ export default function PublicInvoice() {
         await fetchByTransaksi(no_transaksi);
       }
     })();
-  }, [no_transaksi, token, staticPayload]);
+  }, [no_transaksi, token, staticPayload, normalizeInvoicePayload]);
 
-  // Helper: normalize invoice shapes coming from different backends
-  const coerceValue = (v) => {
-    if (v == null) return null;
-    if (typeof v === 'string') return v;
-    if (typeof v === 'number') return String(v);
-    if (typeof v === 'object') return v.name || v.nama || v.label || v.title || JSON.stringify(v);
-    return String(v);
-  };
-
-  function normalizeInvoicePayload({ order = null, details = [], payments = [] }) {
-    // copy to avoid mutating original
-    const ord = order ? { ...order } : null;
-
-  // use coerceValue directly
-
-    // collect details from many possible locations
-    let dets = Array.isArray(details) ? details.slice() : [];
-    if ((!dets || dets.length === 0) && ord) {
-      dets = ord.order_details || ord.order_items || ord.items || ord.products || ord.details || ord.line_items || ord.cart || ord.items_list || [];
-    }
-    if (!Array.isArray(dets)) dets = [];
-
-    // normalize each detail item
-    const normalizedDetails = dets.map((d) => {
-      const item = d || {};
-      // Support backend shape where product info is nested under Product
-      const prod = item.Product || item.product || item.produk || item.item || null;
-      const name = item.nama || item.name || item.product_name || item.title || item.label || item.sku || (prod && (prod.nama_produk || prod.name || prod.nama || prod.title)) || item.description || '-';
-      const qty = Number(item.quantity ?? item.qty ?? item.jumlah ?? item.q ?? item.qty_purchased ?? item.amount ?? item.quantity ?? 1) || 1;
-      const unit_price = Number(item.harga_satuan ?? item.harga ?? item.price ?? item.unit_price ?? item.unitPrice ?? item.amount_unit ?? (prod && (prod.harga_per_pcs || prod.harga_per_m2 || prod.price || prod.harga)) ?? item.produk?.harga ?? 0) || 0;
-      return {
-        // preserve raw for any future need
-        _raw: item,
-        name,
-        qty,
-        unit_price,
-      };
-    });
-
-    // collect payments from common locations
-    let pays = Array.isArray(payments) ? payments.slice() : [];
-    if ((!pays || pays.length === 0) && ord) {
-      pays = ord.payments || ord.payment_history || ord.pembayaran || ord.payments_list || [];
-    }
-    if (!Array.isArray(pays)) pays = [];
-
-    const normalizedPayments = pays.map((p) => {
-      const pay = p || {};
-      return {
-        _raw: pay,
-        id: pay.id_payment || pay.id || pay.payment_id || pay.tx_id || null,
-        tanggal: pay.tanggal || pay.created_at || pay.date || pay.paid_at || null,
-        nominal: Number(pay.nominal ?? pay.amount ?? pay.value ?? 0) || 0,
-      };
-    });
-
-    // normalize customer into order.customer and top-level name fields used elsewhere
-    if (ord) {
-      // create customer object if missing
-      ord.customer = ord.customer || {};
-      const detectedNameRaw = ord.customer?.name ?? ord.nama_customer ?? ord.customer_name ?? ord.nama ?? ord.name ?? ord.customer ?? null;
-      const detectedPhoneRaw = ord.customer?.phone ?? ord.phone ?? ord.no_hp ?? ord.customer_phone ?? ord.telp ?? null;
-      const detectedAddressRaw = ord.customer?.address ?? ord.address ?? ord.alamat ?? ord.customer_address ?? ord.alamat_pengiriman ?? null;
-
-  const detectedName = coerceValue(detectedNameRaw);
-  const detectedPhone = coerceValue(detectedPhoneRaw);
-  const detectedAddress = coerceValue(detectedAddressRaw);
-
-      if (!ord.customer || typeof ord.customer !== 'object') ord.customer = { name: detectedName };
-  ord.customer.name = coerceValue(ord.customer.name) || detectedName;
-  ord.customer.phone = coerceValue(ord.customer.phone) || detectedPhone;
-  ord.customer.address = coerceValue(ord.customer.address) || detectedAddress;
-
-      // also populate common top-level aliases so existing components pick them up
-      ord.nama_customer = coerceValue(ord.nama_customer) || coerceValue(ord.customer_name) || coerceValue(ord.nama) || coerceValue(ord.name) || ord.customer?.name || detectedName || ord.nama_customer;
-      ord.customer_name = coerceValue(ord.customer_name) || ord.nama_customer;
-      ord.nama = coerceValue(ord.nama) || ord.nama_customer;
-    }
-
-    // For compatibility with existing components which expect harga/price fields inside details
-    const detailsForUI = normalizedDetails.map((nd) => ({
-      nama: nd.name,
-      name: nd.name,
-      quantity: nd.qty,
-      qty: nd.qty,
-      jumlah: nd.qty,
-      harga: nd.unit_price,
-      price: nd.unit_price,
-      unit_price: nd.unit_price,
-      _raw: nd._raw,
-    }));
-
-    // payments for UI
-    const paymentsForUI = normalizedPayments.map((np) => ({
-      id_payment: np.id,
-      id: np.id,
-      tanggal: np.tanggal,
-      created_at: np.tanggal,
-      nominal: np.nominal,
-      amount: np.nominal,
-      _raw: np._raw,
-    }));
-
-    // If customer is missing or contains an empty-object string like '{}', try to extract from payments raw payloads
-    const looksLikeEmptyObjectString = (v) => typeof v === 'string' && v.trim() === '{}';
-    if (ord) {
-      const currentName = ord.customer?.name || ord.nama_customer || ord.customer_name || ord.nama;
-      if (!currentName || looksLikeEmptyObjectString(currentName)) {
-        // search payments raw payloads for nested Customer
-        for (const p of paymentsForUI) {
-          const raw = p._raw || {};
-          const nested = raw.Customer || raw.customer || (raw.Order && raw.Order.Customer) || (raw.Order && raw.Order.Customer);
-          if (nested) {
-            const cn = coerceValue(nested.nama ?? nested.name ?? null);
-            const cp = coerceValue(nested.no_hp ?? nested.phone ?? nested.nohp ?? null);
-            if (cn) {
-              ord.customer = ord.customer || {};
-              ord.customer.name = cn;
-              ord.customer.phone = ord.customer.phone || cp;
-              ord.nama_customer = ord.nama_customer || cn;
-              ord.customer_name = ord.customer_name || cn;
-              ord.nama = ord.nama || cn;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    return { order: ord, details: detailsForUI, payments: paymentsForUI };
-  }
+  
 
   const hasQuery = Boolean(no_transaksi || token || staticPayload);
 
@@ -314,8 +314,8 @@ export default function PublicInvoice() {
       // If content fits one page, add and save. Otherwise add scaled image and allow PDF to crop (simple).
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${no_transaksi || 'invoice'}.pdf`);
-    } catch (e) {
-      console.error('PDF generation failed, falling back to print', e);
+    } catch {
+      console.error('PDF generation failed, falling back to print');
       window.print();
     }
   };
@@ -334,8 +334,8 @@ export default function PublicInvoice() {
       const img = canvas.toDataURL('image/png');
       setPreviewImage(img);
       setPreviewOpen(true);
-    } catch (e) {
-      console.error('Preview generation failed', e);
+    } catch {
+      console.error('Preview generation failed');
     }
   };
 

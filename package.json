@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -34,6 +35,11 @@
     }
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.5.8",
+    "jsdom": "^22.1.0",
+    "vitest": "^1.0.0",
     "@eslint/js": "^9.33.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
@@ -44,5 +50,11 @@
     "globals": "^16.3.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "vite": "^7.1.2"
+  }
+  ,
+  "vitest": {
+    "globals": true,
+    "environment": "jsdom",
+    "setupFiles": "./src/setupTests.js"
   }
 }

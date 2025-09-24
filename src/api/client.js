@@ -1,8 +1,20 @@
 import axios from "axios";
 
-// Prefer explicit env var; fall back to the current host on port 3000 (useful for dev setups)
+// Prefer explicit env var; in dev use a relative `/api` so Vite can proxy requests
+// to the backend. In production (or when VITE_API_BASE_URL is provided) use the
+// explicit host.
 const defaultHost = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'localhost';
-const baseURL = import.meta.env.VITE_API_BASE_URL || `http://${defaultHost}:3000`;
+let baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  if (import.meta.env.DEV) {
+    // During development, leave baseURL empty so API modules that call
+    // absolute paths like `/api/orders` hit the current origin and Vite's
+    // dev server proxy (`/api` -> backend) will forward them correctly.
+    baseURL = '';
+  } else {
+    baseURL = `http://${defaultHost}:3000`;
+  }
+}
 
 const client = axios.create({
   baseURL,

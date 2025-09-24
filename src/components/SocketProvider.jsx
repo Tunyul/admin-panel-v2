@@ -21,7 +21,7 @@ export default function SocketProvider({ children, url } = {}) {
       const parsed = new URL(u);
       // return origin only (scheme + host + port)
       return parsed.origin;
-    } catch (err) {
+    } catch {
       // if it's a relative path like '/api', try to resolve against current location
       if (u.startsWith('/')) {
         return `${window.location.protocol}//${window.location.host}`;
@@ -41,7 +41,7 @@ export default function SocketProvider({ children, url } = {}) {
     // Read token at effect time so we react to changes even if component wasn't remounted.
     const t = localStorage.getItem('token');
     // helper: parse JWT payload safely (base64url aware)
-    const parseJwt = (token) => {
+  const parseJwt = (token) => {
       if (!token) return null;
       try {
         const part = String(token).split('.')[1] || '';
@@ -51,10 +51,10 @@ export default function SocketProvider({ children, url } = {}) {
         try {
           const uri = decoded.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('');
           return JSON.parse(decodeURIComponent(uri));
-        } catch (e) {
+        } catch {
           return JSON.parse(decoded);
         }
-      } catch (e) { return null; }
+      } catch { return null; }
     };
 
     if (t) {
@@ -68,7 +68,9 @@ export default function SocketProvider({ children, url } = {}) {
           if (import.meta.env && import.meta.env.DEV) {
             useNotificationStore.getState().showNotification('Socket not connected: token role != admin', 'warning');
           }
-        } catch (e) { /* ignore */ }
+        } catch {
+          // ignore
+        }
       }
       // fetch recent notifications and unread count to populate header and center
       (async () => {
@@ -76,23 +78,23 @@ export default function SocketProvider({ children, url } = {}) {
           const res = await getNotifications({ limit: 50 });
           const data = res?.data?.body_parsed ?? res?.data?.data ?? res?.data ?? [];
           setItemsStore(Array.isArray(data) ? data : []);
-        } catch (err) {
+        } catch {
           // ignore fetch errors
         }
         try {
-          const r2 = await getUnreadCount();
+            const r2 = await getUnreadCount(); 
           const serverUnread = r2?.data?.data?.unread ?? r2?.data?.unread ?? 0;
           setUnread(serverUnread);
-        } catch (err) {
-          // ignore
+        } catch {
+            return null; 
         }
       })();
     }
 
     // Listen for token changes from other tabs/contexts and reconnect/disconnect accordingly.
-    const onStorage = (e) => {
-      if (e.key !== 'token') return;
-      if (e.newValue) {
+    const onStorage = (_e) => {
+      if (_e.key !== 'token') return;
+      if (_e.newValue) {
         connect();
       } else {
         disconnect();
@@ -139,7 +141,7 @@ export default function SocketProvider({ children, url } = {}) {
       disconnect();
     };
   // depend on stable connect/disconnect functions from the hook
-  }, [connect, disconnect]);
+  }, [connect, disconnect, setItemsStore, setUnread, socketUrl]);
 
   // No DOM output, just render children
   return (<>{children}</>);

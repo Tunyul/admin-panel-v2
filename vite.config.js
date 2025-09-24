@@ -8,6 +8,16 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    proxy: {
+      // Proxy API requests to backend running on localhost:3000 during dev
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        // keep the /api prefix so client can use relative `/api` baseURL
+        // (no rewrite)
+      }
+    },
   },
   build: {
     rollupOptions: {

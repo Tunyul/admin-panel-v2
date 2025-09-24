@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TextField, Button, Box, Typography, Paper, Avatar, Card, CardContent } from '@mui/material';
-import axios from 'axios';
+// axios not used directly here; using shared client
 import client from '../api/client';
 import useNotificationStore from '../store/notificationStore';
 import LockIcon from '@mui/icons-material/Lock';
@@ -25,7 +25,7 @@ export default function Login({ onLogin }) {
 			// notify SocketProvider (same-tab) to reconnect using the newly stored token
 			try {
 				window.dispatchEvent(new CustomEvent('app:socket:reconnect', { detail: { token: res.data.token } }));
-			} catch (err) {
+			} catch {
 				// ignore if dispatch fails in older browsers
 			}
 			showNotification('Login sukses!', 'success');

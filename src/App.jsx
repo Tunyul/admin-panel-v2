@@ -15,7 +15,9 @@ import Notification from './components/Notification'
 import Login from './pages/Login'
 import LogoutButton from './components/LogoutButton'
 import PageTransition from './components/PageTransition'
-import useLoadingStore from './store/loadingStore'
+import AppMainToolbar from './components/AppMainToolbar'
+import TableCrudToolbar from './components/TableCrudToolbar'
+// loading store removed; no longer used in App
 import SocketProvider from './components/SocketProvider'
 
 function PrivateRoute({ children }) {
@@ -27,7 +29,6 @@ function App() {
   const location = useLocation();
   // navigation loader removed — render routes immediately
   const [displayLocation, setDisplayLocation] = useState(location);
-  const _busy = useLoadingStore((s) => s.busy);
   useEffect(() => {
     // Immediately reflect location changes — no loader overlay
     if (location.pathname !== displayLocation.pathname) setDisplayLocation(location);
@@ -45,26 +46,24 @@ function App() {
           element={
             <PrivateRoute>
               <SocketProvider>
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-                  <Header />
-                   <div className="app-frame">
-                     <Sidebar className="app-sidebar" />
-                     <div className="app-main">
-                      {/* route-aware transitions */}
-                      <PageTransition pathname={displayLocation.pathname}>
-                        <Suspense fallback={<div /> }>
-                          <Routes location={displayLocation} key={displayLocation.pathname}>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/orders" element={<Orders />} />
-                            <Route path="/products" element={<Products />} />
-                            <Route path="/customers" element={<Customers />} />
-                            <Route path="/payments" element={<Payments />} />
-                            <Route path="/piutangs" element={<Piutangs />} />
-                          </Routes>
-                        </Suspense>
-                      </PageTransition>
-                      {/* navigation loader removed */}
-                    </div>
+                <Header />
+                <div className="app-frame">
+                  <Sidebar className="app-sidebar" />
+                  <div className={`app-main ${displayLocation.pathname === '/' ? 'dashboard-page' : ''}`}>
+                    <AppMainToolbar />
+                    <TableCrudToolbar />
+                    <PageTransition pathname={displayLocation.pathname}>
+                      <Suspense fallback={<div /> }>
+                        <Routes location={displayLocation} key={displayLocation.pathname}>
+                          <Route path="/" element={<Dashboard />} />
+                          <Route path="/orders" element={<Orders />} />
+                          <Route path="/products" element={<Products />} />
+                          <Route path="/customers" element={<Customers />} />
+                          <Route path="/payments" element={<Payments />} />
+                          <Route path="/piutangs" element={<Piutangs />} />
+                        </Routes>
+                      </Suspense>
+                    </PageTransition>
                   </div>
                 </div>
               </SocketProvider>

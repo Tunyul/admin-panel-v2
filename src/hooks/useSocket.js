@@ -48,16 +48,16 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
         // decodeURIComponent trick to properly decode utf-8
         const uri = decoded.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('');
         return JSON.parse(decodeURIComponent(uri));
-      } catch (e) {
-        return JSON.parse(decoded);
+      } catch {
+          return JSON.parse(decoded);
       }
-    } catch (err) {
+    } catch {
       return null;
     }
   }, []);
 
   // helper: attach event handlers to a socket instance (idempotent)
-  const attachHandlers = (socket) => {
+  const attachHandlers = useCallback((socket) => {
     if (!socket || socket.__handlersAttached) return;
 
     socket.on('connect', () => {
@@ -107,7 +107,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
         try {
           window.dispatchEvent(new CustomEvent('app:socket:error', { detail: { error: msg, code, data, raw: String(err) } }));
         } catch { /* ignore */ }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     });
     socket.on('reconnect_error', (err) => {
       try {
@@ -120,7 +120,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
         try {
           window.dispatchEvent(new CustomEvent('app:socket:error', { detail: { error: msg, code, data, raw: String(err) } }));
         } catch { /* ignore */ }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     });
 
     // invoice.notify event
@@ -307,7 +307,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // Generic fallback: listen to any event and try to surface as a notification
-    socket.onAny((eventName, payload) => {
+  socket.onAny((eventName, payload) => {
       if (import.meta.env && import.meta.env.DEV) console.debug('[socket] onAny event', eventName, payload);
       try {
         // ignore internal socket events
@@ -355,7 +355,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     socket.__handlersAttached = true;
-  };
+  }, [getToken, globalManager, parseJwtPayload, showNotification, incrementUnread, prependItem, openCenter]);
 
   const connect = useCallback(() => {
     // if we already have a connected socket, return it
@@ -374,9 +374,9 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
         socketRef.current.auth = { token };
         attachHandlers(socketRef.current);
         // if not connected, call connect()
-        try { socketRef.current.connect(); } catch (e) { /* ignore */ }
+        try { socketRef.current.connect(); } catch { /* ignore */ }
         return socketRef.current;
-      } catch (e) {
+      } catch {
         // fallback to recreate
         try { socketRef.current.disconnect && socketRef.current.disconnect(); } catch { /* ignore */ }
         socketRef.current = null;
@@ -394,7 +394,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
       reconnectionDelayMax: 5000,
     });
 
-    socketRef.current = socket;
+  socketRef.current = socket;
     if (globalManager) {
       try { globalManager.socket = socket; globalManager.connected = false; } catch { /* ignore */ }
     }
@@ -403,7 +403,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     attachHandlers(socket);
 
     // invoice.notify event
-    socket.on('invoice.notify', (payload) => {
+  socket.on('invoice.notify', (payload) => {
       try {
         const title = `Invoice: ${payload.no_transaksi}`;
         const msg = `Status: ${payload.status}`;
@@ -428,7 +428,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // proposed payment events
-    socket.on('payment.created', (p) => {
+  socket.on('payment.created', (p) => {
       try {
         const title = `Pembayaran: ${p.no_transaksi}`;
         const msg = `Rp${p.nominal} — ${p.status || 'created'}`;
@@ -450,7 +450,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
       } catch (err) { console.debug('[socket] payment.created handler error', err); }
     });
 
-    socket.on('payment.updated', (p) => {
+  socket.on('payment.updated', (p) => {
       try {
         const title = `Update pembayaran: ${p.no_transaksi}`;
         const msg = `${p.status}`;
@@ -473,7 +473,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // new customer/order events (common backend event names)
-    socket.on('customer.created', (c) => {
+  socket.on('customer.created', (c) => {
       try {
         if (import.meta.env && import.meta.env.DEV) console.debug('[socket] event customer.created', c);
         const name = c?.name || c?.nama || c?.full_name || 'New customer';
@@ -494,7 +494,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
       } catch (err) { console.debug('[socket] customer.created handler error', err); }
     });
 
-    socket.on('order.created', (o) => {
+  socket.on('order.created', (o) => {
       try {
         const no = o?.no_transaksi || o?.id || 'New order';
         const title = `Order baru: ${no}`;
@@ -517,7 +517,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // order.updated
-    socket.on('order.updated', (o) => {
+  socket.on('order.updated', (o) => {
       try {
         const no = o?.no_transaksi || o?.id || 'Order updated';
         const title = `Order diperbarui: ${no}`;
@@ -540,7 +540,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // order.status_bot.updated
-    socket.on('order.status_bot.updated', (o) => {
+  socket.on('order.status_bot.updated', (o) => {
       try {
         const no = o?.no_transaksi || o?.id || 'Order status updated';
         const title = `Order bot status: ${no}`;
@@ -564,7 +564,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     // customer.updated
-    socket.on('customer.updated', (c) => {
+  socket.on('customer.updated', (c) => {
       try {
         if (import.meta.env && import.meta.env.DEV) console.debug('[socket] event customer.updated', c);
         const name = c?.name || c?.nama || c?.full_name || 'Customer updated';
@@ -587,7 +587,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
 
     // Generic fallback: listen to any event and try to surface as a notification
     // This helps when backend uses different event names (e.g. payment.proof, payment.uploaded, customer.new)
-    socket.onAny((eventName, payload) => {
+  socket.onAny((eventName, payload) => {
       if (import.meta.env && import.meta.env.DEV) console.debug('[socket] onAny event', eventName, payload);
       try {
         // ignore internal socket events
@@ -635,7 +635,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     return socket;
-  }, [getToken, url, showNotification, incrementUnread, prependItem]);
+  }, [getToken, url, showNotification, incrementUnread, prependItem, attachHandlers, globalManager, openCenter]);
 
   const disconnect = useCallback((force = false) => {
     // If sticky, ignore normal disconnect unless force=true

@@ -12,7 +12,7 @@ function extractDriveFileId(urlOrId) {
     const u = new URL(urlOrId);
     if (u.pathname.includes('/d/')) return u.pathname.split('/d/')[1].split('/')[0];
     return u.searchParams.get('id');
-  } catch (e) {
+  } catch {
     return urlOrId;
   }
 }

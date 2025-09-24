@@ -8,7 +8,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Paper,
   Collapse,
   Dialog,
   DialogActions,
@@ -20,9 +19,11 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
+import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { useSearchParams } from 'react-router-dom';
 
 import { getProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../api/products';
-import useLoadingStore from '../store/loadingStore';
 import useNotificationStore from '../store/notificationStore';
 import TableToolbar from '../components/TableToolbar';
 
@@ -30,34 +31,35 @@ const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoadin
   const id = row.id_produk || row.id;
   return (
     <>
-  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.06)' } }}>
-    <TableCell sx={{ color: 'var(--text)' }}>{id}</TableCell>
-    <TableCell sx={{ color: 'var(--text)' }}>{row.kategori || '-'}</TableCell>
-    <TableCell sx={{ color: 'var(--text)' }}>{row.nama_produk || '-'}</TableCell>
-    <TableCell sx={{ color: 'var(--accent)' }}>{row.harga_per_m2 ? `Rp${Number(row.harga_per_m2).toLocaleString('id-ID')}` : '-'}</TableCell>
-    <TableCell sx={{ color: 'var(--accent-2)' }}>{row.harga_per_pcs ? `Rp${Number(row.harga_per_pcs).toLocaleString('id-ID')}` : '-'}</TableCell>
-    <TableCell sx={{ color: 'var(--text)' }}>{row.stock != null ? row.stock : 0}</TableCell>
+      <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+        <TableCell>{id}</TableCell>
+        <TableCell>{row.kategori || '-'}</TableCell>
+        <TableCell>{row.nama_produk || '-'}</TableCell>
+        <TableCell>{row.harga_per_m2 ? `Rp${Number(row.harga_per_m2).toLocaleString('id-ID')}` : '-'}</TableCell>
+        <TableCell>{row.harga_per_pcs ? `Rp${Number(row.harga_per_pcs).toLocaleString('id-ID')}` : '-'}</TableCell>
+        <TableCell>{row.stock != null ? row.stock : 0}</TableCell>
         <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)}><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)}><InfoIcon /></IconButton>
+          <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon /></IconButton>
+          <IconButton color="error" onClick={() => onDelete(id)} size="small"><DeleteIcon /></IconButton>
+          <IconButton color="info" onClick={() => onExpand(id)} size="small"><InfoIcon /></IconButton>
         </TableCell>
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={7} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
+        <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: 'var(--accent-2)', fontWeight: 700, mb: 1 }}>Product Details</Typography>
+            <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle2" gutterBottom>Product Details</Typography>
               {detailsLoading[id] ? (
-                <Typography sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>Loading details...</Typography>
-              ) : (
-                <Box sx={{ color: 'var(--text)' }}>
-                  <Typography><strong>Bahan:</strong> {detailsMap[id]?.bahan || row.bahan || '-'}</Typography>
-                  <Typography><strong>Finishing:</strong> {detailsMap[id]?.finishing || row.finishing || '-'}</Typography>
-                  <Typography><strong>Ukuran Standar:</strong> {detailsMap[id]?.ukuran_standar || row.ukuran_standar || '-'}</Typography>
-                  <Typography><strong>Waktu Proses:</strong> {detailsMap[id]?.waktu_proses || row.waktu_proses || '-'}</Typography>
+                <Typography>Loading details...</Typography>
+              ) : detailsMap[id] ? (
+                <Box>
+                  <Typography><strong>Material:</strong> {detailsMap[id].bahan || '-'}</Typography>
+                  <Typography><strong>Description:</strong> {detailsMap[id].deskripsi || '-'}</Typography>
+                  <Typography><strong>Notes:</strong> {detailsMap[id].catatan || '-'}</Typography>
                 </Box>
+              ) : (
+                <Typography>No additional details available</Typography>
               )}
             </Box>
           </Collapse>
@@ -67,24 +69,8 @@ const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoadin
   );
 });
 
-// reuse same modal scrollbar style as Orders for consistent look
-const scrollbarStyle = `
-  ::-webkit-scrollbar {
-    width: 10px;
-    background: transparent;
-    border-radius: 8px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.26), rgba(var(--accent-rgb),0.26));
-    border-radius: 8px;
-    box-shadow: 0 0 8px rgba(var(--text-rgb),0.06);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(120deg, rgba(var(--accent-2-rgb),0.36), rgba(var(--accent-rgb),0.36));
-  }
-`;
-
 function Products() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [_error, setError] = useState(null);
@@ -97,10 +83,18 @@ function Products() {
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const { showNotification } = useNotificationStore();
 
+  const updateParam = (key, value) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === '' || value == null) {
+      params.delete(key)
+    } else {
+      params.set(key, value)
+    }
+    setSearchParams(params)
+  }
+
   const reloadProducts = useCallback(() => {
     setLoading(true);
-    // increment global busy counter so route loader knows work is ongoing
-    useLoadingStore.getState().start();
     return getProducts()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -117,8 +111,6 @@ function Products() {
       })
       .finally(() => {
         setLoading(false);
-        // mark global work done
-        useLoadingStore.getState().done();
       });
   }, []);
 
@@ -126,8 +118,24 @@ function Products() {
     reloadProducts();
   }, [reloadProducts]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      showNotification('🔄 Refreshing products...', 'info')
+      reloadProducts().then(() => {
+        showNotification(`✅ ${data.length} products loaded`, 'success')
+      }).catch(() => {
+        showNotification('❌ Failed to refresh products', 'error')
+      })
+    }
+    
+    window.addEventListener('app:refresh:products', handleRefresh)
+    return () => window.removeEventListener('app:refresh:products', handleRefresh)
+  }, [reloadProducts, data.length, showNotification])
+
+  const searchQuery = searchParams.get('q') || ''
+  const categoryFilter = searchParams.get('category') || ''
+  
   const filteredData = data.filter((row) => {
     const q = searchQuery.trim().toLowerCase();
     if (q) {
@@ -140,218 +148,252 @@ function Products() {
     return true;
   });
 
-
   const handleOpen = useCallback((item = {}) => {
     setForm(item);
     setErrors({});
     setOpen(true);
   }, []);
+
   const handleClose = useCallback(() => setOpen(false), []);
   const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
 
   const handleSave = () => {
     const newErrors = {};
-    if (!form.kategori || !form.kategori.trim()) newErrors.kategori = 'Kategori wajib diisi';
-    if (!form.nama_produk || !form.nama_produk.trim()) newErrors.nama_produk = 'Nama produk wajib diisi';
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length) return;
+    if (!form.nama_produk?.trim()) newErrors.nama_produk = 'Product name is required';
+    if (!form.kategori?.trim()) newErrors.kategori = 'Category is required';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
-    const payload = {
-      kategori: form.kategori,
-      nama_produk: form.nama_produk,
-      bahan: form.bahan || null,
-      finishing: form.finishing || null,
-      ukuran_standar: form.ukuran_standar || null,
-      harga_per_m2: form.harga_per_m2 || null,
-      harga_per_pcs: form.harga_per_pcs || null,
-      waktu_proses: form.waktu_proses || null,
-      stock: form.stock != null ? Number(form.stock) : 0,
-    };
-    const op = form.id_produk ? updateProduct(form.id_produk, payload) : createProduct(payload);
-    op
+    const promise = form.id_produk ? updateProduct(form.id_produk, form) : createProduct(form);
+    promise
       .then(() => {
-        showNotification('Saved product', 'success');
+        showNotification(`Product ${form.id_produk ? 'updated' : 'created'} successfully`, 'success');
         handleClose();
         reloadProducts();
       })
-      .catch(() => showNotification('Gagal menyimpan product', 'error'));
+      .catch((err) => {
+        showNotification(`Failed to ${form.id_produk ? 'update' : 'create'} product`, 'error');
+        console.error(err);
+      });
   };
 
-  const handleDelete = useCallback((id) => setDeleteConfirm({ open: true, id }), []);
+  const handleDelete = (id) => setDeleteConfirm({ open: true, id });
+
   const confirmDelete = () => {
     const id = deleteConfirm.id;
     setDeleteConfirm({ open: false, id: null });
     if (!id) return;
+    
     deleteProduct(id)
       .then(() => {
-        showNotification('Product deleted', 'info');
+        showNotification('Product deleted successfully', 'success');
         reloadProducts();
       })
-      .catch(() => showNotification('Gagal menghapus product', 'error'));
+      .catch((err) => {
+        showNotification('Failed to delete product', 'error');
+        console.error(err);
+      });
   };
-  const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
 
   const handleExpandWithDetails = useCallback((id) => {
-  const _willExpand = (expanded) => (expanded !== id);
-  setExpanded((prev) => (prev !== id ? id : null));
-    if (!detailsMap[id]) {
-      setDetailsLoading((s) => ({ ...s, [id]: true }));
-      useLoadingStore.getState().start();
+    if (expanded === id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(id);
+    if (!detailsMap[id] && !detailsLoading[id]) {
+      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
       getProductById(id)
         .then((res) => {
-          const details = res?.data?.data || res?.data || {};
-          setDetailsMap((s) => ({ ...s, [id]: details }));
+          setDetailsMap((prev) => ({ ...prev, [id]: res?.data || res }));
         })
-        .catch(() => {
-          setDetailsMap((s) => ({ ...s, [id]: {} }));
-          showNotification('Gagal memuat detail product', 'error');
+        .catch((err) => {
+          console.error(`Failed to load details for product ${id}`, err);
+          setDetailsMap((prev) => ({ ...prev, [id]: null }));
         })
         .finally(() => {
-          setDetailsLoading((s) => ({ ...s, [id]: false }));
-          useLoadingStore.getState().done();
+          setDetailsLoading((prev) => ({ ...prev, [id]: false }));
         });
     }
-  }, [detailsMap, showNotification]);
+  }, [expanded, detailsMap, detailsLoading]);
 
-  // Loading early-return removed — always render page; _loading only disables actions where used.
+  // Category filter options
+  const categoryFilterOptions = [
+    ...new Set(data.map(d => d.kategori))
+  ].filter(Boolean).map(c => ({ value: c, label: c }))
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'var(--main-card-bg)', borderRadius: 4, boxShadow: '0 0 24px #fbbf2433', px: { xs: 2, md: 2 }, pt: { xs: 1.5, md: 2 }, width: '100%', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-    <style>{scrollbarStyle}</style>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1, mt: 0 }}>
-            Products
-          </Typography>
-              {/* Desktop/tablet: toolbar inline next to title */}
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <TableToolbar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Search products"
-                  filterValue={categoryFilter}
-                  onFilterChange={setCategoryFilter}
-                  filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))}
-                  noWrap={true}
-                />
-              </Box>
-            </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Button variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3, boxShadow: '0 0 8px #ffe06655', '&:hover': { bgcolor: '#ffd60a' }, textTransform: 'none' }} onClick={() => handleOpen()}>
+    <Box>
+      {/* Header with actions */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+          <TableToolbar
+            value={searchQuery}
+            onChange={(value) => updateParam('q', value)}
+            placeholder="Search products (name, category, material)"
+            hideFilters
+          />
+        </Box>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button 
+            startIcon={<RefreshIcon />} 
+            variant="outlined" 
+            size="small" 
+            onClick={() => window.dispatchEvent(new CustomEvent('app:refresh:products'))}
+          >
+            Refresh
+          </Button>
+          <Button 
+            startIcon={<AddIcon />} 
+            variant="contained" 
+            size="small" 
+            onClick={() => handleOpen()}
+          >
             Add Product
           </Button>
         </Box>
-          </Box>
+      </Box>
 
-      <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-        {/* mimic Orders layout: fixed-height scroll area with inner modal-scroll for consistent scrollbar and sticky header */}
-        <Box sx={{ width: '100%', height: { xs: 520, md: 720 }, borderRadius: 0, p: 0, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', minHeight: 0 }}>
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'hidden', pt: 0, px: 0, pb: 2, minHeight: 0 }}>
-            {/* Small screens: show toolbar below header */}
-            <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2, px: 2 }}>
-              <TableToolbar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search products"
-                filterValue={categoryFilter}
-                onFilterChange={setCategoryFilter}
-                filterOptions={[...new Set(data.map(d => d.kategori)).values()].filter(Boolean).map(c => ({ value: c, label: c }))}
-              />
-            </Box>
-            <Box
-              className="modal-scroll"
-              sx={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                overflowX: 'auto',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'var(--scroll-thumb-color) var(--scroll-track-color)',
-                '&::-webkit-scrollbar': { width: 10, height: 10 },
-                '&::-webkit-scrollbar-track': { background: 'var(--scroll-track, transparent)' },
-                '&::-webkit-scrollbar-thumb': { background: 'var(--scroll-thumb)', borderRadius: 8, boxShadow: '0 0 8px rgba(var(--text-rgb),0.06)' },
-                '&::-webkit-scrollbar-thumb:hover': { background: 'var(--scroll-thumb)' },
-              }}
-            >
-              {/* toolbar moved to header (desktop) and small-screen fallback above */}
-              {/* single table with colgroup and fixed layout for header/body alignment */}
-              <Table sx={{ tableLayout: 'fixed', minWidth: { xs: 800, md: 1400 }, width: 'max-content', '& .MuiTableCell-root': { boxSizing: 'border-box', padding: '0.75rem 0.75rem' }, '& .MuiTableCell-root:last-child': { paddingRight: 0 } }}>
-                <colgroup>
-                  {/* ID, Kategori, Nama Produk, Harga/m2, Harga/pcs, Stock, Aksi */}
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '220px' }} />
-                  <col style={{ width: '520px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '140px' }} />
-                </colgroup>
-                <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1200, background: 'var(--main-card-bg)' }}>
-                  <TableRow sx={{ bgcolor: 'transparent' }}>
-                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>ID</TableCell>
-                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Kategori</TableCell>
-                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Nama Produk</TableCell>
-                    <TableCell sx={{ color: 'var(--accent)', fontWeight: 700 }}>Harga/m2</TableCell>
-                    <TableCell sx={{ color: 'var(--accent-2)', fontWeight: 700 }}>Harga/pcs</TableCell>
-                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Stock</TableCell>
-                    <TableCell sx={{ color: 'var(--text)', fontWeight: 700 }}>Aksi</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredData && filteredData.length > 0 ? (
-                    filteredData.map((row) => (
-                      <ProductRow
-                        key={row.id_produk || row.id}
-                        row={row}
-                        expanded={expanded}
-                        detailsLoading={detailsLoading}
-                        detailsMap={detailsMap}
-                        onOpen={handleOpen}
-                        onDelete={handleDelete}
-                        onExpand={handleExpandWithDetails}
-                      />
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ color: 'var(--accent-2)', fontStyle: 'italic' }}>
-                        Belum ada data produk.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
+      {/* Filters Row */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TableToolbar
+          hideSearch
+          filterValue={categoryFilter}
+          onFilterChange={(value) => updateParam('category', value)}
+          filterOptions={categoryFilterOptions}
+        />
+      </Box>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'var(--panel)' } }}>
-        <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_produk ? 'Edit Product' : 'Add Product'}</DialogTitle>
+      {/* Products Table */}
+      <Box 
+        sx={{ 
+          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
+          overflow: 'auto',
+          overflowX: 'auto'
+        }}
+      >
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Product Name</TableCell>
+              <TableCell>Price/m²</TableCell>
+              <TableCell>Price/pcs</TableCell>
+              <TableCell>Stock</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Typography>
+                    {data.length === 0 ? 'No products found' : 'No products match current filters'}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map((row) => (
+                <ProductRow
+                  key={row.id_produk || row.id}
+                  row={row}
+                  expanded={expanded}
+                  detailsLoading={detailsLoading}
+                  detailsMap={detailsMap}
+                  onOpen={handleOpen}
+                  onDelete={handleDelete}
+                  onExpand={handleExpandWithDetails}
+                />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Box>
+
+      {/* Add/Edit Product Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>{form.id_produk ? 'Edit Product' : 'Add Product'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="kategori" label="Kategori" type="text" fullWidth value={form.kategori || ''} onChange={handleChange} error={!!errors.kategori} helperText={errors.kategori || ''} />
-          <TextField margin="dense" name="nama_produk" label="Nama Produk" type="text" fullWidth value={form.nama_produk || ''} onChange={handleChange} error={!!errors.nama_produk} helperText={errors.nama_produk || ''} />
-          <TextField margin="dense" name="bahan" label="Bahan" type="text" fullWidth value={form.bahan || ''} onChange={handleChange} />
-          <TextField margin="dense" name="finishing" label="Finishing" type="text" fullWidth value={form.finishing || ''} onChange={handleChange} />
-          <TextField margin="dense" name="ukuran_standar" label="Ukuran Standar" type="text" fullWidth value={form.ukuran_standar || ''} onChange={handleChange} />
-          <TextField margin="dense" name="harga_per_m2" label="Harga per m2" type="number" fullWidth value={form.harga_per_m2 || ''} onChange={handleChange} />
-          <TextField margin="dense" name="harga_per_pcs" label="Harga per pcs" type="number" fullWidth value={form.harga_per_pcs || ''} onChange={handleChange} />
-          <TextField margin="dense" name="waktu_proses" label="Waktu Proses" type="text" fullWidth value={form.waktu_proses || ''} onChange={handleChange} />
-          <TextField margin="dense" name="stock" label="Stock" type="number" fullWidth value={form.stock != null ? form.stock : ''} onChange={handleChange} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              label="Product Name"
+              name="nama_produk"
+              value={form.nama_produk || ''}
+              onChange={handleChange}
+              error={!!errors.nama_produk}
+              helperText={errors.nama_produk}
+              fullWidth
+            />
+            <TextField
+              label="Category"
+              name="kategori"
+              value={form.kategori || ''}
+              onChange={handleChange}
+              error={!!errors.kategori}
+              helperText={errors.kategori}
+              fullWidth
+            />
+            <TextField
+              label="Price per m²"
+              name="harga_per_m2"
+              type="number"
+              value={form.harga_per_m2 || ''}
+              onChange={handleChange}
+              error={!!errors.harga_per_m2}
+              helperText={errors.harga_per_m2}
+              fullWidth
+            />
+            <TextField
+              label="Price per pcs"
+              name="harga_per_pcs"
+              type="number"
+              value={form.harga_per_pcs || ''}
+              onChange={handleChange}
+              error={!!errors.harga_per_pcs}
+              helperText={errors.harga_per_pcs}
+              fullWidth
+            />
+            <TextField
+              label="Material"
+              name="bahan"
+              value={form.bahan || ''}
+              onChange={handleChange}
+              error={!!errors.bahan}
+              helperText={errors.bahan}
+              fullWidth
+            />
+            <TextField
+              label="Stock"
+              name="stock"
+              type="number"
+              value={form.stock || ''}
+              onChange={handleChange}
+              error={!!errors.stock}
+              helperText={errors.stock}
+              fullWidth
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: 'var(--text)' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: 'var(--button-text)', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={deleteConfirm.open} onClose={cancelDelete} PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle>Hapus product</DialogTitle>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, id: null })}>
+        <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>Yakin ingin menghapus product ini?</Typography>
+          <Typography>Are you sure you want to delete this product?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelDelete}>Batal</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">Hapus</Button>
+          <Button onClick={() => setDeleteConfirm({ open: false, id: null })}>Cancel</Button>
+          <Button onClick={confirmDelete} variant="contained" color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -22,7 +22,6 @@ import { getProducts } from '../api/products';
 import { getPayments } from '../api/payments';
 import { getPiutangs } from '../api/piutangs';
 import { getOrders } from '../api/orders';
-import useLoadingStore from '../store/loadingStore';
 import useNotificationStore from '../store/notificationStore';
 import Tooltip from '@mui/material/Tooltip';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -160,9 +159,9 @@ export default function Dashboard() {
 
   // Quick Actions handlers
   const refreshCounts = async () => {
-    try {
-      useLoadingStore.getState().start();
-      notify('Refreshing counts…', 'info');
+      try {
+        // local no-op: global loading removed
+        notify('Refreshing counts…', 'info');
       const [cP, pP, payP, piuP, oP] = await Promise.all([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
       const mapLen = (r, idKey) => {
         const arr = Array.isArray(r?.data?.data) ? r.data.data : (Array.isArray(r?.data) ? r.data : []);
@@ -191,9 +190,9 @@ export default function Dashboard() {
         try {
           console.debug('[Dashboard.refreshCounts] ordersArr length:', Array.isArray(ordersArr) ? ordersArr.length : 0);
           console.debug('[Dashboard.refreshCounts] sample orders:', (Array.isArray(ordersArr) ? ordersArr.slice(0, 6) : []).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       }
-      let selesai = 0; let pending = 0; let belum = 0; let unpaidTotal = 0;
+  let selesai = 0; let pending = 0; let _belum = 0; let unpaidTotal = 0;
       (Array.isArray(ordersArr) ? ordersArr : []).forEach((o) => {
         // Count orders_selesai strictly by status_order === 'selesai'
         const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
@@ -208,13 +207,13 @@ export default function Dashboard() {
         if (total > 0) {
           const remaining = Math.max(0, total - paid);
           unpaidTotal += remaining;
-          if (paid <= 0) belum += 1;
+          if (paid <= 0) _belum += 1;
           else if (remaining > 0) pending += 1;
           // NOTE: do not increment `selesai` here; only status_order === 'selesai' counts
-        } else {
+          } else {
           const st = String(o?.status || o?.status_bot || '').toLowerCase();
           if (st.includes('pend')) pending += 1;
-          else belum += 1;
+          else _belum += 1;
         }
       });
 
@@ -232,8 +231,6 @@ export default function Dashboard() {
       }));
     } catch {
       notify('Failed to refresh counts', 'error');
-    } finally {
-      useLoadingStore.getState().done();
     }
   };
 
@@ -290,8 +287,8 @@ export default function Dashboard() {
 
   useEffect(() => {
   // Fetch customers count
-    useLoadingStore.getState().start();
-    getCustomers()
+  // getCustomers
+  getCustomers()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'customers' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
@@ -305,12 +302,11 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading((l) => ({ ...l, customers: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch products count
-    useLoadingStore.getState().start();
-    getProducts()
+  // getProducts
+  getProducts()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'products' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
@@ -322,12 +318,11 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading((l) => ({ ...l, products: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch payments count
-    useLoadingStore.getState().start();
-    getPayments()
+  // getPayments
+  getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         const arr = Array.isArray(items) ? items : [];
@@ -335,7 +330,7 @@ export default function Dashboard() {
           try {
             console.debug('[Dashboard.initOrders] items length:', arr.length);
             console.debug('[Dashboard.initOrders] sample orders:', arr.slice(0, 8).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         }
         const uangMasuk = arr.reduce((acc, p) => {
           const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
@@ -355,12 +350,11 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading((l) => ({ ...l, payments: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch piutangs count
-    useLoadingStore.getState().start();
-    getPiutangs()
+  // getPiutangs
+  getPiutangs()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'piutangs' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
@@ -372,12 +366,11 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading((l) => ({ ...l, piutangs: false }));
-        useLoadingStore.getState().done();
       });
 
     // Fetch orders count
-    useLoadingStore.getState().start();
-    getOrders()
+  // getOrders
+  getOrders()
       .then(async (res) => {
         const items = res?.data?.data || res?.data || [];
         const arr = Array.isArray(items) ? items : [];
@@ -386,9 +379,7 @@ export default function Dashboard() {
         try {
           const pRes = await getPayments();
           paymentsArr = Array.isArray(pRes?.data?.data) ? pRes.data.data : (Array.isArray(pRes?.data) ? pRes.data : []);
-        } catch (e) {
-          paymentsArr = [];
-        }
+        } catch { paymentsArr = []; }
         const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
           const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
           if (!tx) return acc;
@@ -401,7 +392,7 @@ export default function Dashboard() {
 
         // compute order status counts for dashboard and unpaid total
         // Note: `orders_selesai` is counted ONLY when `status_order === 'selesai'`.
-        let selesai = 0; let pending = 0; let belum = 0; let unpaidTotal = 0;
+  let selesai = 0; let pending = 0; let _belum = 0; let unpaidTotal = 0;
         arr.forEach((o) => {
           const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
           if (statusOrder === 'selesai') selesai += 1;
@@ -412,13 +403,13 @@ export default function Dashboard() {
           if (total > 0) {
             const remaining = Math.max(0, total - paid);
             unpaidTotal += remaining;
-            if (paid <= 0) belum += 1;
+            if (paid <= 0) _belum += 1;
             else if (remaining > 0) pending += 1;
             // do not treat remaining <= 0 as 'selesai' anymore
           } else {
             const st = String(o?.status || o?.status_bot || '').toLowerCase();
             if (st.includes('pend')) pending += 1;
-            else belum += 1;
+            else _belum += 1;
           }
         });
         setStats((prev) => prev.map((s) => {
@@ -436,7 +427,6 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading((l) => ({ ...l, orders: false }));
-        useLoadingStore.getState().done();
       });
   }, []);
 

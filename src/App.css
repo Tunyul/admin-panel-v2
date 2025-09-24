@@ -138,3 +138,30 @@
   transform: scale(1.01);
 }
 
+/* Toolbar shown at top of app main content */
+.app-main-toolbar{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding-bottom:8px;
+}
+
+.app-crud-toolbar{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 16px;
+}
+
+/* More specific override for MUI-generated toolbar element that also has
+   the project class `app-main-toolbar`. Remove top/left/right padding and
+   keep only bottom padding. */
+.app-main-toolbar.MuiBox-root.css-1e93t3s {
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 8px;
+}
+
