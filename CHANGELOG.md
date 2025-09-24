@@ -1,17 +1,4 @@
-## [1.7.10] - 2025-09-20
 
-- UI: Add API/DB health indicators in header with neon glow and pulse animations; health probes every 10s.
-- UX: Public invoice preview/download fixes and normalization of payloads to handle inconsistent backend shapes.
-- UX: Orders page - incremental loading progress, refresh button, and programmatic `window.refreshOrders` helper.
-- Fix: Prevent progress bar from showing previous run's completion on reload.
-## [1.7.11] - 2025-09-20
-
-- Notifications: add Notifications Center, header badge and badge sync with server unread count; centralized notification snackbar/component.
-- Socket: improved socket event handling in `src/hooks/useSocket.js` with handlers for customer.created, order.created and a generic onAny fallback; prepends notifications to store and increments unread count.
-- Payments: when payments are approved/verified, a notification item is prepended and unread count incremented.
-- Theme: theme token system updates and new helpers (`src/theme/*`) with runtime apply/update helpers; `useTheme` hook and `Settings` page to preview/save token overrides.
-- UI polish: many components updated to use CSS tokens (variables) for accents, borders and text; `App.css`/`index.css` updates for neon/glow and autocomplete/dialog theming.
-- Bundler: `package-lock.json` bumped to v1.7.10 and `socket.io-client` related packages added.
 
 # Changelog
 
@@ -19,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.7.13] - 2025-09-24
+## [v1.7.13] - 2025-09-24
 ### Added
 - Backup: saved current working state and committed ongoing changes across multiple components.
 ### Changed
