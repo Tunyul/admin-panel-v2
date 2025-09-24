@@ -1,7 +1,7 @@
 {
   "name": "fe-v2",
   "private": true,
-  "version": "1.7.12",
+  "version": "1.7.13",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -50,8 +50,7 @@
     "globals": "^16.3.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "vite": "^7.1.2"
-  }
-  ,
+  },
   "vitest": {
     "globals": true,
     "environment": "jsdom",
