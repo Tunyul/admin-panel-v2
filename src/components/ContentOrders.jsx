@@ -13,6 +13,7 @@ import {
   Checkbox,
   Collapse,
   LinearProgress,
+  CircularProgress,
   TableSortLabel,
   Tooltip,
   Menu,
@@ -149,6 +150,8 @@ export default function ContentOrders() {
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null })
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editForm, setEditForm] = useState({})
+  const [editLoading, setEditLoading] = useState(false)
+  const editRequestIdRef = useRef(null)
   // Actions menu & dialog states
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [menuRow, setMenuRow] = useState(null)
@@ -582,8 +585,63 @@ export default function ContentOrders() {
   }
 
   const handleOpenEdit = (row) => {
-    setEditForm({ ...row })
-    setEditDialogOpen(true)
+    // Try to fetch fresh order data from API (prefer id_order / id)
+    const id = row.id || row.id_order || row.idOrder
+    if (!id) {
+      setEditForm({ ...row })
+      setEditDialogOpen(true)
+      return
+    }
+
+  // show existing row while fetching to avoid blank UI
+  // start a new fetch session id to prevent race updates
+  const reqId = Math.random().toString(36).slice(2)
+  editRequestIdRef.current = reqId
+  setEditForm({}) // clear any prior preview while fetching
+  setEditDialogOpen(true)
+  setEditLoading(true)
+    // fetch authoritative data and patch form when ready
+    // getOrderById expects server id; use API helper
+    import('../api/orders').then(({ getOrderById }) => {
+      getOrderById(id)
+        .then((res) => {
+          const payload = res && res.data ? res.data : res
+          // server returns object; normalize to our edit form shape
+          const order = payload.data && payload.data.id_order ? payload.data : payload
+          const mapped = {
+            id: order.id_order || order.id || id,
+            orderNo: order.no_transaksi || order.orderNo || '',
+            idCustomer: order.id_customer || order.customer_id || order.idCustomer || '',
+            date: order.tanggal_order || order.date || '',
+            // Preserve urgency and different status fields so UI doesn't flicker after fetch
+            statusUrgensi: order.status_urgensi || order.statusUrgensi || order.urgency || '',
+            status: order.status || order.status_order || '',
+            statusOrder: order.status_order || order.statusOrder || '',
+            statusBot: order.status_bot || order.statusBot || '',
+            statusBayar: order.status_bayar || order.statusBayar || '',
+            dpBayar: order.dp_bayar != null ? order.dp_bayar : order.dpBayar || '',
+            totalBayar: order.total_bayar != null ? order.total_bayar : order.totalBayar || order.total_harga || '',
+            totalHarga: order.total_harga || order.totalHarga || '',
+            tanggalJatuhTempo: order.tanggal_jatuh_tempo || order.tanggalJatuhTempo || '',
+            linkInvoice: order.link_invoice || order.linkInvoice || '',
+            linkDrive: order.link_drive || order.linkDrive || '',
+            notes: order.catatan || order.notes || order.note || '',
+            // customer details if embedded in order
+            customerName: order.customer_name || order.nama_customer || order.customer?.name || '',
+            customerPhone: order.customer_phone || order.no_hp || order.customer?.phone || '',
+            items: Array.isArray(order.OrderDetails) ? order.OrderDetails : (order.items || []),
+          }
+          // ignore if another request started after this one
+          if (editRequestIdRef.current !== reqId) return
+          setEditForm(mapped)
+          setEditLoading(false)
+        })
+        .catch((err) => {
+          console.warn('Failed to fetch order details', err)
+          showNotification('Failed to load full order data', 'warning')
+          if (editRequestIdRef.current === reqId) setEditLoading(false)
+        })
+    })
   }
 
   // Actions Menu handlers
@@ -650,6 +708,9 @@ export default function ContentOrders() {
   }
 
   const handleCloseEdit = () => {
+    // cancel any pending fetch session and clear loading immediately
+    editRequestIdRef.current = null
+    setEditLoading(false)
     setEditDialogOpen(false)
     setEditForm({})
   }
@@ -1500,6 +1561,38 @@ export default function ContentOrders() {
       <Dialog open={editDialogOpen} onClose={handleCloseEdit} fullWidth maxWidth="sm">
         <DialogTitle>Edit Order</DialogTitle>
         <DialogContent>
+          {editLoading ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+              <CircularProgress />
+            </Box>
+          ) : null}
+          {/* Basic order & customer info */}
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="body2"><strong>ID:</strong> {editForm.id || editForm.id_order || editForm.idOrder || '-'}</Typography>
+            <Typography variant="body2"><strong>No Transaksi:</strong> {editForm.orderNo || editForm.no_transaksi || '-'}</Typography>
+            <Typography variant="body2"><strong>Tanggal Order:</strong> {editForm.date || editForm.tanggal_order || '-'}</Typography>
+            {editForm.statusUrgensi || editForm.status_urgensi ? (
+              <Typography variant="body2"><strong>Urgensi:</strong> {editForm.statusUrgensi || editForm.status_urgensi}</Typography>
+            ) : null}
+            {editForm.idCustomer ? (
+              (() => {
+                const cust = customerCache.get(editForm.idCustomer) || {}
+                const phone = cust.no_hp || cust.noHp || cust.phone || cust.phone_number || ''
+                const name = cust.nama || cust.nama_customer || cust.name || ''
+                return (
+                  <Box>
+                    <Typography variant="body2"><strong>Customer:</strong> {name || editForm.idCustomer}</Typography>
+                    {phone ? (
+                      <Typography variant="body2"><strong>Phone:</strong> {phone}</Typography>
+                    ) : null}
+                  </Box>
+                )
+              })()
+            ) : null}
+            {/* Sisa bayar (computed) */}
+            <Typography variant="body2"><strong>Sisa Bayar:</strong> {formatRupiah(computeSisaBayar(editForm))}</Typography>
+          </Box>
+
           <FormControl fullWidth margin="dense">
             <InputLabel id="status-order-label">Status Order</InputLabel>
             <Select labelId="status-order-label" label="Status Order" value={editForm.status || editForm.status_order || ''} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
@@ -1522,10 +1615,51 @@ export default function ContentOrders() {
           <TextField fullWidth margin="dense" label="DP Bayar" value={editForm.dpBayar != null ? editForm.dpBayar : editForm.dp_bayar || ''} onChange={(e) => setEditForm((f) => ({ ...f, dpBayar: e.target.value }))} />
           <TextField fullWidth margin="dense" label="Total Bayar" value={editForm.totalBayar != null ? editForm.totalBayar : editForm.total_bayar || ''} onChange={(e) => setEditForm((f) => ({ ...f, totalBayar: e.target.value }))} />
           <TextField fullWidth margin="dense" label="Catatan" value={editForm.notes || editForm.catatan || ''} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+
+          {/* Links / external references */}
+          {(editForm.linkInvoice || editForm.link_invoice || editForm.linkDrive || editForm.link_drive) && (
+            <Box sx={{ mt: 1, mb: 1 }}>
+              {editForm.linkInvoice || editForm.link_invoice ? (
+                <Typography variant="body2"><strong>Invoice:</strong> <a href={editForm.linkInvoice || editForm.link_invoice} target="_blank" rel="noreferrer">View</a></Typography>
+              ) : null}
+              {editForm.linkDrive || editForm.link_drive ? (
+                <Typography variant="body2"><strong>Drive:</strong> <a href={editForm.linkDrive || editForm.link_drive} target="_blank" rel="noreferrer">Open</a></Typography>
+              ) : null}
+            </Box>
+          )}
+
+          {/* Items table (readonly) */}
+          {Array.isArray(editForm.items) && editForm.items.length > 0 ? (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Items</Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Produk</TableCell>
+                    <TableCell>Kategori</TableCell>
+                    <TableCell>Qty</TableCell>
+                    <TableCell>Harga</TableCell>
+                    <TableCell>Subtotal</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {editForm.items.map((it, ii) => (
+                    <TableRow key={ii}>
+                      <TableCell>{it.name || it.nama || it.product_name || ''}</TableCell>
+                      <TableCell>{it.kategori || it.category || ''}</TableCell>
+                      <TableCell>{it.quantity != null ? it.quantity : it.qty || ''}</TableCell>
+                      <TableCell>{formatRupiah(it.harga_satuan != null ? it.harga_satuan : it.harga || 0)}</TableCell>
+                      <TableCell>{formatRupiah(it.subtotal_item != null ? it.subtotal_item : it.subtotal || (it.harga_satuan && it.quantity ? it.harga_satuan * it.quantity : 0))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEdit}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveEdit}>Save</Button>
+          <Button variant="contained" onClick={handleSaveEdit} disabled={editLoading}>Save</Button>
         </DialogActions>
       </Dialog>
 
