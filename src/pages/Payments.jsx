@@ -17,6 +17,7 @@ import {
   Typography,
   Chip,
   MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,9 +28,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckIcon from '@mui/icons-material/Check';
 import { useSearchParams } from 'react-router-dom';
 
-import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, verifyPayment, getPaymentsByTransaksi } from '../api/payments';
+import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, getPaymentsByTransaksi } from '../api/payments';
 import { getCustomersByPhone } from '../api/customers';
-import { getInvoiceByTransaksi } from '../api/invoices';
 import { getOrderByTransaksi } from '../api/orders';
 import useNotificationStore from '../store/notificationStore';
 import TableToolbar from '../components/TableToolbar';
@@ -57,8 +57,7 @@ const PaymentRow = React.memo(function PaymentRow({ row, expanded, detailsMap, d
       <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
         <TableCell>{id}</TableCell>
         <TableCell>{row.no_transaksi || '-'}</TableCell>
-        <TableCell>{formatAmount(row.nominal || row.amount)}</TableCell>
-        <TableCell>{row.payment_method || row.metode_bayar || '-'}</TableCell>
+  <TableCell>{formatAmount(row.nominal || row.amount)}</TableCell>
         <TableCell>
           <Chip 
             label={row.status || 'pending'} 
@@ -78,7 +77,7 @@ const PaymentRow = React.memo(function PaymentRow({ row, expanded, detailsMap, d
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
+  <TableCell colSpan={6} sx={{ p: 0, border: 0 }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
             <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
               <Typography variant="subtitle2" gutterBottom>Payment Details</Typography>
@@ -121,6 +120,8 @@ function Payments() {
   const [verifyImageError, setVerifyImageError] = useState(false);
   const [verifyImagePreviewUrl, setVerifyImagePreviewUrl] = useState('');
   const [verifyImageOpen, setVerifyImageOpen] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyFormLocal, setVerifyFormLocal] = useState({});
   const { showNotification } = useNotificationStore();
 
   const updateParam = (key, value) => {
@@ -173,25 +174,6 @@ function Payments() {
     return () => window.removeEventListener('app:refresh:payments', handleRefresh)
   }, [reloadPayments, data.length, showNotification])
 
-  const searchQuery = searchParams.get('q') || ''
-  const statusFilter = searchParams.get('status') || ''
-  const methodFilter = searchParams.get('method') || ''
-  
-  const filteredData = data.filter((row) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      const hay = `${row.no_transaksi || ''} ${row.payment_method || row.metode_bayar || ''} ${row.reference || row.referensi || ''}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (statusFilter) {
-      if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
-    }
-    if (methodFilter) {
-      if ((row.payment_method || row.metode_bayar || '').toLowerCase() !== methodFilter.toLowerCase()) return false;
-    }
-    return true;
-  });
-
   const handleOpen = useCallback((item = {}) => {
     setForm(item);
     setErrors({});
@@ -227,7 +209,32 @@ function Payments() {
       });
   };
 
-  const handleDelete = (id) => setDeleteConfirm({ open: true, id });
+  const searchQuery = searchParams.get('q') || ''
+  const statusFilter = searchParams.get('status') || ''
+  const methodFilter = searchParams.get('method') || ''
+
+  const filteredData = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const q = (searchQuery || '').trim().toLowerCase();
+    return data.filter((row) => {
+      if (q) {
+        const hay = `${row.no_transaksi || ''} ${row.payment_method || row.metode_bayar || ''} ${row.reference || row.referensi || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (statusFilter) {
+        if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
+      }
+      if (methodFilter) {
+        if ((row.payment_method || row.metode_bayar || '').toLowerCase() !== methodFilter.toLowerCase()) return false;
+      }
+      return true;
+    });
+  }, [data, searchQuery, statusFilter, methodFilter]);
+
+
+  
+
+  const handleDelete = useCallback((id) => setDeleteConfirm({ open: true, id }), []);
 
   const confirmDelete = () => {
     const id = deleteConfirm.id;
@@ -246,35 +253,38 @@ function Payments() {
   };
 
   // Open verify modal (prefill nominal and load details/invoice to compute suggested status)
-  const handleVerify = (id) => {
+  const handleVerify = useCallback((id) => {
     // open dialog and load payment details if available
-    setVerifyDialog({ open: true, id, form: { nominal: '', no_transaksi: '' } });
+  setVerifyDialog({ open: true, id, form: { nominal: '', no_transaksi: '' } });
+  setVerifyFormLocal({ nominal: '', no_transaksi: '', bukti: '' });
+    setVerifyLoading(true);
     // try to load details to prefill nominal and no_transaksi
-    getPaymentById(id)
+    return getPaymentById(id)
       .then((res) => {
-        const p = res?.data || res || {};
-        setVerifyDialog((s) => ({ ...s, form: { nominal: p.nominal || p.amount || '', no_transaksi: p.no_transaksi || p.transaksi || p.reference || '', bukti: p.bukti || p.bukti_url || p.proof || '' } }));
+  const p = res?.data || res || {};
+  setVerifyDialog((s) => ({ ...s, form: { nominal: p.nominal || p.amount || '', no_transaksi: p.no_transaksi || p.transaksi || p.reference || '', bukti: p.bukti || p.bukti_url || p.proof || '' } }));
+  setVerifyFormLocal({ nominal: p.nominal || p.amount || '', no_transaksi: p.no_transaksi || p.transaksi || p.reference || '', bukti: p.bukti || p.bukti_url || p.proof || '' });
         setDetailsMap((prev) => ({ ...prev, [id]: p }));
         // if we have a transaction number, try to fetch invoice to compute remaining
         const tx = p.no_transaksi || p.transaksi || p.reference || '';
         if (tx) {
           // fetch invoice and payments to compute totals and then fetch customer by phone if possible
-          Promise.all([getOrderByTransaksi(tx).catch(() => null), getPaymentsByTransaksi(tx).catch(() => null)])
+          return Promise.all([getOrderByTransaksi(tx).catch(() => null), getPaymentsByTransaksi(tx).catch(() => null)])
             .then(async ([orderRes, payRes]) => {
               const ord = orderRes?.data || orderRes || {};
               const paymentsArr = payRes?.data?.data || payRes?.data || payRes || [];
               // prefer order.total_bayar or order.total_harga as total order amount
               // Prefer order fields: if order provides total_bayar and dp_bayar, use sisa = total_bayar - dp_bayar
               const orderTotalBayar = Number(ord.total_bayar || ord.total || ord.total_harga || 0) || 0;
+              const total = orderTotalBayar; // canonical total for later use
               const orderDpBayar = Number(ord.dp_bayar || ord.dp || 0) || 0;
               const paid = Array.isArray(paymentsArr) ? paymentsArr.reduce((acc, it) => acc + (Number(it.nominal || it.amount || 0) || 0), 0) : 0;
-              let remaining;
-              if (orderTotalBayar && (orderDpBayar || orderDpBayar === 0)) {
+              let remaining = 0;
+              if (total && (orderDpBayar || orderDpBayar === 0)) {
                 // use requested formula: sisa = total_bayar - dp_bayar
-                remaining = orderTotalBayar - orderDpBayar;
+                remaining = total - orderDpBayar;
               } else {
                 // fallback: remaining = total - paid
-                const total = orderTotalBayar;
                 remaining = Math.max(0, total - paid);
               }
               remaining = Math.max(0, remaining);
@@ -288,7 +298,7 @@ function Payments() {
                   const c = cRes?.data?.data || cRes?.data || cRes || {};
                   if (Array.isArray(c) && c.length > 0) customerName = c[0].nama || c[0].name || '';
                   else if (c && c.nama) customerName = c.nama || c.name || '';
-                } catch (e) {
+                } catch {
                   // ignore
                 }
               }
@@ -298,12 +308,14 @@ function Payments() {
             })
             .catch(() => setVerifySuggested({ remaining: null, suggestedStatus: '', total: null, paid: null, customerName: '', customerPhone: '', type: '' }));
         }
+        return null;
       })
       .catch((err) => {
         // ignore, leave defaults
         console.error('Failed to load payment details for verify modal', err);
-      });
-  };
+      })
+      .finally(() => setVerifyLoading(false));
+  }, []);
 
   const nominalCompareSuggestion = (nominal, remaining) => {
     if (remaining == null) return '';
@@ -312,12 +324,12 @@ function Payments() {
     return '';
   };
 
-  const handleVerifyClose = () => setVerifyDialog({ open: false, id: null, form: {} });
+  const handleVerifyClose = () => { setVerifyDialog({ open: false, id: null, form: {} }); setVerifyFormLocal({}); };
 
   // confirm verification: try approve endpoint with nominal then fallback to verify
   const confirmVerify = async () => {
     const id = verifyDialog.id;
-    const nominal = Number(verifyDialog.form.nominal || 0);
+    const nominal = Number(verifyFormLocal.nominal || 0);
     if (!id) return;
     if (!nominal || nominal <= 0) {
       showNotification('Nominal harus lebih besar dari 0', 'error');
@@ -368,6 +380,22 @@ function Payments() {
         });
     }
   }, [expanded, detailsMap, detailsLoading]);
+
+  const rows = React.useMemo(() => {
+    return filteredData.map((row) => (
+      <PaymentRow
+        key={row.id_payment || row.id}
+        row={row}
+        expanded={expanded}
+        detailsLoading={detailsLoading}
+        detailsMap={detailsMap}
+        onOpen={handleOpen}
+        onDelete={handleDelete}
+        onExpand={handleExpandWithDetails}
+        onVerify={handleVerify}
+      />
+    ));
+  }, [filteredData, expanded, detailsLoading, detailsMap, handleOpen, handleDelete, handleExpandWithDetails, handleVerify]);
 
   // Filter options
   const statusFilterOptions = [
@@ -442,7 +470,6 @@ function Payments() {
               <TableCell>ID</TableCell>
               <TableCell>Transaction No</TableCell>
               <TableCell>Amount</TableCell>
-              <TableCell>Method</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Actions</TableCell>
@@ -451,26 +478,14 @@ function Payments() {
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={6}>
                   <Typography>
                     {data.length === 0 ? 'No payments found' : 'No payments match current filters'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData.map((row) => (
-                <PaymentRow
-                  key={row.id_payment || row.id}
-                  row={row}
-                  expanded={expanded}
-                  detailsLoading={detailsLoading}
-                  detailsMap={detailsMap}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                  onVerify={handleVerify}
-                />
-              ))
+              rows
             )}
           </TableBody>
         </Table>
@@ -480,7 +495,12 @@ function Payments() {
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{form.id_payment || form.id ? 'Edit Payment' : 'Add Payment'}</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          {verifyLoading ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             <TextField
               label="Transaction Number"
               name="no_transaksi"
@@ -530,7 +550,8 @@ function Payments() {
               rows={3}
               fullWidth
             />
-          </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
@@ -577,24 +598,24 @@ function Payments() {
             <TextField
               label="Transaction No"
               name="no_transaksi"
-              value={verifyDialog.form.no_transaksi || ''}
-              onChange={(e) => setVerifyDialog((s) => ({ ...s, form: { ...s.form, no_transaksi: e.target.value } }))}
+              value={verifyFormLocal.no_transaksi || ''}
+              onChange={(e) => setVerifyFormLocal((s) => ({ ...s, no_transaksi: e.target.value }))}
               fullWidth
             />
             <TextField
               label="Nominal to approve"
               name="nominal"
               type="number"
-              value={verifyDialog.form.nominal || ''}
-              onChange={(e) => setVerifyDialog((s) => ({ ...s, form: { ...s.form, nominal: e.target.value } }))}
+              value={verifyFormLocal.nominal || ''}
+              onChange={(e) => setVerifyFormLocal((s) => ({ ...s, nominal: e.target.value }))}
               fullWidth
             />
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <TextField
                 label="Bukti (link)"
                 name="bukti"
-                value={verifyDialog.form.bukti || detailsMap[verifyDialog.id]?.bukti || ''}
-                onChange={(e) => { setVerifyDialog((s) => ({ ...s, form: { ...s.form, bukti: e.target.value } })); setVerifyImageError(false); }}
+                value={verifyFormLocal.bukti || detailsMap[verifyDialog.id]?.bukti || ''}
+                onChange={(e) => { setVerifyFormLocal((s) => ({ ...s, bukti: e.target.value })); setVerifyImageError(false); }}
                 fullWidth
               />
               <Button
@@ -617,7 +638,7 @@ function Payments() {
                 }}
               >Open</Button>
             </Box>
-            {verifySuggested.total != null && (
+            {(verifySuggested.total != null || (verifyDialog.id && detailsMap[verifyDialog.id])) && (
               <Box sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1 }}>
                 <Typography variant="body2"><strong>Nama Customer:</strong> {verifySuggested.customerName || '-'}</Typography>
                 <Typography variant="body2"><strong>No HP:</strong> {verifySuggested.customerPhone || detailsMap[verifyDialog.id]?.no_hp || '-'}</Typography>
@@ -637,20 +658,22 @@ function Payments() {
               if (!url) return null;
               return (
                 <Box>
-                  <Typography variant="subtitle2">Preview bukti</Typography>
-                  {/* attempt inline preview, fallback to open in new tab if image fails (e.g., gdrive preview) */}
-                  {!verifyImageError ? (
-                    <Box sx={{ mt: 1, mb: 1 }}>
-                      <img
-                        src={url}
-                        alt="bukti"
-                        style={{ maxWidth: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 8, cursor: 'pointer' }}
-                        onError={() => setVerifyImageError(true)}
-                        onClick={() => { setVerifyImagePreviewUrl(url); setVerifyImageOpen(true); }}
-                      />
-                    </Box>
-                  ) : null}
-                  <Button size="small" onClick={() => window.open(url, '_blank')}>Open Bukti</Button>
+                      <Typography variant="subtitle2">Preview bukti</Typography>
+                      {/* stable container to avoid layout shift when image is missing or fails to load */}
+                      <Box sx={{ mt: 1, mb: 1, minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: verifyImageError ? 'action.hover' : 'transparent', borderRadius: 1, p: 1 }}>
+                        {!verifyImageError ? (
+                          <img
+                            src={url}
+                            alt="bukti"
+                            style={{ maxWidth: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 8, cursor: 'pointer' }}
+                            onError={() => setVerifyImageError(true)}
+                            onClick={() => { setVerifyImagePreviewUrl(url); setVerifyImageOpen(true); }}
+                          />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">Preview tidak tersedia. Klik "Open Bukti" untuk membuka di tab baru.</Typography>
+                        )}
+                      </Box>
+                      <Button size="small" onClick={() => window.open(url, '_blank')}>Open Bukti</Button>
                 </Box>
               );
             })()}

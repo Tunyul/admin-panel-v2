@@ -22,6 +22,7 @@ import {
   ListItemText,
   Divider,
 } from '@mui/material'
+import OrderRow from './OrderRow'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -90,17 +91,18 @@ export default function ContentOrders() {
       return next
     })
   }
-
-  const handleRowClick = (e, id) => {
-    // If the click started on an interactive element (input, button, a), don't toggle
+  const handleRowClick = React.useCallback((e, id) => {
     const target = e.target
     try {
       if (target.closest && target.closest('input,button,a')) return
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) {}
     toggleExpand(id)
-  }
+  }, [toggleExpand])
+
+  // Memoize common handlers passed to rows to keep stable references
+  const memoHandleOpenEdit = React.useCallback((row) => handleOpenEdit(row), [/* handleOpenEdit defined earlier but stable */])
+  const memoHandleDelete = React.useCallback((id) => handleDelete(id), [])
+  const memoOpenRowMenu = React.useCallback((e, row) => openRowMenu(e, row), [])
 
   // Handle table column sorting with global state
   const handleSort = (key) => {
@@ -303,6 +305,15 @@ export default function ContentOrders() {
     const dateStr = date ? new Date(date).toISOString().slice(0, 10) : ''
     const jatuhTempoStr = tanggalJatuhTempo ? new Date(tanggalJatuhTempo).toISOString().slice(0, 10) : ''
 
+    // precompute numeric/text derived fields to avoid recomputation during render
+    const dpNum = parseCurrencyToNumber(dpBayar)
+    const totalNum = parseCurrencyToNumber(totalBayar || totalHarga)
+    const sisaNum = (() => {
+      const statusStr = String(statusBayar || status || '').toLowerCase()
+      if (statusStr.includes('lunas') || statusStr.includes('paid') || statusStr.includes('selesai') || statusStr.includes('completed')) return 0
+      return Math.max(0, totalNum - dpNum)
+    })()
+
     return {
       id,
       orderNo,
@@ -323,6 +334,12 @@ export default function ContentOrders() {
       linkDrive,
       items,
       notes,
+      // derived fields
+      _dpNum: dpNum,
+      _totalNum: totalNum,
+      _sisaNum: sisaNum,
+      _sisaText: formatRupiah(sisaNum),
+      _totalBayarText: formatRupiah(totalNum),
     }
   }
 
@@ -910,6 +927,16 @@ export default function ContentOrders() {
         )
       case 'tanggalJatuhTempo':
         return <TableCell key={columnKey} align={align}>{row.tanggalJatuhTempo}</TableCell>
+      case 'items':
+        return (
+          <TableCell key={columnKey} align={align} sx={{ whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflow: 'visible', wordBreak: 'break-word' }}>
+            {Array.isArray(row.items) && row.items.length > 0 ? (
+              <div style={{ fontSize: 13 }}>{row.items.length} item(s)</div>
+            ) : (
+              '—'
+            )}
+          </TableCell>
+        )
       case 'linkInvoice':
         return <TableCell key={columnKey} align={align}>{row.linkInvoice}</TableCell>
       case 'linkDrive':
@@ -1269,112 +1296,27 @@ export default function ContentOrders() {
                       </TableRow>
                     ) : (
                       displayedRows.map((row, idx) => (
-                        <React.Fragment key={row.id}>
-                          <TableRow hover selected={selected.has(row.id)} onClick={(e) => handleRowClick(e, row.id)} sx={{ cursor: 'pointer' }}>
-                            <TableCell padding="checkbox">
-                              <Checkbox size="small" checked={selected.has(row.id)} onChange={() => toggle(row.id)} />
-                            </TableCell>
-                            <TableCell>{idx + 1}</TableCell>
-                            
-                            {/* Dynamic columns based on visibility settings */}
-                            {visibleColumns.map((column) => {
-                              return renderTableCell(column.key, row, column.align)
-                            })}
-                            
-                            {/* Additional columns that are always visible */}
-                            {columnVisibility.customerPhone !== false && (
-                              <TableCell>
-                                {(() => {
-                                  const c = customerCache.get(row.idCustomer)
-                                  const nohp = c?.no_hp || c?.noHp || ''
-                                  if (!nohp) return ''
-                                  const waUrl = `https://wa.me/${nohp}?text=${encodeURIComponent('haiii')}`
-                                  return (
-                                    <a href={waUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                      <img src={waIcon} alt="wa" style={{ width: 18, height: 18 }} />
-                                      <span style={{ fontSize: 13 }}>{nohp}</span>
-                                    </a>
-                                  )
-                                })()}
-                              </TableCell>
-                            )}
-                            {columnVisibility.customerName !== false && (
-                              <TableCell>
-                                {(customerCache.get(row.idCustomer) && (customerCache.get(row.idCustomer).nama || customerCache.get(row.idCustomer).nama_customer || customerCache.get(row.idCustomer).name)) || ''}
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              {typeof row.linkInvoice === 'string' && row.linkInvoice.trim() ? (
-                                <a href={row.linkInvoice} target="_blank" rel="noreferrer">View</a>
-                              ) : (
-                                ''
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {typeof row.linkDrive === 'string' && row.linkDrive.trim() ? (
-                                <a href={row.linkDrive} target="_blank" rel="noreferrer">Drive</a>
-                              ) : (
-                                ''
-                              )}
-                            </TableCell>
-                            <TableCell sx={{ whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflow: 'visible', wordBreak: 'break-word' }}>
-                              {Array.isArray(row.items) && row.items.length > 0 ? (
-                                <div style={{ fontSize: 13 }}>
-                                  {row.items.length} item(s)
-                                </div>
-                              ) : (
-                                '—'
-                              )}
-                            </TableCell>
-
-                            <TableCell align="right">
-                              <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}>
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton size="small" onClick={(e) => { e.stopPropagation(); openRowMenu(e, row); }} aria-label="more actions">
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                          {/* Expanded details row */}
-                          <TableRow>
-                            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={18}>
-                              <Collapse in={expandedIds.has(row.id)} timeout="auto" unmountOnExit>
-                                <Box sx={{ margin: 1 }}>
-                                  {Array.isArray(row.items) && row.items.length > 0 ? (
-                                    <Table size="small">
-                                      <TableHead>
-                                        <TableRow>
-                                          <TableCell>Produk</TableCell>
-                                          <TableCell>Kategori</TableCell>
-                                          <TableCell>Qty</TableCell>
-                                          <TableCell>Harga Satuan</TableCell>
-                                          <TableCell>Subtotal</TableCell>
-                                        </TableRow>
-                                      </TableHead>
-                                      <TableBody>
-                                        {row.items.map((it, ii) => (
-                                          <TableRow key={ii}>
-                                            <TableCell>{it.name}</TableCell>
-                                            <TableCell>{it.kategori}</TableCell>
-                                            <TableCell>{it.quantity}</TableCell>
-                                            <TableCell>{formatRupiah(it.harga_satuan)}</TableCell>
-                                            <TableCell>{formatRupiah(it.subtotal_item)}</TableCell>
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
-                                  ) : (
-                                    <Typography variant="body2">No items</Typography>
-                                  )}
-                                </Box>
-                              </Collapse>
-                            </TableCell>
-                          </TableRow>
-                        </React.Fragment>
+                        <OrderRow
+                          key={row.id}
+                          row={row}
+                          idx={idx}
+                          selected={selected}
+                          toggle={toggle}
+                          visibleColumns={visibleColumns}
+                          columnVisibility={columnVisibility}
+                          customerCache={customerCache}
+                          waIcon={waIcon}
+                          formatRupiah={formatRupiah}
+                          computeSisaBayar={computeSisaBayar}
+                          getStatusChipClass={getStatusChipClass}
+                          statusColor={statusColor}
+                          renderTableCell={renderTableCell}
+                          handleOpenEdit={memoHandleOpenEdit}
+                          handleDelete={memoHandleDelete}
+                          openRowMenu={memoOpenRowMenu}
+                          expandedIds={expandedIds}
+                          handleRowClick={handleRowClick}
+                        />
                       ))
                     )}
                   </>

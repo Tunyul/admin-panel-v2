@@ -7,6 +7,8 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
   const socketRef = useRef(null);
   const connectedRef = useRef(false);
   const { showNotification, incrementUnread, prependItem, openCenter } = useNotificationStore();
+  // setter for authoritative unread count coming from server
+  const setUnread = useNotificationStore((s) => s.setUnread);
 
   // Optional global manager to make the socket sticky across mounts
   const getGlobalManager = () => {
@@ -141,7 +143,8 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+  // prefer server authoritative unread if later provided; optimistic increment for immediate feedback
+  incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
       } catch (err) {
         console.debug('[socket] invoice.notify handler error', err);
@@ -165,7 +168,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+  incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('app:socket:event', { detail: { type: 'payment.created', payload: p } })); } catch { /* ignore */ }
       } catch (err) { console.debug('[socket] payment.created handler error', err); }
@@ -187,7 +190,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+  incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('app:socket:event', { detail: { type: 'payment.updated', payload: p } })); } catch { /* ignore */ }
       } catch (err) { console.debug('[socket] payment.updated handler error', err); }
@@ -210,7 +213,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+  incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
       } catch (err) { console.debug('[socket] customer.created handler error', err); }
     });
@@ -231,7 +234,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+    incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('app:socket:event', { detail: { type: 'order.created', payload: o } })); } catch { /* ignore */ }
       } catch (err) { console.debug('[socket] order.created handler error', err); }
@@ -254,7 +257,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+    incrementUnread(1);
         try { openCenter(); } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('app:socket:event', { detail: { type: 'order.updated', payload: o } })); } catch { /* ignore */ }
       } catch (err) { console.debug('[socket] order.updated handler error', err); }
@@ -306,6 +309,17 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
       } catch (err) { console.debug('[socket] customer.updated handler error', err); }
     });
 
+    // server may emit an authoritative unread count broadcast
+    socket.on('notifications.unread_count', (payload) => {
+      try {
+        if (!payload) return;
+        const n = payload.unread != null ? payload.unread : (payload.count != null ? payload.count : null);
+        if (n != null) setUnread(Number(n));
+      } catch (err) {
+        console.debug('[socket] notifications.unread_count handler error', err);
+      }
+    });
+
     // Generic fallback: listen to any event and try to surface as a notification
   socket.onAny((eventName, payload) => {
       if (import.meta.env && import.meta.env.DEV) console.debug('[socket] onAny event', eventName, payload);
@@ -347,7 +361,13 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
           read: false,
         };
         prependItem(item);
-        incrementUnread(1);
+        // if server sent an authoritative unread count, use it; otherwise increment
+        if (payload && (payload.unread != null || payload.count != null)) {
+          const n = payload.unread != null ? payload.unread : payload.count
+          try { setUnread(Number(n || 0)); } catch { incrementUnread(1); }
+        } else {
+          incrementUnread(1);
+        }
         try { window.dispatchEvent(new CustomEvent('app:socket:event', { detail: { type: eventName, payload } })); } catch { /* ignore */ }
       } catch (err) {
         console.debug('[socket] onAny handler error', err);
@@ -355,7 +375,7 @@ export default function useSocket({ url, autoConnect = true, sticky = false } = 
     });
 
     socket.__handlersAttached = true;
-  }, [getToken, globalManager, parseJwtPayload, showNotification, incrementUnread, prependItem, openCenter]);
+  }, [getToken, globalManager, parseJwtPayload, showNotification, incrementUnread, prependItem, openCenter, setUnread]);
 
   const connect = useCallback(() => {
     // if we already have a connected socket, return it
