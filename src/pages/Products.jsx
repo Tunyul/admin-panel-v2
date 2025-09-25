@@ -1,403 +1,137 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  Box,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  IconButton,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  Typography,
-} from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import InfoIcon from '@mui/icons-material/InfoOutlined';
-import AddIcon from '@mui/icons-material/Add';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react'
+import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import { useSearchParams } from 'react-router-dom'
 
-import { getProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../api/products';
-import useNotificationStore from '../store/notificationStore';
-import TableToolbar from '../components/TableToolbar';
-
-const ProductRow = React.memo(function ProductRow({ row, expanded, detailsLoading, detailsMap, onOpen, onDelete, onExpand }) {
-  const id = row.id_produk || row.id;
-  return (
-    <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
-        <TableCell>{id}</TableCell>
-        <TableCell>{row.kategori || '-'}</TableCell>
-        <TableCell>{row.nama_produk || '-'}</TableCell>
-        <TableCell>{row.harga_per_m2 ? `Rp${Number(row.harga_per_m2).toLocaleString('id-ID')}` : '-'}</TableCell>
-        <TableCell>{row.harga_per_pcs ? `Rp${Number(row.harga_per_pcs).toLocaleString('id-ID')}` : '-'}</TableCell>
-        <TableCell>{row.stock != null ? row.stock : 0}</TableCell>
-        <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)} size="small"><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)} size="small"><InfoIcon /></IconButton>
-        </TableCell>
-      </TableRow>
-
-      <TableRow>
-        <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
-          <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
-              <Typography variant="subtitle2" gutterBottom>Product Details</Typography>
-              {detailsLoading[id] ? (
-                <Typography>Loading details...</Typography>
-              ) : detailsMap[id] ? (
-                <Box>
-                  <Typography><strong>Material:</strong> {detailsMap[id].bahan || '-'}</Typography>
-                  <Typography><strong>Description:</strong> {detailsMap[id].deskripsi || '-'}</Typography>
-                  <Typography><strong>Notes:</strong> {detailsMap[id].catatan || '-'}</Typography>
-                </Box>
-              ) : (
-                <Typography>No additional details available</Typography>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
-});
+import TableToolbar from '../components/TableToolbar'
+import TableSettingsButton from '../components/TableSettingsButton'
+import ExampleTableComponent from '../components/ExampleTableComponent'
+import { getProducts, createProduct } from '../api/products'
 
 function Products() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [data, setData] = useState([]);
-  const [_loading, setLoading] = useState(true);
-  const [_error, setError] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({});
-  const [expanded, setExpanded] = useState(null);
-  const [detailsMap, setDetailsMap] = useState({});
-  const [detailsLoading, setDetailsLoading] = useState({});
-  const [errors, setErrors] = useState({});
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
-  const { showNotification } = useNotificationStore();
+	const [searchParams, setSearchParams] = useSearchParams()
+	const [rows, setRows] = useState([])
+	const [loading, setLoading] = useState(false)
+	const [showAddModal, setShowAddModal] = useState(false)
+	const [creating, setCreating] = useState(false)
 
-  const updateParam = (key, value) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value === '' || value == null) {
-      params.delete(key)
-    } else {
-      params.set(key, value)
-    }
-    setSearchParams(params)
-  }
+	// Form state for add product
+	const [form, setForm] = useState({ name: '', category: '', price: '', stock: '', unit: '', description: '' })
 
-  const reloadProducts = useCallback(() => {
-    setLoading(true);
-    return getProducts()
-      .then((res) => {
-        const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
-        setError(null);
-      })
-      .catch((err) => {
-        if (err?.response?.status === 404) {
-          setData([]);
-          setError('Data produk tidak ditemukan.');
-        } else {
-          setError('Gagal memuat data products');
-        }
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+	const updateParam = (key, value) => {
+		const params = new URLSearchParams(searchParams.toString())
+		if (value === '' || value == null) params.delete(key)
+		else params.set(key, value)
+		setSearchParams(params)
+	}
 
-  useEffect(() => {
-    reloadProducts();
-  }, [reloadProducts]);
+		const fetchProducts = () => {
+		setLoading(true)
+		return getProducts()
+			.then((res) => {
+				const payload = res && res.data ? res.data : res
+				const dataArray = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
+				const normalized = dataArray.map((it, i) => ({
+					id: it.id || it._id || i + 1,
+					name: it.name || it.nama_produk || it.nama || '',
+					category: it.category || it.kategori || it.kategori_produk || '',
+					price: it.price != null ? it.price : it.harga || '',
+					stock: it.stock != null ? it.stock : it.stok || '',
+					unit: it.unit || it.satuan || '',
+					description: it.description || it.deskripsi || '',
+					createdAt: it.createdAt || it.created_at || ''
+				}))
+				setRows(normalized)
+			})
+							.catch(() => {
+								if (typeof window !== 'undefined' && window.dispatchEvent) {
+									window.dispatchEvent(new CustomEvent('show-notification', { detail: { message: 'Gagal memuat produk', type: 'error' } }))
+								}
+							})
+			.finally(() => setLoading(false))
+	}
 
-  // Listen for refresh events
-  useEffect(() => {
-    const handleRefresh = () => {
-      showNotification('🔄 Refreshing products...', 'info')
-      reloadProducts().then(() => {
-        showNotification(`✅ ${data.length} products loaded`, 'success')
-      }).catch(() => {
-        showNotification('❌ Failed to refresh products', 'error')
-      })
-    }
-    
-    window.addEventListener('app:refresh:products', handleRefresh)
-    return () => window.removeEventListener('app:refresh:products', handleRefresh)
-  }, [reloadProducts, data.length, showNotification])
+	useEffect(() => {
+		fetchProducts()
 
-  const searchQuery = searchParams.get('q') || ''
-  const categoryFilter = searchParams.get('category') || ''
-  
-  const filteredData = data.filter((row) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      const hay = `${row.nama_produk || ''} ${row.kategori || ''} ${row.bahan || ''}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (categoryFilter) {
-      if ((row.kategori || '').toString() !== categoryFilter) return false;
-    }
-    return true;
-  });
+		const handler = () => fetchProducts(true)
+		window.addEventListener('app:refresh:products', handler)
+		return () => window.removeEventListener('app:refresh:products', handler)
+	}, [])
 
-  const handleOpen = useCallback((item = {}) => {
-    setForm(item);
-    setErrors({});
-    setOpen(true);
-  }, []);
+	const handleCreate = () => {
+		setCreating(true)
+		const payload = {
+			name: form.name,
+			category: form.category,
+			price: form.price === '' ? 0 : Number(String(form.price).replace(/[^0-9.-]+/g, '')),
+			stock: form.stock === '' ? 0 : Number(form.stock),
+			unit: form.unit,
+			description: form.description
+		}
 
-  const handleClose = useCallback(() => setOpen(false), []);
-  const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
+			createProduct(payload)
+						.then(() => {
+							if (typeof window !== 'undefined' && window.dispatchEvent) {
+								window.dispatchEvent(new CustomEvent('show-notification', { detail: { message: 'Produk berhasil ditambahkan', type: 'success' } }))
+							}
+				setShowAddModal(false)
+				setForm({ name: '', category: '', price: '', stock: '', unit: '', description: '' })
+				fetchProducts()
+			})
+						.catch(() => {
+							if (typeof window !== 'undefined' && window.dispatchEvent) {
+								window.dispatchEvent(new CustomEvent('show-notification', { detail: { message: 'Gagal menambahkan produk', type: 'error' } }))
+							}
+						})
+			.finally(() => setCreating(false))
+	}
 
-  const handleSave = () => {
-    const newErrors = {};
-    if (!form.nama_produk?.trim()) newErrors.nama_produk = 'Product name is required';
-    if (!form.kategori?.trim()) newErrors.kategori = 'Category is required';
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+	return (
+		<Box>
+			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+				<Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+					<TableToolbar
+						value={searchParams.get('q') || ''}
+						onChange={(v) => updateParam('q', v)}
+						placeholder="Search products (name, category)"
+						hideFilters
+					/>
+				</Box>
 
-    const promise = form.id_produk ? updateProduct(form.id_produk, form) : createProduct(form);
-    promise
-      .then(() => {
-        showNotification(`Product ${form.id_produk ? 'updated' : 'created'} successfully`, 'success');
-        handleClose();
-        reloadProducts();
-      })
-      .catch((err) => {
-        showNotification(`Failed to ${form.id_produk ? 'update' : 'create'} product`, 'error');
-        console.error(err);
-      });
-  };
+				<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+					<TableSettingsButton tableId="products" variant="button" showLabel={true} />
+					<Button startIcon={<RefreshIcon />} variant="outlined" size="small" onClick={() => fetchProducts(true)}>
+						Refresh
+					</Button>
+					<Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => setShowAddModal(true)}>
+						Add Product
+					</Button>
+				</Box>
+			</Box>
 
-  const handleDelete = (id) => setDeleteConfirm({ open: true, id });
+			<ExampleTableComponent tableId="products" data={rows} loading={loading} />
 
-  const confirmDelete = () => {
-    const id = deleteConfirm.id;
-    setDeleteConfirm({ open: false, id: null });
-    if (!id) return;
-    
-    deleteProduct(id)
-      .then(() => {
-        showNotification('Product deleted successfully', 'success');
-        reloadProducts();
-      })
-      .catch((err) => {
-        showNotification('Failed to delete product', 'error');
-        console.error(err);
-      });
-  };
-
-  const handleExpandWithDetails = useCallback((id) => {
-    if (expanded === id) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(id);
-    if (!detailsMap[id] && !detailsLoading[id]) {
-      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
-      getProductById(id)
-        .then((res) => {
-          setDetailsMap((prev) => ({ ...prev, [id]: res?.data || res }));
-        })
-        .catch((err) => {
-          console.error(`Failed to load details for product ${id}`, err);
-          setDetailsMap((prev) => ({ ...prev, [id]: null }));
-        })
-        .finally(() => {
-          setDetailsLoading((prev) => ({ ...prev, [id]: false }));
-        });
-    }
-  }, [expanded, detailsMap, detailsLoading]);
-
-  // Category filter options
-  const categoryFilterOptions = [
-    ...new Set(data.map(d => d.kategori))
-  ].filter(Boolean).map(c => ({ value: c, label: c }))
-
-  return (
-    <Box>
-      {/* Header with actions */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
-          <TableToolbar
-            value={searchQuery}
-            onChange={(value) => updateParam('q', value)}
-            placeholder="Search products (name, category, material)"
-            hideFilters
-          />
-        </Box>
-        
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            startIcon={<RefreshIcon />} 
-            variant="outlined" 
-            size="small" 
-            onClick={() => window.dispatchEvent(new CustomEvent('app:refresh:products'))}
-          >
-            Refresh
-          </Button>
-          <Button 
-            startIcon={<AddIcon />} 
-            variant="contained" 
-            size="small" 
-            onClick={() => handleOpen()}
-          >
-            Add Product
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Filters Row */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <TableToolbar
-          hideSearch
-          filterValue={categoryFilter}
-          onFilterChange={(value) => updateParam('category', value)}
-          filterOptions={categoryFilterOptions}
-        />
-      </Box>
-
-      {/* Products Table */}
-      <Box 
-        sx={{ 
-          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
-          overflow: 'auto',
-          overflowX: 'auto'
-        }}
-      >
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Product Name</TableCell>
-              <TableCell>Price/m²</TableCell>
-              <TableCell>Price/pcs</TableCell>
-              <TableCell>Stock</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography>
-                    {data.length === 0 ? 'No products found' : 'No products match current filters'}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredData.map((row) => (
-                <ProductRow
-                  key={row.id_produk || row.id}
-                  row={row}
-                  expanded={expanded}
-                  detailsLoading={detailsLoading}
-                  detailsMap={detailsMap}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Box>
-
-      {/* Add/Edit Product Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{form.id_produk ? 'Edit Product' : 'Add Product'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              label="Product Name"
-              name="nama_produk"
-              value={form.nama_produk || ''}
-              onChange={handleChange}
-              error={!!errors.nama_produk}
-              helperText={errors.nama_produk}
-              fullWidth
-            />
-            <TextField
-              label="Category"
-              name="kategori"
-              value={form.kategori || ''}
-              onChange={handleChange}
-              error={!!errors.kategori}
-              helperText={errors.kategori}
-              fullWidth
-            />
-            <TextField
-              label="Price per m²"
-              name="harga_per_m2"
-              type="number"
-              value={form.harga_per_m2 || ''}
-              onChange={handleChange}
-              error={!!errors.harga_per_m2}
-              helperText={errors.harga_per_m2}
-              fullWidth
-            />
-            <TextField
-              label="Price per pcs"
-              name="harga_per_pcs"
-              type="number"
-              value={form.harga_per_pcs || ''}
-              onChange={handleChange}
-              error={!!errors.harga_per_pcs}
-              helperText={errors.harga_per_pcs}
-              fullWidth
-            />
-            <TextField
-              label="Material"
-              name="bahan"
-              value={form.bahan || ''}
-              onChange={handleChange}
-              error={!!errors.bahan}
-              helperText={errors.bahan}
-              fullWidth
-            />
-            <TextField
-              label="Stock"
-              name="stock"
-              type="number"
-              value={form.stock || ''}
-              onChange={handleChange}
-              error={!!errors.stock}
-              helperText={errors.stock}
-              fullWidth
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, id: null })}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this product?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirm({ open: false, id: null })}>Cancel</Button>
-          <Button onClick={confirmDelete} variant="contained" color="error">Delete</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
+			<Dialog open={showAddModal} onClose={() => setShowAddModal(false)} maxWidth="sm" fullWidth>
+				<DialogTitle>Add Product</DialogTitle>
+				<DialogContent>
+					<Stack spacing={2} sx={{ mt: 1 }}>
+						<TextField label="Name" size="small" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
+						<TextField label="Category" size="small" value={form.category} onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))} />
+						<TextField label="Price" size="small" value={form.price} onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))} />
+						<TextField label="Stock" size="small" value={form.stock} onChange={(e) => setForm((s) => ({ ...s, stock: e.target.value }))} />
+						<TextField label="Unit" size="small" value={form.unit} onChange={(e) => setForm((s) => ({ ...s, unit: e.target.value }))} />
+						<TextField label="Description" size="small" multiline rows={3} value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
+					</Stack>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setShowAddModal(false)}>Cancel</Button>
+					<Button variant="contained" onClick={handleCreate} disabled={creating || !form.name}>Create</Button>
+				</DialogActions>
+			</Dialog>
+		</Box>
+	)
 }
 
-export default Products;
+export default Products

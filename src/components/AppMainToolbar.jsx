@@ -27,7 +27,7 @@ export default function AppMainToolbar() {
       try {
         const q = e?.detail?.q ?? ''
         setHasActiveSearch(q.length > 0)
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -41,7 +41,7 @@ export default function AppMainToolbar() {
       try {
         const sortKey = e?.detail?.sortKey || null
         setHasActiveSorting(!!sortKey)
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -68,7 +68,7 @@ export default function AppMainToolbar() {
           detail: { [key]: value, allFilters: { ...localFilters, [key]: value } }
         }))
       }
-    } catch (err) {
+      } catch {
       // ignore
     }
   }
@@ -110,7 +110,7 @@ export default function AppMainToolbar() {
           detail: { resetSort: true }
         }))
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }
@@ -121,13 +121,23 @@ export default function AppMainToolbar() {
       window.dispatchEvent(new CustomEvent('toolbar:reset-sort', { 
         detail: { resetSort: true }
       }))
-    } catch (err) {
+    } catch {
       // ignore
     }
   }
 
   // Check if any filter is active (including search)
-  const hasActiveFilters = Object.values(localFilters).some(value => value && value !== '') || hasActiveSearch
+  // Use page-specific checks so filters from one page don't make the Clear button appear on another page
+
+  const hasActiveFiltersOrders = (
+    ['status_urgensi', 'status_order', 'status_bayar', 'date_from', 'date_to']
+      .some((k) => !!localFilters[k])
+  ) || hasActiveSearch
+
+  const hasActiveFiltersProducts = (!!localFilters.category) || hasActiveSearch
+  const hasActiveFiltersCustomers = (!!localFilters.type) || hasActiveSearch
+  const hasActiveFiltersPayments = (!!localFilters.status) || (!!localFilters.method) || hasActiveSearch
+  const hasActiveFiltersPiutangs = (!!localFilters.status) || (!!localFilters.customer) || hasActiveSearch
 
   // Order filter options (aligned with backend/database values)
   const statusUrgensiOptions = [
@@ -236,7 +246,7 @@ export default function AppMainToolbar() {
             />
 
             {/* Reset Filters Button */}
-            {hasActiveFilters && (
+            {hasActiveFiltersOrders && (
               <Button
                 size="small"
                 variant="outlined"
@@ -278,7 +288,7 @@ export default function AppMainToolbar() {
               onChange={(e) => updateFilter('category', e.target.value)}
               placeholder="Category"
             />
-            {hasActiveFilters && (
+            {hasActiveFiltersProducts && (
               <Button
                 size="small"
                 variant="outlined"
@@ -320,7 +330,7 @@ export default function AppMainToolbar() {
               onChange={(e) => updateFilter('type', e.target.value)}
               placeholder="Type"
             />
-            {hasActiveFilters && (
+            {hasActiveFiltersCustomers && (
               <Button
                 size="small"
                 variant="outlined"
@@ -376,7 +386,7 @@ export default function AppMainToolbar() {
               onChange={(e) => updateFilter('method', e.target.value)}
               placeholder="Method"
             />
-            {hasActiveFilters && (
+            {hasActiveFiltersPayments && (
               <Button
                 size="small"
                 variant="outlined"
@@ -432,7 +442,7 @@ export default function AppMainToolbar() {
               onChange={(e) => updateFilter('customer', e.target.value)}
               placeholder="Customer"
             />
-            {hasActiveFilters && (
+            {hasActiveFiltersPiutangs && (
               <Button
                 size="small"
                 variant="outlined"

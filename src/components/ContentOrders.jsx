@@ -130,7 +130,7 @@ export default function ContentOrders() {
       statusBayar: 'Status Pembayaran',
       dpBayar: 'DP Bayar',
       totalBayar: 'Total Bayar',
-      totalHarga: 'Total Harga',
+      totalHarga: 'Sisa Bayar',
       tanggalJatuhTempo: 'Jatuh Tempo'
     }
     return columnNames[key] || key
@@ -181,6 +181,18 @@ export default function ContentOrders() {
       try {
         const allFilters = e?.detail?.allFilters || {}
         setLocalFilters(allFilters)
+        // Also sync filters to URL search params so server-side/API filtering is updated.
+        try {
+          // remove empty values before setting search params
+          const entries = Object.entries(allFilters).filter(([k, v]) => v !== undefined && v !== null && String(v) !== '')
+          if (entries.length === 0) {
+            setSearchParams({})
+          } else {
+            setSearchParams(Object.fromEntries(entries))
+          }
+        } catch {
+          // ignore URL param sync errors
+        }
       } catch (err) {
         // ignore
       }
@@ -305,6 +317,34 @@ export default function ContentOrders() {
     if (Number.isNaN(num)) return String(value)
     const rounded = Math.round(num)
     return 'Rp. ' + rounded.toLocaleString('id-ID')
+  }
+
+  // Parse various currency/number inputs (strings with symbols or numbers) to Number
+  const parseCurrencyToNumber = (v) => {
+    if (v === null || v === undefined || v === '') return 0
+    const cleaned = String(v).replace(/[^0-9.-]+/g, '')
+    const num = Number(cleaned)
+    if (Number.isNaN(num)) return 0
+    return num
+  }
+
+  // Compute sisa bayar = total_bayar - dp_bayar with sensible fallbacks
+  const computeSisaBayar = (row) => {
+    // If status indicates fully paid, show zero
+    const statusStr = String(row.statusBayar || row.status_bayar || row.status || '').toLowerCase()
+    if (statusStr.includes('lunas') || statusStr.includes('paid') || statusStr.includes('selesai') || statusStr.includes('completed')) {
+      return 0
+    }
+
+    // prefer explicit totalBayar and dpBayar fields
+    const total = parseCurrencyToNumber(row.totalBayar != null ? row.totalBayar : row.total_bayar)
+    const dp = parseCurrencyToNumber(row.dpBayar != null ? row.dpBayar : row.dp_bayar)
+    const sisa = total - dp
+    // If both total and dp are zero but totalHarga exists, fallback to totalHarga
+    if ((total === 0 && dp === 0) && (row.totalHarga || row.total_harga)) {
+      return parseCurrencyToNumber(row.totalHarga || row.total_harga)
+    }
+    return sisa
   }
 
   // Map common status strings to background colors (hex)
@@ -763,7 +803,7 @@ export default function ContentOrders() {
         return (
           <TableCell key={columnKey} align={align}>
             <Box component="span" className="total-price" sx={{ fontWeight: 600, color: '#3b82f6' }}>
-              {formatRupiah(row.totalHarga)}
+              {formatRupiah(computeSisaBayar(row))}
             </Box>
           </TableCell>
         )
@@ -911,10 +951,33 @@ export default function ContentOrders() {
   // Reduce display limit for better performance
   const MAX_DISPLAYED_ROWS = 30 // Further reduced for optimal performance
   const displayedRows = React.useMemo(() => {
+    // If no client-side filters or live search are active, show all rows (avoid truncating full dataset)
+    const hasLocalFilters = Object.values(localFilters || {}).some((v) => v !== undefined && v !== null && String(v) !== '')
+    const hasLiveSearch = !!liveQuery
+    if (!hasLocalFilters && !hasLiveSearch) {
+      return filteredAndSortedRows
+    }
+    // When filtering/searching is active, apply display limit for performance
     return filteredAndSortedRows.slice(0, MAX_DISPLAYED_ROWS)
-  }, [filteredAndSortedRows])
+  }, [filteredAndSortedRows, localFilters, liveQuery])
+
+  // Emit stats for toolbar (Showing X of Y) when displayed/filtered rows change
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('toolbar:stats', {
+          detail: { displayed: displayedRows.length, total: filteredAndSortedRows.length }
+        }))
+      }
+    } catch {
+      // ignore
+    }
+  }, [displayedRows.length, filteredAndSortedRows.length])
 
   const allIds = displayedRows.map((r) => r.id)
+
+  // Emit stats (displayed / total) for the toolbar to show
+  
 
   const allChecked = allIds.length > 0 && allIds.every((id) => selected.has(id))
   const someChecked = allIds.some((id) => selected.has(id)) && !allChecked
@@ -967,15 +1030,7 @@ export default function ContentOrders() {
                   Press 'R' to reset sorting
                 </Typography>
               )}
-              <Typography variant="body2" color="text.secondary">
-                Showing {displayedRows.length} of {filteredAndSortedRows.length} orders
-                {filteredAndSortedRows.length > MAX_DISPLAYED_ROWS && (
-                  <span style={{ color: 'orange' }}> (showing first {MAX_DISPLAYED_ROWS})</span>
-                )}
-                {customerLoading && (
-                  <span style={{ color: 'blue' }}> (loading customer data...)</span>
-                )}
-              </Typography>
+              {/* moved showing/total stats to TableToolbar via toolbar:stats event */}
             </Box>
             {filteredAndSortedRows.length === 0 && liveQuery && (
               <Typography variant="body2" color="warning.main">
@@ -1265,7 +1320,7 @@ export default function ContentOrders() {
                       </TableCell>
                       <TableCell align="right">
                         <Box component="span" className="total-price" sx={{ fontWeight: 600, color: '#3b82f6' }}>
-                          {formatRupiah(row.totalHarga)}
+                          {formatRupiah(computeSisaBayar(row))}
                         </Box>
                       </TableCell>
                       <TableCell>{row.tanggalJatuhTempo}</TableCell>
