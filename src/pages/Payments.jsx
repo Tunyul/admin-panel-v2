@@ -33,51 +33,28 @@ import { getCustomersByPhone } from '../api/customers';
 import { getOrderByTransaksi } from '../api/orders';
 import useNotificationStore from '../store/notificationStore';
 import TableToolbar from '../components/TableToolbar';
+import { useTableColumns } from '../hooks/useTableSettings';
 
-const PaymentRow = React.memo(function PaymentRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand, onVerify }) {
+// Dynamic payment row that renders columns driven by visibleColumns and a renderTableCell mapper
+const PaymentRow = React.memo(function PaymentRow({ row, rowIndex, expanded, detailsMap, detailsLoading, visibleColumns, renderTableCell }) {
   const id = row.id_payment || row.id;
-  
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'verified': case 'approved': case 'confirmed': return 'success';
-      case 'menunggu_verifikasi': return 'warning';
-      case 'pending': return 'warning';
-      case 'rejected': return 'error';
-      default: return 'default';
-    }
-  };
-
-  const formatAmount = (amount) => {
-    if (!amount) return 'Rp 0';
-    return `Rp ${Number(amount).toLocaleString('id-ID')}`;
-  };
 
   return (
     <>
       <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
-        <TableCell>{id}</TableCell>
-        <TableCell>{row.no_transaksi || '-'}</TableCell>
-  <TableCell>{formatAmount(row.nominal || row.amount)}</TableCell>
-        <TableCell>
-          <Chip 
-            label={row.status || 'pending'} 
-            color={getStatusColor(row.status)}
-            size="small"
-          />
-        </TableCell>
-  <TableCell>{row.tanggal ? new Date(row.tanggal).toLocaleDateString() : '-'}</TableCell>
-        <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)} size="small"><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)} size="small"><InfoIcon /></IconButton>
-          {row.status !== 'verified' && (
-            <IconButton color="success" onClick={() => onVerify(id)} size="small"><CheckIcon /></IconButton>
-          )}
-        </TableCell>
+        {visibleColumns.map((col) => (
+          <React.Fragment key={`cell-${id}-${col.key}`}>
+            {renderTableCell ? (
+              renderTableCell(col.key, row, col.align, rowIndex)
+            ) : (
+              <TableCell align={col.align}>{row[col.key] ?? '-'}</TableCell>
+            )}
+          </React.Fragment>
+        ))}
       </TableRow>
 
       <TableRow>
-  <TableCell colSpan={6} sx={{ p: 0, border: 0 }}>
+        <TableCell colSpan={visibleColumns.length} sx={{ p: 0, border: 0 }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
             <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
               <Typography variant="subtitle2" gutterBottom>Payment Details</Typography>
@@ -123,6 +100,8 @@ function Payments() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyFormLocal, setVerifyFormLocal] = useState({});
   const { showNotification } = useNotificationStore();
+  // Use the payments column configuration for table head/visibility
+  const { visibleColumns } = useTableColumns('payments');
 
   const updateParam = (key, value) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -211,25 +190,27 @@ function Payments() {
 
   const searchQuery = searchParams.get('q') || ''
   const statusFilter = searchParams.get('status') || ''
-  const methodFilter = searchParams.get('method') || ''
+  const tipeFilter = searchParams.get('tipe') || ''
 
   const filteredData = React.useMemo(() => {
     if (!data || data.length === 0) return [];
     const q = (searchQuery || '').trim().toLowerCase();
     return data.filter((row) => {
       if (q) {
-        const hay = `${row.no_transaksi || ''} ${row.payment_method || row.metode_bayar || ''} ${row.reference || row.referensi || ''}`.toLowerCase();
+        const hay = `${row.no_transaksi || ''} ${row.tipe || ''} ${row.reference || row.referensi || ''} ${row.Order?.no_transaksi || ''} ${row.Customer?.nama || ''} ${row.Customer?.no_hp || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (statusFilter) {
         if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
       }
-      if (methodFilter) {
-        if ((row.payment_method || row.metode_bayar || '').toLowerCase() !== methodFilter.toLowerCase()) return false;
+      if (tipeFilter) {
+        if ((row.tipe || '').toLowerCase() !== tipeFilter.toLowerCase()) return false;
       }
       return true;
     });
-  }, [data, searchQuery, statusFilter, methodFilter]);
+  }, [data, searchQuery, statusFilter, tipeFilter]);
+
+  // renderTableCell will be defined later (after handler functions) to avoid referencing handlers before declaration
 
 
   
@@ -381,10 +362,111 @@ function Payments() {
     }
   }, [expanded, detailsMap, detailsLoading]);
 
+  // Map Orders table column keys to payment row cells. Defined after handlers so they are in scope.
+  const renderTableCell = (key, r, align = 'left', rowIndex = null) => {
+    const id = r.id_payment || r.id;
+    const phone = r.no_hp || r.phone || '';
+    const sanitizePhone = (p) => (String(p || '').replace(/\D/g, ''));
+    const formatCurrency = (val) => (val == null || val === '') ? '-' : `Rp ${Number(val).toLocaleString('id-ID')}`;
+
+    switch (key) {
+      case 'id':
+        return <TableCell align={align}>{id}</TableCell>;
+      case 'no':
+        return <TableCell align={align}>{rowIndex != null ? (rowIndex + 1) : '-'}</TableCell>;
+      case 'orderNo':
+        return <TableCell align={align}>{r.no_transaksi || r.Order?.no_transaksi || '-'}</TableCell>;
+      case 'orderId':
+        return <TableCell align={align}>{r.Order?.id_order || r.orderId || r.id_order || '-'}</TableCell>;
+      case 'amount':
+        return <TableCell align={align}>{formatCurrency(r.nominal)}</TableCell>;
+      // deprecated payment_method fallback removed — use 'tipe' column instead
+      case 'idCustomer':
+        return <TableCell align={align}>{r.id_customer || r.idCustomer || '-'}</TableCell>;
+      case 'customerPhone': {
+        const phoneVal = r.no_hp || r.phone || r.Customer?.no_hp || '';
+        const s = sanitizePhone(phoneVal);
+        return (
+          <TableCell align={align}>
+            {phoneVal ? <a href={`https://wa.me/${s}`} target="_blank" rel="noreferrer">{phoneVal}</a> : '-'}
+          </TableCell>
+        );
+      }
+      case 'customerName':
+        // prefer nested Customer name when present
+        return <TableCell align={align}>{r.Customer?.nama || r.nama || r.customer_name || r.name || '-'}</TableCell>;
+      case 'date':
+        return <TableCell align={align}>{r.tanggal ? new Date(r.tanggal).toLocaleString() : '-'}</TableCell>;
+      case 'items':
+        // Payments don't have items; show type (dp/pelunasan) when available
+        return <TableCell align={align}>{r.tipe || '-'}</TableCell>;
+      case 'tipe': {
+        const label = (r.tipe || '-');
+        const map = {
+          dp: 'warning',
+          pelunasan: 'success'
+        };
+        const color = map[(r.tipe || '').toLowerCase()] || 'default';
+        return (
+          <TableCell align={align}>
+            <Chip label={String(label)} size="small" color={color} />
+          </TableCell>
+        );
+      }
+      case 'linkInvoice': {
+        // Not present in payments schema; use bukti as a fallback
+        const url = r.bukti || r.bukti_url || r.proof || '';
+        return <TableCell align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
+      }
+      case 'linkDrive': {
+        const url = r.bukti || r.bukti_url || r.proof || '';
+        return <TableCell align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
+      }
+      case 'dpBayar':
+      case 'totalBayar':
+      case 'totalHarga':
+        return <TableCell align={align}>{formatCurrency(r.nominal)}</TableCell>;
+      case 'status':
+      case 'statusBayar': {
+        const s = (r.status || '').toLowerCase();
+        // humanize label: replace underscores and capitalize words
+        const label = r.status ? String(r.status).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-';
+        let statusColor = 'default';
+        if (s === 'pending') statusColor = 'default';
+        else if (s === 'menunggu_verifikasi' || s === 'menunggu') statusColor = 'warning';
+        else if (['verified', 'confirmed', 'approved'].includes(s)) statusColor = 'success';
+        else if (s === 'rejected') statusColor = 'error';
+
+        return (
+          <TableCell align={align}>
+            <Chip label={label} size="small" color={statusColor} />
+          </TableCell>
+        );
+      }
+      case 'actions':
+        {
+          const s = (r.status || '').toLowerCase();
+          return (
+            <TableCell align={align} sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-start' }}>
+              <IconButton size="small" onClick={() => handleExpandWithDetails(id)}><InfoIcon fontSize="small" /></IconButton>
+              <IconButton size="small" onClick={() => handleOpen(r)}><EditIcon fontSize="small" /></IconButton>
+              <IconButton size="small" onClick={() => handleDelete(id)}><DeleteIcon fontSize="small" /></IconButton>
+              {s !== 'verified' && (
+                <IconButton size="small" onClick={() => handleVerify(id)}><CheckIcon fontSize="small" /></IconButton>
+              )}
+            </TableCell>
+          );
+        }
+      default:
+        return <TableCell align={align}>{r[key] ?? '-'}</TableCell>;
+    }
+  };
+
   const rows = React.useMemo(() => {
-    return filteredData.map((row) => (
+    return filteredData.map((row, idx) => (
       <PaymentRow
         key={row.id_payment || row.id}
+        rowIndex={idx}
         row={row}
         expanded={expanded}
         detailsLoading={detailsLoading}
@@ -393,9 +475,11 @@ function Payments() {
         onDelete={handleDelete}
         onExpand={handleExpandWithDetails}
         onVerify={handleVerify}
+        visibleColumns={visibleColumns}
+        renderTableCell={(k, r, a, i) => renderTableCell(k, r, a, i)}
       />
     ));
-  }, [filteredData, expanded, detailsLoading, detailsMap, handleOpen, handleDelete, handleExpandWithDetails, handleVerify]);
+  }, [filteredData, expanded, detailsLoading, detailsMap, handleOpen, handleDelete, handleExpandWithDetails, handleVerify, visibleColumns]);
 
   // Filter options
   const statusFilterOptions = [
@@ -405,8 +489,8 @@ function Payments() {
     { value: 'rejected', label: 'Rejected' }
   ]
 
-  const methodFilterOptions = [
-    ...new Set(data.map(d => d.payment_method || d.metode_bayar))
+  const tipeFilterOptions = [
+    ...new Set(data.map(d => d.tipe))
   ].filter(Boolean).map(c => ({ value: c, label: c }))
 
   return (
@@ -414,10 +498,10 @@ function Payments() {
       {/* Header with actions */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
-          <TableToolbar
+            <TableToolbar
             value={searchParams.get('q') || ''}
             onChange={(value) => updateParam('q', value)}
-            placeholder="Search payments (transaction, amount, method)"
+            placeholder="Search payments (transaction, amount, tipe)"
             hideFilters
             statusFilters={[
               {
@@ -427,10 +511,10 @@ function Payments() {
                 options: statusFilterOptions
               },
               {
-                label: 'Method',
-                value: searchParams.get('method') || '',
-                onChange: (value) => updateParam('method', value),
-                options: methodFilterOptions
+                label: 'Tipe',
+                value: searchParams.get('tipe') || '',
+                onChange: (value) => updateParam('tipe', value),
+                options: tipeFilterOptions
               }
             ]}
           />
@@ -465,20 +549,17 @@ function Payments() {
         }}
       >
         <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Transaction No</TableCell>
-              <TableCell>Amount</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
+            <TableHead>
+              <TableRow>
+                {visibleColumns.map((col) => (
+                  <TableCell key={`hdr-${col.key}`} align={col.align}>{col.label || col.key}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={visibleColumns.length}>
                   <Typography>
                     {data.length === 0 ? 'No payments found' : 'No payments match current filters'}
                   </Typography>
