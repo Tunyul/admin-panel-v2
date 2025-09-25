@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Button } from '@mui/material'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 
 export default function AppMainToolbar() {
   const location = useLocation()
@@ -23,7 +23,7 @@ export default function AppMainToolbar() {
     nominal_min: '',
     nominal_max: ''
   })
-  const [searchParams, setSearchParams] = useSearchParams()
+  // AppMainToolbar no longer manipulates URL params directly; pages handle that.
   const [hasActiveSearch, setHasActiveSearch] = useState(false)
   const [hasActiveSorting, setHasActiveSorting] = useState(false)
 
@@ -64,32 +64,26 @@ export default function AppMainToolbar() {
   const isPiutangs = pathname === '/piutangs' || pathname.startsWith('/piutangs')
 
   const updateFilter = (key, value) => {
-    // Update local state
-    setLocalFilters(prev => ({ ...prev, [key]: value }))
-    
-    // Emit global event for ContentOrders to listen
-    try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('toolbar:filter', { 
-          detail: { [key]: value, allFilters: { ...localFilters, [key]: value } }
-        }))
-        // Also update URL params for pages that read them (Payments page reads URL search params)
-        try {
-          const params = new URLSearchParams(searchParams.toString())
-          if (value === '' || value == null) {
-            params.delete(key)
-          } else {
-            params.set(key, value)
-          }
-          // Only push params when on payments or piutangs (these pages read search params)
-          if (isPayments || isPiutangs) setSearchParams(params)
-        } catch (err) {
-          // ignore URL param updates
+    // Use functional update so we always compute with the latest state
+    setLocalFilters((prev) => {
+      const newFilters = { ...prev, [key]: value }
+
+      // Emit global event for other components to listen
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('toolbar:filter', {
+            detail: { [key]: value, allFilters: newFilters }
+          }))
         }
-      }
       } catch {
-      // ignore
-    }
+        // ignore
+      }
+
+        // NOTE: do not update URL params here. Pages (e.g. Payments/Piutangs)
+        // should listen to the `toolbar:filter` event and apply URL updates.
+
+      return newFilters
+    })
   }
 
   const resetAllFilters = () => {
@@ -106,8 +100,6 @@ export default function AppMainToolbar() {
       no_transaksi: '',
       no_hp: '',
       tipe: '',
-      date_from: '',
-      date_to: '',
       has_bukti: '',
       nominal_min: '',
       nominal_max: ''
@@ -124,11 +116,6 @@ export default function AppMainToolbar() {
           detail: { allFilters: emptyFilters }
         }))
         // Clear URL params when on payments/piutangs
-        try {
-          if (isPayments || isPiutangs) setSearchParams(new URLSearchParams())
-        } catch (err) {
-          // ignore
-        }
         // Reset search
         window.dispatchEvent(new CustomEvent('toolbar:search', { 
           detail: { q: '' }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -19,6 +19,7 @@ import {
   Chip,
   MenuItem,
   CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -30,6 +31,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import { useSearchParams } from 'react-router-dom';
 
 import { getPayments, getPaymentById, createPayment, updatePayment, deletePayment, getPaymentsByTransaksi } from '../api/payments';
+import useToolbarSync from '../hooks/useToolbarSync';
 import { getCustomersByPhone } from '../api/customers';
 import { getOrderByTransaksi } from '../api/orders';
 import useNotificationStore from '../store/notificationStore';
@@ -85,6 +87,8 @@ function Payments() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const intervalRef = useRef(null);
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
@@ -115,7 +119,20 @@ function Payments() {
   }
 
   const reloadPayments = useCallback(() => {
+    // start loading + progress animation
     setLoading(true);
+    try {
+      setProgress(5);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setProgress((p) => {
+          // gently increase progress up to 85% while fetching
+          const next = Math.min(85, p + Math.floor(Math.random() * 8) + 3);
+          return next;
+        });
+      }, 300);
+    } catch (err) {}
+
     return getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -131,6 +148,11 @@ function Payments() {
         }
       })
       .finally(() => {
+        // stop progress animation and complete
+        try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } } catch (e) {}
+        setProgress(100);
+        // small delay so the progress bar reaches 100% visually
+        setTimeout(() => setProgress(0), 150);
         setLoading(false);
       });
   }, []);
@@ -138,6 +160,15 @@ function Payments() {
   useEffect(() => {
     reloadPayments();
   }, [reloadPayments]);
+
+  // cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      try { if (intervalRef.current) clearInterval(intervalRef.current); } catch (e) {}
+    };
+  }, []);
+  // Sync toolbar events to URL params via hook (keys chosen for Payments page)
+  useToolbarSync({ searchParams, setSearchParams, keys: ['status', 'tipe', 'no_transaksi', 'customer', 'no_hp', 'nominal_min', 'nominal_max', 'date_from', 'date_to', 'has_bukti'] })
 
   // Listen for refresh events
   useEffect(() => {
@@ -677,6 +708,11 @@ function Payments() {
       </Box>
 
       {/* Payments Table */}
+      {progress > 0 && (
+        <Box sx={{ width: '100%', mb: 1 }}>
+          <LinearProgress variant="determinate" value={progress} />
+        </Box>
+      )}
       <TableContainer className="table-responsive" sx={{ maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)', overflow: 'auto' }}>
         <Table stickyHeader size="small">
           <TableHead>
