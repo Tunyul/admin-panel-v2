@@ -131,6 +131,7 @@ export default function ContentOrders() {
       dpBayar: 'DP Bayar',
       totalBayar: 'Total Bayar',
       totalHarga: 'Sisa Bayar',
+      items: 'Orders Detail',
       tanggalJatuhTempo: 'Jatuh Tempo'
     }
     return columnNames[key] || key
@@ -155,6 +156,7 @@ export default function ContentOrders() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [changeStatusValue, setChangeStatusValue] = useState('')
+  const [statusTarget, setStatusTarget] = useState(null)
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState({ open: false, id: null })
@@ -604,6 +606,7 @@ export default function ContentOrders() {
     if (!menuRow) return
     // prefills status selector with the current known status (try several fields)
     setChangeStatusValue(menuRow.status || menuRow.status_order || menuRow.statusOrder || '')
+    setStatusTarget(menuRow)
     setStatusDialogOpen(true)
     closeRowMenu()
   }
@@ -1101,6 +1104,20 @@ export default function ContentOrders() {
                 
                 {/* Dynamic columns based on visibility settings */}
                 {visibleColumns.map((column) => {
+                  // When we render the actions header, first render Orders Detail
+                  if (column.key === 'actions') {
+                    return (
+                      <React.Fragment key={`header-${column.key}`}>
+                        <TableCell key="orders-detail-header">Orders Detail</TableCell>
+                        {column.sortable ? (
+                          <SortableTableCell key={column.key} sortKey={column.key} align={column.align}>{column.label}</SortableTableCell>
+                        ) : (
+                          <TableCell key={column.key} align={column.align}>{column.label}</TableCell>
+                        )}
+                      </React.Fragment>
+                    )
+                  }
+
                   if (column.sortable) {
                     return (
                       <SortableTableCell 
@@ -1119,7 +1136,7 @@ export default function ContentOrders() {
                     )
                   }
                 })}
-                
+                {/* Ensure headers for always-rendered non-dynamic columns exist, but avoid duplicates if visibleColumns already contains them */}
                 <TableCell>
                   <TableSettingsButton 
                     tableId={tableId} 
@@ -1577,9 +1594,19 @@ export default function ContentOrders() {
       </Dialog>
 
       {/* Status Dialog */}
-      <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={statusDialogOpen} onClose={() => { setStatusDialogOpen(false); setStatusTarget(null); }} maxWidth="sm" fullWidth>
         <DialogTitle>Change Status</DialogTitle>
         <DialogContent>
+          {(() => {
+            const t = statusTarget || menuRow
+            const cust = t?.idCustomer ? customerCache.get(t.idCustomer) : null
+            return (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="body2"><strong>No Transaksi:</strong> {t?.orderNo || '-'}</Typography>
+                <Typography variant="body2"><strong>Customer:</strong> {cust?.nama || cust?.nama_customer || cust?.name || t?.idCustomer || '-'}</Typography>
+              </Box>
+            )
+          })()}
           <FormControl fullWidth margin="dense">
             <InputLabel id="change-status-label">Status</InputLabel>
             <Select labelId="change-status-label" label="Status" value={changeStatusValue} onChange={(e) => setChangeStatusValue(e.target.value)}>
@@ -1592,25 +1619,29 @@ export default function ContentOrders() {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => { setStatusDialogOpen(false); setStatusTarget(null); }}>Cancel</Button>
           <Button variant="contained" onClick={() => {
-            if (!menuRow || !menuRow.id) {
+            const target = statusTarget || menuRow
+            if (!target || !target.id) {
               showNotification('No order selected', 'error')
               setStatusDialogOpen(false)
+              setStatusTarget(null)
               return
             }
-            const id = menuRow.id
+            const id = target.id
             const payload = { status: changeStatusValue }
             updateOrder(id, payload)
               .then(() => {
                 showNotification('Order status updated', 'success')
                 setStatusDialogOpen(false)
+                setStatusTarget(null)
                 fetchOrders()
               })
               .catch((err) => {
                 console.error('Failed to update order status', err)
                 showNotification('Failed to update status', 'error')
                 setStatusDialogOpen(false)
+                setStatusTarget(null)
               })
           }}>Save</Button>
         </DialogActions>
