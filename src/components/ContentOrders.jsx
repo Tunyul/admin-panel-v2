@@ -131,8 +131,8 @@ export default function ContentOrders() {
       dpBayar: 'DP Bayar',
       totalBayar: 'Total Bayar',
       totalHarga: 'Sisa Bayar',
-      items: 'Orders Detail',
-      tanggalJatuhTempo: 'Jatuh Tempo'
+      tanggalJatuhTempo: 'Jatuh Tempo',      
+      items: 'Orders Detail'
     }
     return columnNames[key] || key
   }
@@ -274,9 +274,13 @@ export default function ContentOrders() {
     const totalBayar = item.total_bayar != null ? item.total_bayar : item.total_harga != null ? item.total_harga : ''
     const totalHarga = item.total_harga != null ? item.total_harga : ''
     const tanggalJatuhTempo = item.tanggal_jatuh_tempo || ''
-    const linkInvoice = item.link_invoice || ''
-    const linkDrive = item.link_drive || ''
+  const linkInvoice = item.link_invoice || ''
+  const linkDrive = item.link_drive || ''
     const notes = item.catatan || item.notes || item.note || ''
+
+  // attempt to prefill customer info if provided in the order payload
+  const customerPhone = item.customer_no_hp || item.no_hp || item.customer_phone || item.Customer?.no_hp || ''
+  const customerName = item.customer_name || item.nama_customer || item.Customer?.nama || item.Customer?.name || ''
 
     // items / details from OrderDetails as structured array
     let items = []
@@ -309,6 +313,8 @@ export default function ContentOrders() {
       dpBayar,
       totalBayar,
       totalHarga,
+      customerPhone,
+      customerName,
       tanggalJatuhTempo: jatuhTempoStr,
       linkInvoice,
       linkDrive,
@@ -907,6 +913,17 @@ export default function ContentOrders() {
         // Handle numeric IDs
         aVal = parseInt(String(aVal || 0).replace(/[^0-9]/g, '')) || 0
         bVal = parseInt(String(bVal || 0).replace(/[^0-9]/g, '')) || 0
+      } else if (config.key === 'customerPhone') {
+        aVal = String(aVal || '').replace(/[^0-9]/g, '')
+        bVal = String(bVal || '').replace(/[^0-9]/g, '')
+        aVal = parseInt(aVal || 0) || 0
+        bVal = parseInt(bVal || 0) || 0
+      } else if (config.key === 'customerName') {
+        aVal = String(aVal || '').toLowerCase()
+        bVal = String(bVal || '').toLowerCase()
+      } else if (config.key === 'items') {
+        aVal = Array.isArray(aVal) ? aVal.length : (typeof aVal === 'number' ? aVal : 0)
+        bVal = Array.isArray(bVal) ? bVal.length : (typeof bVal === 'number' ? bVal : 0)
       } else if (config.key === 'orderNo') {
         // Handle order numbers (might be mixed alphanumeric)
         const aNum = parseInt(String(aVal || '').replace(/[^0-9]/g, '')) || 0
@@ -1086,7 +1103,21 @@ export default function ContentOrders() {
             background: 'transparent',
           }}
         >
-          <Table stickyHeader size="small" sx={{ minWidth: 'max-content', tableLayout: 'auto' }}>
+          <Table
+            stickyHeader
+            size="small"
+            sx={{
+              minWidth: 'max-content',
+              tableLayout: 'auto',
+              // defensive: ensure sticky header styles are applied even if global CSS overrides exist
+              '& .MuiTableCell-stickyHeader': {
+                position: 'sticky',
+                top: 0,
+                zIndex: 3,
+                backgroundColor: 'background.paper',
+              }
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox">
@@ -1108,7 +1139,6 @@ export default function ContentOrders() {
                   if (column.key === 'actions') {
                     return (
                       <React.Fragment key={`header-${column.key}`}>
-                        <TableCell key="orders-detail-header">Orders Detail</TableCell>
                         {column.sortable ? (
                           <SortableTableCell key={column.key} sortKey={column.key} align={column.align}>{column.label}</SortableTableCell>
                         ) : (

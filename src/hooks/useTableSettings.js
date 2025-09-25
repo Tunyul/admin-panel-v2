@@ -7,8 +7,8 @@ export const TABLE_COLUMN_CONFIGS = {
     { key: 'id', label: 'ID Orders', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'orderNo', label: 'No Transaksi', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'idCustomer', label: 'ID Customer', sortable: true, defaultVisible: true, align: 'left' },
-    { key: 'customerPhone', label: 'No HP', sortable: false, defaultVisible: true, align: 'left' },
-    { key: 'customerName', label: 'Nama Customer', sortable: false, defaultVisible: true, align: 'left' },
+  { key: 'customerPhone', label: 'No HP', sortable: true, defaultVisible: true, align: 'left' },
+  { key: 'customerName', label: 'Nama Customer', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'date', label: 'Tanggal Order', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'statusUrgensi', label: 'Urgensi', sortable: true, defaultVisible: true, align: 'left' },
   { key: 'status', label: 'Status Pesanan', sortable: true, defaultVisible: true, align: 'left' },
@@ -18,9 +18,11 @@ export const TABLE_COLUMN_CONFIGS = {
     { key: 'dpBayar', label: 'DP Bayar', sortable: true, defaultVisible: true, align: 'right' },
   { key: 'totalBayar', label: 'Total Bayar', sortable: true, defaultVisible: true, align: 'right' },
   { key: 'totalHarga', label: 'Sisa Bayar', sortable: true, defaultVisible: true, align: 'right' },
+    // Show items count / orders detail and allow sorting by number of items
     { key: 'tanggalJatuhTempo', label: 'Tanggal Jatuh Tempo', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'linkInvoice', label: 'Link Invoice', sortable: true, defaultVisible: false, align: 'left' },
     { key: 'linkDrive', label: 'Link Drive', sortable: true, defaultVisible: false, align: 'left' },
+      { key: 'items', label: 'Orders Detail', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'actions', label: 'Actions', sortable: false, defaultVisible: true, align: 'center' },
   ],
   customers: [
