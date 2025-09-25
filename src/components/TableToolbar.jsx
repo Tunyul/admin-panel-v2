@@ -12,6 +12,7 @@ export default function TableToolbar({
   hideFilters = false,
   noWrap = false,
   statusFilters = [], // Array of status filter objects: [{ label, value, onChange, options }]
+  extraFields = [] // [{ key, value, onChange, placeholder, type, sx }]
 }) {
   // Local state for search input to debounce user typing
   const [localSearch, setLocalSearch] = useState(value || '')
@@ -73,7 +74,7 @@ export default function TableToolbar({
     const handleFilter = (e) => {
       try {
         const allFilters = e?.detail?.allFilters || {}
-        const has = Object.entries(allFilters).some(([k, v]) => v !== undefined && v !== null && String(v) !== '')
+  const has = Object.entries(allFilters).some(([, v]) => v !== undefined && v !== null && String(v) !== '')
         setActiveFilters(has)
       } catch {
         // ignore
@@ -107,6 +108,18 @@ export default function TableToolbar({
             InputProps={{ sx: { color: 'var(--text)' } }}
             InputLabelProps={{ sx: { color: 'var(--muted)' } }}
           />
+          {/* Extra compact search fields (e.g. No Transaksi, Customer, No HP) */}
+          {extraFields && extraFields.length > 0 && extraFields.map((f) => (
+            <TextField
+              key={f.key}
+              size="small"
+              value={f.value || ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              placeholder={f.placeholder || ''}
+              type={f.type || 'text'}
+              sx={{ width: (f.sx && f.sx.width) || 120 }}
+            />
+          ))}
           {isTyping && localSearch && (
             <Chip 
               label="Live" 

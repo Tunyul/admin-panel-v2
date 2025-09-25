@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Button } from '@mui/material'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 
 export default function AppMainToolbar() {
   const location = useLocation()
@@ -15,9 +15,15 @@ export default function AppMainToolbar() {
     category: '', // Products
     type: '', // Customers  
     status: '', // Payments, Piutangs
-    method: '', // Payments
-    customer: '' // Piutangs
+    customer: '', // Piutangs
+    // Payments specific
+    no_transaksi: '',
+    no_hp: '',
+    tipe: '',
+    nominal_min: '',
+    nominal_max: ''
   })
+  const [searchParams, setSearchParams] = useSearchParams()
   const [hasActiveSearch, setHasActiveSearch] = useState(false)
   const [hasActiveSorting, setHasActiveSorting] = useState(false)
 
@@ -67,6 +73,19 @@ export default function AppMainToolbar() {
         window.dispatchEvent(new CustomEvent('toolbar:filter', { 
           detail: { [key]: value, allFilters: { ...localFilters, [key]: value } }
         }))
+        // Also update URL params for pages that read them (Payments page reads URL search params)
+        try {
+          const params = new URLSearchParams(searchParams.toString())
+          if (value === '' || value == null) {
+            params.delete(key)
+          } else {
+            params.set(key, value)
+          }
+          // Only push params when on payments or piutangs (these pages read search params)
+          if (isPayments || isPiutangs) setSearchParams(params)
+        } catch (err) {
+          // ignore URL param updates
+        }
       }
       } catch {
       // ignore
@@ -83,8 +102,15 @@ export default function AppMainToolbar() {
       category: '',
       type: '',
       status: '',
-      method: '',
-      customer: ''
+      customer: '',
+      no_transaksi: '',
+      no_hp: '',
+      tipe: '',
+      date_from: '',
+      date_to: '',
+      has_bukti: '',
+      nominal_min: '',
+      nominal_max: ''
     }
     
     // Reset local state
@@ -97,6 +123,12 @@ export default function AppMainToolbar() {
         window.dispatchEvent(new CustomEvent('toolbar:filter', { 
           detail: { allFilters: emptyFilters }
         }))
+        // Clear URL params when on payments/piutangs
+        try {
+          if (isPayments || isPiutangs) setSearchParams(new URLSearchParams())
+        } catch (err) {
+          // ignore
+        }
         // Reset search
         window.dispatchEvent(new CustomEvent('toolbar:search', { 
           detail: { q: '' }
@@ -136,7 +168,8 @@ export default function AppMainToolbar() {
 
   const hasActiveFiltersProducts = (!!localFilters.category) || hasActiveSearch
   const hasActiveFiltersCustomers = (!!localFilters.type) || hasActiveSearch
-  const hasActiveFiltersPayments = (!!localFilters.status) || (!!localFilters.method) || hasActiveSearch
+  const hasActiveFiltersPayments = (!!localFilters.status) || hasActiveSearch || (!!localFilters.tipe) || (!!localFilters.nominal_min) || (!!localFilters.nominal_max)
+
   const hasActiveFiltersPiutangs = (!!localFilters.status) || (!!localFilters.customer) || hasActiveSearch
 
   // Order filter options (aligned with backend/database values)
@@ -182,7 +215,7 @@ export default function AppMainToolbar() {
         {/* Orders: status + date range */}
         {isOrders && (
           <>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Urgency</InputLabel>
               <Select
                 value={localFilters.status_urgensi || ''}
@@ -197,7 +230,7 @@ export default function AppMainToolbar() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Status Order</InputLabel>
               <Select
                 value={localFilters.status_order || ''}
@@ -212,7 +245,7 @@ export default function AppMainToolbar() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Payment</InputLabel>
               <Select
                 value={localFilters.status_bayar || ''}
@@ -234,6 +267,7 @@ export default function AppMainToolbar() {
               value={localFilters.date_from || ''}
               onChange={(e) => updateFilter('date_from', e.target.value)}
               InputLabelProps={{ shrink: true }}
+              sx={{ width: 120 }}
             />
 
             <TextField
@@ -243,6 +277,7 @@ export default function AppMainToolbar() {
               value={localFilters.date_to || ''}
               onChange={(e) => updateFilter('date_to', e.target.value)}
               InputLabelProps={{ shrink: true }}
+              sx={{ width: 120 }}
             />
 
             {/* Reset Filters Button */}
@@ -287,6 +322,7 @@ export default function AppMainToolbar() {
               value={localFilters.category || ''}
               onChange={(e) => updateFilter('category', e.target.value)}
               placeholder="Category"
+              sx={{ width: 120 }}
             />
             {hasActiveFiltersProducts && (
               <Button
@@ -329,6 +365,7 @@ export default function AppMainToolbar() {
               value={localFilters.type || ''}
               onChange={(e) => updateFilter('type', e.target.value)}
               placeholder="Type"
+              sx={{ width: 120 }}
             />
             {hasActiveFiltersCustomers && (
               <Button
@@ -363,10 +400,10 @@ export default function AppMainToolbar() {
           </>
         )}
 
-        {/* Payments: status + method */}
+        {/* Payments: status */}
         {isPayments && (
           <>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Status</InputLabel>
               <Select
                 value={localFilters.status || ''}
@@ -375,17 +412,74 @@ export default function AppMainToolbar() {
                 displayEmpty
               >
                 <MenuItem value="">(all)</MenuItem>
-                <MenuItem value="verified">Verified</MenuItem>
                 <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="rejected">Rejected</MenuItem>
+                <MenuItem value="menunggu_verifikasi">Menunggu Verifikasi</MenuItem>
+                <MenuItem value="verified">Verified</MenuItem>
+                <MenuItem value="confirmed">Confirmed</MenuItem>
               </Select>
             </FormControl>
+            {/* No Transaksi, Nama Customer, and No HP moved to TableToolbar under the app toolbar */}
+
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel shrink>Tipe</InputLabel>
+              <Select
+                value={localFilters.tipe || ''}
+                label="Tipe"
+                onChange={(e) => updateFilter('tipe', e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value="">(all)</MenuItem>
+                <MenuItem value="dp">DP</MenuItem>
+                <MenuItem value="pelunasan">Pelunasan</MenuItem>
+              </Select>
+            </FormControl>
+
             <TextField
               size="small"
-              value={localFilters.method || ''}
-              onChange={(e) => updateFilter('method', e.target.value)}
-              placeholder="Method"
+              type="number"
+              value={localFilters.nominal_min || ''}
+              onChange={(e) => updateFilter('nominal_min', e.target.value)}
+              placeholder="Min (Rp)"
+              sx={{ width: 120 }}
             />
+
+            <TextField
+              size="small"
+              type="number"
+              value={localFilters.nominal_max || ''}
+              onChange={(e) => updateFilter('nominal_max', e.target.value)}
+              placeholder="Max (Rp)"
+              sx={{ width: 120 }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              value={localFilters.date_from || ''}
+              onChange={(e) => updateFilter('date_from', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: 120 }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              value={localFilters.date_to || ''}
+              onChange={(e) => updateFilter('date_to', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: 120 }}
+            />
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel shrink>Has Bukti</InputLabel>
+              <Select
+                value={localFilters.has_bukti || ''}
+                label="Has Bukti"
+                onChange={(e) => updateFilter('has_bukti', e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value="">(all)</MenuItem>
+                <MenuItem value="yes">Yes</MenuItem>
+                <MenuItem value="no">No</MenuItem>
+              </Select>
+            </FormControl>
             {hasActiveFiltersPayments && (
               <Button
                 size="small"
@@ -422,7 +516,7 @@ export default function AppMainToolbar() {
         {/* Piutangs: status + customer */}
         {isPiutangs && (
           <>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Status</InputLabel>
               <Select
                 value={localFilters.status || ''}
@@ -466,7 +560,7 @@ export default function AppMainToolbar() {
                 sx={{ 
                   minWidth: '100px',
                   fontSize: '0.875rem',
-                  height: '40px'
+                  width: 120
                 }}
               >
                 Reset Sort
@@ -476,8 +570,6 @@ export default function AppMainToolbar() {
         )}
       </Box>
 
-      {/* right side reserved for actions (kept empty to preserve layout) */}
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }} />
     </Box>
   )
 }

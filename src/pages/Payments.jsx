@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Table,
+  TableContainer,
   TableBody,
   TableCell,
   TableHead,
@@ -191,24 +192,159 @@ function Payments() {
   const searchQuery = searchParams.get('q') || ''
   const statusFilter = searchParams.get('status') || ''
   const tipeFilter = searchParams.get('tipe') || ''
+  const noTransaksiFilter = searchParams.get('no_transaksi') || ''
+  const customerFilter = searchParams.get('customer') || ''
+  const noHpFilter = searchParams.get('no_hp') || ''
+  const nominalMin = Number(searchParams.get('nominal_min') || '') || null
+  const nominalMax = Number(searchParams.get('nominal_max') || '') || null
+  const dateFrom = searchParams.get('date_from') || ''
+  const dateTo = searchParams.get('date_to') || ''
+  const hasBukti = searchParams.get('has_bukti') || ''
+
+  // Smart unified search parser: supports tokens like
+  // tx:..., name:"first last", hp:..., amt>100, amt<500, tipe:dp, status:verified
+  const parseSmartQuery = (input) => {
+    const q = String(input || '').trim();
+    const crit = { text: '', tx: '', name: '', hp: '', amtMin: null, amtMax: null, tipe: '', status: '' };
+    if (!q) return crit;
+
+    let remaining = q;
+
+    // match key:"value with spaces" or key:'value' or key:value
+    const kvRegex = /(\b(?:tx|no_transaksi|no|name|n|hp|h|tipe|status)\b)\s*:\s*(?:"([^"]+)"|'([^']+)'|([^\s]+))/gi;
+    let m;
+    while ((m = kvRegex.exec(q)) !== null) {
+      const key = (m[1] || '').toLowerCase();
+      const value = m[2] || m[3] || m[4] || '';
+      remaining = remaining.replace(m[0], '');
+      if (['tx', 'no', 'no_transaksi'].includes(key)) crit.tx = value;
+      else if (['name', 'n'].includes(key)) crit.name = value;
+      else if (['hp', 'h'].includes(key)) crit.hp = value;
+      else if (key === 'tipe') crit.tipe = value;
+      else if (key === 'status') crit.status = value;
+    }
+
+    // match amt comparisons like amt>100 or amount>=200
+    const amtCompRegex = /(?:\b(?:amt|amount)\b)?\s*([<>]=?)\s*([0-9.,]+)/gi;
+    while ((m = amtCompRegex.exec(q)) !== null) {
+      const op = m[1];
+      const num = Number(String(m[2] || '').replace(/[.,]/g, '')) || 0;
+      if (op.includes('>')) {
+        // >= or >
+        if (op.includes('=')) crit.amtMin = Math.max(crit.amtMin || 0, num);
+        else crit.amtMin = Math.max(crit.amtMin || 0, num + 1);
+      } else if (op.includes('<')) {
+        if (op.includes('=')) crit.amtMax = Math.min(crit.amtMax == null ? num : crit.amtMax, num);
+        else crit.amtMax = Math.min(crit.amtMax == null ? num : crit.amtMax, num - 1);
+      }
+      remaining = remaining.replace(m[0], '');
+    }
+
+    // match explicit amt:500 or amt:500-1000
+    const amtRangeRegex = /\b(?:amt|amount)\s*:\s*([0-9.,]+)(?:\s*-\s*([0-9.,]+))?/i;
+    const rangeMatch = remaining.match(amtRangeRegex);
+    if (rangeMatch) {
+      const a = Number(String(rangeMatch[1] || '').replace(/[.,]/g, '')) || 0;
+      const b = Number(String(rangeMatch[2] || '').replace(/[.,]/g, '')) || null;
+      if (b != null) { crit.amtMin = a; crit.amtMax = b; }
+      else { crit.amtMin = a; }
+      remaining = remaining.replace(rangeMatch[0], '');
+    }
+
+    // anything left is treated as free-text search
+    const free = remaining.trim();
+    crit.text = free;
+    return crit;
+  };
 
   const filteredData = React.useMemo(() => {
     if (!data || data.length === 0) return [];
-    const q = (searchQuery || '').trim().toLowerCase();
+    const tokens = parseSmartQuery(searchQuery || '');
+    const q = (tokens.text || '').trim().toLowerCase();
     return data.filter((row) => {
-      if (q) {
-        const hay = `${row.no_transaksi || ''} ${row.tipe || ''} ${row.reference || row.referensi || ''} ${row.Order?.no_transaksi || ''} ${row.Customer?.nama || ''} ${row.Customer?.no_hp || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
+      // smart token checks
+      if (tokens.tx) {
+        const tx = (row.no_transaksi || row.Order?.no_transaksi || '');
+        if (!tx.toLowerCase().includes(String(tokens.tx).toLowerCase())) return false;
       }
+      if (tokens.name) {
+        const name = (row.Customer?.nama || row.customer_name || row.customer || '');
+        if (!name.toLowerCase().includes(String(tokens.name).toLowerCase())) return false;
+      }
+      if (tokens.hp) {
+        const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || '');
+        if (!phone.toLowerCase().includes(String(tokens.hp).toLowerCase())) return false;
+      }
+      if (tokens.tipe) {
+        if ((row.tipe || '').toLowerCase() !== String(tokens.tipe).toLowerCase()) return false;
+      }
+      if (tokens.status) {
+        if ((row.status || '').toLowerCase() !== String(tokens.status).toLowerCase()) return false;
+      }
+      if (tokens.amtMin != null) {
+        const amt = Number(row.nominal || row.amount || 0) || 0;
+        if (amt < tokens.amtMin) return false;
+      }
+      if (tokens.amtMax != null) {
+        const amt = Number(row.nominal || row.amount || 0) || 0;
+        if (amt > tokens.amtMax) return false;
+      }
+
+      // legacy explicit param filters (URL params) still apply
       if (statusFilter) {
         if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
       }
       if (tipeFilter) {
         if ((row.tipe || '').toLowerCase() !== tipeFilter.toLowerCase()) return false;
       }
+      if (noTransaksiFilter) {
+        const tx = (row.no_transaksi || row.Order?.no_transaksi || '')
+        if (!tx.toLowerCase().includes(noTransaksiFilter.toLowerCase())) return false
+      }
+      if (customerFilter) {
+        const name = (row.Customer?.nama || row.customer_name || row.customer || '')
+        if (!name.toLowerCase().includes(customerFilter.toLowerCase())) return false
+      }
+      if (noHpFilter) {
+        const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || '')
+        if (!phone.toLowerCase().includes(noHpFilter.toLowerCase())) return false
+      }
+      if (dateFrom) {
+        const t = row.tanggal ? new Date(row.tanggal) : null
+        if (!t) return false
+        const from = new Date(dateFrom)
+        if (t < from) return false
+      }
+      if (dateTo) {
+        const t = row.tanggal ? new Date(row.tanggal) : null
+        if (!t) return false
+        // include entire day for dateTo
+        const to = new Date(dateTo)
+        to.setHours(23,59,59,999)
+        if (t > to) return false
+      }
+      if (hasBukti) {
+        const has = !!(row.bukti || row.bukti_url || row.proof)
+        if (hasBukti === 'yes' && !has) return false
+        if (hasBukti === 'no' && has) return false
+      }
+      if (nominalMin != null) {
+        const amt = Number(row.nominal || row.amount || 0)
+        if (amt < nominalMin) return false
+      }
+      if (nominalMax != null) {
+        const amt = Number(row.nominal || row.amount || 0)
+        if (amt > nominalMax) return false
+      }
+
+      // free-text fallback: search common fields
+      if (q) {
+        const hay = `${row.no_transaksi || ''} ${row.tipe || ''} ${row.reference || row.referensi || ''} ${row.Order?.no_transaksi || ''} ${row.Customer?.nama || ''} ${row.Customer?.no_hp || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [data, searchQuery, statusFilter, tipeFilter]);
+  }, [data, searchQuery, statusFilter, tipeFilter, noTransaksiFilter, customerFilter, noHpFilter, nominalMin, nominalMax, dateFrom, dateTo, hasBukti]);
 
   // renderTableCell will be defined later (after handler functions) to avoid referencing handlers before declaration
 
@@ -365,7 +501,6 @@ function Payments() {
   // Map Orders table column keys to payment row cells. Defined after handlers so they are in scope.
   const renderTableCell = (key, r, align = 'left', rowIndex = null) => {
     const id = r.id_payment || r.id;
-    const phone = r.no_hp || r.phone || '';
     const sanitizePhone = (p) => (String(p || '').replace(/\D/g, ''));
     const formatCurrency = (val) => (val == null || val === '') ? '-' : `Rp ${Number(val).toLocaleString('id-ID')}`;
 
@@ -479,7 +614,7 @@ function Payments() {
         renderTableCell={(k, r, a, i) => renderTableCell(k, r, a, i)}
       />
     ));
-  }, [filteredData, expanded, detailsLoading, detailsMap, handleOpen, handleDelete, handleExpandWithDetails, handleVerify, visibleColumns]);
+  }, [filteredData, expanded, detailsLoading, detailsMap, handleOpen, handleDelete, handleExpandWithDetails, handleVerify, visibleColumns, renderTableCell]);
 
   // Filter options
   const statusFilterOptions = [
@@ -501,7 +636,7 @@ function Payments() {
             <TableToolbar
             value={searchParams.get('q') || ''}
             onChange={(value) => updateParam('q', value)}
-            placeholder="Search payments (transaction, amount, tipe)"
+            placeholder="Search payments — supports tx:, name:, hp:, amt>, amt<, tipe:, status:"
             hideFilters
             statusFilters={[
               {
@@ -517,6 +652,7 @@ function Payments() {
                 options: tipeFilterOptions
               }
             ]}
+            
           />
         </Box>
         
@@ -541,21 +677,15 @@ function Payments() {
       </Box>
 
       {/* Payments Table */}
-      <Box 
-        sx={{ 
-          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
-          overflow: 'auto',
-          overflowX: 'auto'
-        }}
-      >
+      <TableContainer className="table-responsive" sx={{ maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)', overflow: 'auto' }}>
         <Table stickyHeader size="small">
-            <TableHead>
-              <TableRow>
-                {visibleColumns.map((col) => (
-                  <TableCell key={`hdr-${col.key}`} align={col.align}>{col.label || col.key}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
+          <TableHead>
+            <TableRow>
+              {visibleColumns.map((col) => (
+                <TableCell key={`hdr-${col.key}`} align={col.align}>{col.label || col.key}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
@@ -570,7 +700,7 @@ function Payments() {
             )}
           </TableBody>
         </Table>
-      </Box>
+      </TableContainer>
 
       {/* Add/Edit Payment Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

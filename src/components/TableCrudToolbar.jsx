@@ -6,9 +6,11 @@ export default function TableCrudToolbar() {
   const location = useLocation()
   const isOrders = location.pathname === '/orders' || location.pathname.startsWith('/orders')
 
-  // For orders page, the toolbar is now handled in Orders.jsx
-  // This component can be used for other pages or removed entirely
-  if (isOrders) return null
+  const isPayments = location.pathname === '/payments' || location.pathname.startsWith('/payments')
+
+  // For orders and payments pages the toolbar is handled elsewhere or not needed
+  // Avoid rendering an empty toolbar on those pages
+  if (isOrders || isPayments) return null
 
   return (
     <Box
