@@ -126,7 +126,7 @@ export default function ContentOrders() {
       idCustomer: 'ID Customer',
       date: 'Tanggal Order',
       statusUrgensi: 'Urgensi',
-      status: 'Status Order',
+  status: 'Status Pesanan',
       statusBayar: 'Status Pembayaran',
       dpBayar: 'DP Bayar',
       totalBayar: 'Total Bayar',
@@ -154,6 +154,7 @@ export default function ContentOrders() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [changeStatusValue, setChangeStatusValue] = useState('')
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState({ open: false, id: null })
@@ -261,8 +262,12 @@ export default function ContentOrders() {
     const idCustomer = item.id_customer || item.customer_id || item.customerId || ''
     const date = item.tanggal_order || item.date || item.createdAt || item.created_at || ''
     const statusUrgensi = item.status_urgensi || ''
-    const status = item.status_order || item.status || item.status_bot || ''
-    const statusBayar = item.status_bayar || ''
+  // Keep each status field separate so UI can show them independently
+  // But also keep `status` fallback to order/bot status so existing UIs show something
+  const status = item.status || item.status_order || item.status_bot || '' // admin-managed lifecycle (enum) preferred
+  const statusOrder = item.status_order || item.statusOrder || item.status || '' // WA/order confirmation
+  const statusBot = item.status_bot || item.statusBot || item.status || '' // bot flow status
+  const statusBayar = item.status_bayar || ''
     const dpBayar = item.dp_bayar != null ? item.dp_bayar : ''
     const totalBayar = item.total_bayar != null ? item.total_bayar : item.total_harga != null ? item.total_harga : ''
     const totalHarga = item.total_harga != null ? item.total_harga : ''
@@ -296,6 +301,8 @@ export default function ContentOrders() {
       date: dateStr,
       statusUrgensi,
       status,
+      statusOrder,
+      statusBot,
       statusBayar,
       dpBayar,
       totalBayar,
@@ -595,6 +602,8 @@ export default function ContentOrders() {
 
   const handleOpenStatus = () => {
     if (!menuRow) return
+    // prefills status selector with the current known status (try several fields)
+    setChangeStatusValue(menuRow.status || menuRow.status_order || menuRow.statusOrder || '')
     setStatusDialogOpen(true)
     closeRowMenu()
   }
@@ -767,6 +776,28 @@ export default function ContentOrders() {
               size="small" 
               className={getStatusChipClass(row.status)}
               sx={{ backgroundColor: statusColor(row.status), color: '#fff' }} 
+            />
+          </TableCell>
+        )
+      case 'statusOrder':
+        return (
+          <TableCell key={columnKey} align={align}>
+            <Chip 
+              label={row.statusOrder || ''} 
+              size="small" 
+              className={getStatusChipClass(row.statusOrder)}
+              sx={{ backgroundColor: statusColor(row.statusOrder), color: '#fff' }} 
+            />
+          </TableCell>
+        )
+      case 'statusBot':
+        return (
+          <TableCell key={columnKey} align={align}>
+            <Chip 
+              label={row.statusBot || ''} 
+              size="small" 
+              className={getStatusChipClass(row.statusBot)}
+              sx={{ backgroundColor: statusColor(row.statusBot), color: '#fff' }} 
             />
           </TableCell>
         )
@@ -1300,6 +1331,22 @@ export default function ContentOrders() {
                       </TableCell>
                       <TableCell>
                         <Chip 
+                          label={row.statusOrder || ''} 
+                          size="small" 
+                          className={getStatusChipClass(row.statusOrder)}
+                          sx={{ backgroundColor: statusColor(row.statusOrder), color: '#fff' }} 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={row.statusBot || ''} 
+                          size="small" 
+                          className={getStatusChipClass(row.statusBot)}
+                          sx={{ backgroundColor: statusColor(row.statusBot), color: '#fff' }} 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
                           label={row.statusBayar || ''} 
                           size="small" 
                           className={getStatusChipClass(row.statusBayar)}
@@ -1535,7 +1582,8 @@ export default function ContentOrders() {
         <DialogContent>
           <FormControl fullWidth margin="dense">
             <InputLabel id="change-status-label">Status</InputLabel>
-            <Select labelId="change-status-label" label="Status" defaultValue="">
+            <Select labelId="change-status-label" label="Status" value={changeStatusValue} onChange={(e) => setChangeStatusValue(e.target.value)}>
+              <MenuItem value="">(no change)</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="proses">Proses</MenuItem>
               <MenuItem value="selesai">Selesai</MenuItem>
@@ -1545,7 +1593,26 @@ export default function ContentOrders() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => { showNotification('Change status (not implemented)', 'info'); setStatusDialogOpen(false); }}>Save</Button>
+          <Button variant="contained" onClick={() => {
+            if (!menuRow || !menuRow.id) {
+              showNotification('No order selected', 'error')
+              setStatusDialogOpen(false)
+              return
+            }
+            const id = menuRow.id
+            const payload = { status: changeStatusValue }
+            updateOrder(id, payload)
+              .then(() => {
+                showNotification('Order status updated', 'success')
+                setStatusDialogOpen(false)
+                fetchOrders()
+              })
+              .catch((err) => {
+                console.error('Failed to update order status', err)
+                showNotification('Failed to update status', 'error')
+                setStatusDialogOpen(false)
+              })
+          }}>Save</Button>
         </DialogActions>
       </Dialog>
 
@@ -1584,7 +1651,7 @@ export default function ContentOrders() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCancelConfirm({ open: false, id: null })}>No</Button>
-          <Button variant="contained" color="error" onClick={() => { updateOrder(cancelConfirm.id, { status_order: 'batal' }).then(() => { showNotification('Order cancelled', 'info'); setCancelConfirm({ open: false, id: null }); fetchOrders(); }).catch(() => showNotification('Failed to cancel', 'error')) }}>Yes, Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => { updateOrder(cancelConfirm.id, { status: 'batal' }).then(() => { showNotification('Order cancelled', 'info'); setCancelConfirm({ open: false, id: null }); fetchOrders(); }).catch(() => showNotification('Failed to cancel', 'error')) }}>Yes, Cancel</Button>
         </DialogActions>
       </Dialog>
     </Box>
