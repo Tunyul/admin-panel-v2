@@ -14,6 +14,7 @@ import PaymentIcon from '@mui/icons-material/Payment';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import SettingsIcon from '@mui/icons-material/Settings';
+import logoUtama from '../assets/logo-utama.png';
 
 
 export default function Sidebar() {
@@ -33,9 +34,9 @@ export default function Sidebar() {
         width: { xs: '100%', md: '180px' },
         position: { xs: 'relative', md: 'fixed' },
         left: { xs: 0, md: 0 },
-        top: { xs: 0, md: 'var(--header-height)' },
+        top: 0,
         alignSelf: 'flex-start',
-        height: { xs: 'auto', md: 'calc(100vh - var(--header-height))' },
+        height: { xs: 'auto', md: '100vh' },
         color: 'var(--text)',
         boxSizing: 'border-box',
         display: 'flex',
@@ -51,6 +52,9 @@ export default function Sidebar() {
         zIndex: 1100,
       }}
     >
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+    <Box component="img" src={logoUtama} alt="Logo" sx={{ objectFit: 'contain', borderRadius: 1, maxWidth: '100%' }} />
+  </Box>
   <List className="modal-scroll" sx={{ width: '100%', overflowY: { xs: 'visible', md: 'auto' }, flex: 1 }}>
         {menu.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 1 }}>

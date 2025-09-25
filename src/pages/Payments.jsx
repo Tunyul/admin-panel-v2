@@ -89,6 +89,9 @@ function Payments() {
   const [_loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const intervalRef = useRef(null);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(null);
+  const [externalFilters, setExternalFilters] = useState({});
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
@@ -136,8 +139,21 @@ function Payments() {
     return getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
+        const arr = Array.isArray(items) ? items : [];
+        setData(arr);
         setError(null);
+
+        // attempt to infer total count from common API shapes
+        const totalFromBody = res?.data?.total ?? res?.data?.meta?.total ?? res?.data?.pagination?.total;
+        const totalFromHeader = res?.headers && (res.headers['x-total-count'] || res.headers['x-total']) ? Number(res.headers['x-total-count'] || res.headers['x-total']) : null;
+        const inferredTotal = totalFromBody ?? totalFromHeader ?? arr.length;
+        setLoadedCount(arr.length);
+        setTotalCount(inferredTotal);
+        // if we have a total, update progress to reflect actual percentage
+        if (inferredTotal) {
+          const pct = Math.min(100, Math.round((arr.length / Math.max(1, inferredTotal)) * 100));
+          setProgress(pct);
+        }
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
@@ -150,7 +166,7 @@ function Payments() {
       .finally(() => {
         // stop progress animation and complete
         try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } } catch (e) {}
-        setProgress(100);
+        setProgress((prev) => (prev >= 100 ? 100 : 100));
         // small delay so the progress bar reaches 100% visually
         setTimeout(() => setProgress(0), 150);
         setLoading(false);
@@ -168,7 +184,29 @@ function Payments() {
     };
   }, []);
   // Sync toolbar events to URL params via hook (keys chosen for Payments page)
-  useToolbarSync({ searchParams, setSearchParams, keys: ['status', 'tipe', 'no_transaksi', 'customer', 'no_hp', 'nominal_min', 'nominal_max', 'date_from', 'date_to', 'has_bukti'] })
+  useToolbarSync({ searchParams, setSearchParams, keys: ['status', 'tipe', 'type', 'no_transaksi', 'customer', 'no_hp', 'nominal_min', 'nominal_max', 'date_from', 'date_to', 'has_bukti'] })
+
+  // Extra defensive listener: ensure tipe changes from AppMainToolbar always update URL params
+  useEffect(() => {
+    const handleTipeFilter = (e) => {
+      try {
+        const all = e?.detail?.allFilters || {}
+        // keep a local copy so filters apply immediately even if URL sync lags
+        setExternalFilters(all || {})
+        if (all && Object.prototype.hasOwnProperty.call(all, 'tipe')) {
+          updateParam('tipe', all.tipe)
+        }
+        // also support legacy 'type' key
+        if (all && Object.prototype.hasOwnProperty.call(all, 'type')) {
+          updateParam('tipe', all.type)
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    window.addEventListener('toolbar:filter', handleTipeFilter)
+    return () => window.removeEventListener('toolbar:filter', handleTipeFilter)
+  }, [searchParams])
 
   // Listen for refresh events
   useEffect(() => {
@@ -306,8 +344,13 @@ function Payments() {
         const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || '');
         if (!phone.toLowerCase().includes(String(tokens.hp).toLowerCase())) return false;
       }
+      // precedence: smart tokens -> external toolbar filters -> URL param filters
       if (tokens.tipe) {
         if ((row.tipe || '').toLowerCase() !== String(tokens.tipe).toLowerCase()) return false;
+      }
+      if (!tokens.tipe && externalFilters && (externalFilters.tipe || externalFilters.type)) {
+        const tf = (externalFilters.tipe || externalFilters.type || '').toLowerCase();
+        if (tf && (row.tipe || '').toLowerCase() !== tf) return false;
       }
       if (tokens.status) {
         if ((row.status || '').toLowerCase() !== String(tokens.status).toLowerCase()) return false;
@@ -656,8 +699,9 @@ function Payments() {
   ]
 
   const tipeFilterOptions = [
-    ...new Set(data.map(d => d.tipe))
-  ].filter(Boolean).map(c => ({ value: c, label: c }))
+    { value: 'dp', label: 'DP' },
+    { value: 'pelunasan', label: 'Pelunasan' },
+  ]
 
   return (
     <Box>
@@ -709,8 +753,15 @@ function Payments() {
 
       {/* Payments Table */}
       {progress > 0 && (
-        <Box sx={{ width: '100%', mb: 1 }}>
-          <LinearProgress variant="determinate" value={progress} />
+        <Box sx={{ width: '100%', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ flex: 1 }}>
+            <LinearProgress variant="determinate" value={progress} />
+          </Box>
+          <Box sx={{ minWidth: 120, textAlign: 'right' }}>
+            <Typography variant="body2">
+              {loadedCount ?? 0}{totalCount != null ? ` / ${totalCount}` : ''} — {totalCount ? `${Math.round(((loadedCount||0) / Math.max(1, totalCount)) * 100)}%` : `${progress}%`}
+            </Typography>
+          </Box>
         </Box>
       )}
       <TableContainer className="table-responsive" sx={{ maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)', overflow: 'auto' }}>
