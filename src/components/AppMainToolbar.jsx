@@ -63,27 +63,52 @@ export default function AppMainToolbar() {
   const isPayments = pathname === '/payments' || pathname.startsWith('/payments')
   const isPiutangs = pathname === '/piutangs' || pathname.startsWith('/piutangs')
 
+  // Define which filter keys belong to which page so we only emit relevant keys
+  const pageFilterKeys = {
+    orders: ['status_urgensi', 'status_order', 'status_bayar', 'date_from', 'date_to'],
+    products: ['category'],
+    customers: ['type'],
+    payments: ['status', 'no_transaksi', 'no_hp', 'tipe', 'nominal_min', 'nominal_max', 'has_bukti', 'date_from', 'date_to'],
+    piutangs: ['status', 'customer']
+  }
+
+  const getKeysForPath = (p) => {
+    if (!p) return []
+    if (String(p).startsWith('/orders')) return pageFilterKeys.orders
+    if (String(p).startsWith('/products')) return pageFilterKeys.products
+    if (String(p).startsWith('/customers')) return pageFilterKeys.customers
+    if (String(p).startsWith('/payments')) return pageFilterKeys.payments
+    if (String(p).startsWith('/piutangs')) return pageFilterKeys.piutangs
+    return []
+  }
+
   const updateFilter = (key, value) => {
-    // Use functional update so we always compute with the latest state
-    setLocalFilters((prev) => {
-      const newFilters = { ...prev, [key]: value }
-
-      // Emit global event for other components to listen
-      try {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('toolbar:filter', {
-            detail: { [key]: value, allFilters: newFilters }
-          }))
-        }
-      } catch {
-        // ignore
+    // Compute new filters based on current localFilters and schedule state update.
+    // Dispatch the global event after scheduling state update to avoid firing
+    // listeners while React may be rendering other components.
+    const newFilters = { ...localFilters, [key]: value }
+    setLocalFilters(newFilters)
+    // Build a page-scoped allFilters to avoid leaking unrelated keys to other pages
+    const keysForPage = getKeysForPath(pathname)
+    const filteredAll = {}
+    // Only include keys that belong to this page (prevents leaking order keys into payments)
+    if (Array.isArray(keysForPage) && keysForPage.length > 0) {
+      keysForPage.forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(newFilters, k)) filteredAll[k] = newFilters[k]
+      })
+    }
+    // Emit global event for other components to listen
+    try {
+      if (typeof window !== 'undefined') {
+        // debug: log what we're emitting
+        try { console.debug('[AppMainToolbar] dispatch toolbar:filter', { key, value, allFilters: filteredAll, page: pathname }); } catch (err) {}
+        window.dispatchEvent(new CustomEvent('toolbar:filter', {
+          detail: { [key]: value, allFilters: filteredAll, page: pathname }
+        }))
       }
-
-        // NOTE: do not update URL params here. Pages (e.g. Payments/Piutangs)
-        // should listen to the `toolbar:filter` event and apply URL updates.
-
-      return newFilters
-    })
+    } catch {
+      // ignore
+    }
   }
 
   const resetAllFilters = () => {
@@ -105,28 +130,31 @@ export default function AppMainToolbar() {
       nominal_max: ''
     }
     
-    // Reset local state
+    // Reset local state first
     setLocalFilters(emptyFilters)
-    
-    // Emit reset event for ContentOrders and TableToolbar
+    // Then emit reset events (scoped to current page)
     try {
       if (typeof window !== 'undefined') {
-        // Reset filters
+        const keysForPage = getKeysForPath(pathname)
+        const filteredEmpty = {}
+        if (Array.isArray(keysForPage) && keysForPage.length > 0) {
+          keysForPage.forEach((k) => { filteredEmpty[k] = '' })
+        }
+        // Reset filters (page-scoped)
         window.dispatchEvent(new CustomEvent('toolbar:filter', { 
-          detail: { allFilters: emptyFilters }
+          detail: { allFilters: filteredEmpty, page: pathname }
         }))
-        // Clear URL params when on payments/piutangs
         // Reset search
         window.dispatchEvent(new CustomEvent('toolbar:search', { 
-          detail: { q: '' }
+          detail: { q: '', page: pathname }
         }))
         // Reset search input in TableToolbar
         window.dispatchEvent(new CustomEvent('toolbar:reset', { 
-          detail: { resetAll: true }
+          detail: { resetAll: true, page: pathname }
         }))
         // Reset sorting
         window.dispatchEvent(new CustomEvent('toolbar:reset-sort', { 
-          detail: { resetSort: true }
+          detail: { resetSort: true, page: pathname }
         }))
       }
     } catch {

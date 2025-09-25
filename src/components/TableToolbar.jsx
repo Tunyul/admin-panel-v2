@@ -73,8 +73,11 @@ export default function TableToolbar({
 
     const handleFilter = (e) => {
       try {
+        const page = e?.detail?.page || null
+        // if toolbar event is for another page, ignore it
+        if (page && !page.startsWith(window.location.pathname)) return
         const allFilters = e?.detail?.allFilters || {}
-  const has = Object.entries(allFilters).some(([, v]) => v !== undefined && v !== null && String(v) !== '')
+        const has = Object.entries(allFilters).some(([, v]) => v !== undefined && v !== null && String(v) !== '')
         setActiveFilters(has)
       } catch {
         // ignore

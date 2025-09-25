@@ -190,9 +190,20 @@ function Payments() {
   useEffect(() => {
     const handleTipeFilter = (e) => {
       try {
-        const all = e?.detail?.allFilters || {}
+        const detail = e?.detail || {}
+        const page = detail.page || null
+        // Only accept events that explicitly target /payments. Ignore legacy events
+        // that don't include a page to avoid cross-page leaks.
+        if (!page || !String(page).startsWith('/payments')) {
+          try { console.debug('[Payments] ignored toolbar event (not for payments):', detail); } catch (err) {}
+          return
+        }
+
+        const all = detail.allFilters || {}
         // keep a local copy so filters apply immediately even if URL sync lags
         setExternalFilters(all || {})
+        // debug: log full payload
+        try { console.debug('[Payments] toolbar:filter accepted', detail); } catch (err) {}
         if (all && Object.prototype.hasOwnProperty.call(all, 'tipe')) {
           updateParam('tipe', all.tipe)
         }
@@ -345,12 +356,13 @@ function Payments() {
         if (!phone.toLowerCase().includes(String(tokens.hp).toLowerCase())) return false;
       }
       // precedence: smart tokens -> external toolbar filters -> URL param filters
+      const rowTipeVal = String(row.tipe || row.type || row.payment_type || '').trim().toLowerCase();
       if (tokens.tipe) {
-        if ((row.tipe || '').toLowerCase() !== String(tokens.tipe).toLowerCase()) return false;
+        if (rowTipeVal !== String(tokens.tipe).toLowerCase()) return false;
       }
       if (!tokens.tipe && externalFilters && (externalFilters.tipe || externalFilters.type)) {
-        const tf = (externalFilters.tipe || externalFilters.type || '').toLowerCase();
-        if (tf && (row.tipe || '').toLowerCase() !== tf) return false;
+        const tf = String(externalFilters.tipe || externalFilters.type || '').trim().toLowerCase();
+        if (tf && rowTipeVal !== tf) return false;
       }
       if (tokens.status) {
         if ((row.status || '').toLowerCase() !== String(tokens.status).toLowerCase()) return false;
@@ -369,7 +381,7 @@ function Payments() {
         if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
       }
       if (tipeFilter) {
-        if ((row.tipe || '').toLowerCase() !== tipeFilter.toLowerCase()) return false;
+        if (rowTipeVal !== tipeFilter.toLowerCase()) return false;
       }
       if (noTransaksiFilter) {
         const tx = (row.no_transaksi || row.Order?.no_transaksi || '')
