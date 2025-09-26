@@ -2,8 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Paper, Typography, Button, Chip, Divider } from '@mui/material';
 import LinearProgress from '@mui/material/LinearProgress';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { getOrderByTransaksi } from '../api/orders';
 import { getOrderDetailsByOrderId } from '../api/orderDetail';
 import { getPaymentsByTransaksi } from '../api/payments';
@@ -304,6 +302,11 @@ export default function PublicInvoice() {
       const noCaptureEls = Array.from(document.querySelectorAll('.no-capture'));
       const previousVis = noCaptureEls.map((n) => n.style.visibility || '');
       noCaptureEls.forEach((n) => { n.style.visibility = 'hidden'; });
+      // lazy-load heavy libraries only when needed
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf')
+      ]);
       const canvas = await html2canvas(el, { scale: 2, useCORS: true });
       // restore visibility
       noCaptureEls.forEach((n, i) => { n.style.visibility = previousVis[i]; });
@@ -328,6 +331,7 @@ export default function PublicInvoice() {
       const noCaptureEls = Array.from(document.querySelectorAll('.no-capture'));
       const previousVis = noCaptureEls.map((n) => n.style.visibility || '');
       noCaptureEls.forEach((n) => { n.style.visibility = 'hidden'; });
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(el, { scale: 1.5, useCORS: true });
       // restore visibility
       noCaptureEls.forEach((n, i) => { n.style.visibility = previousVis[i]; });

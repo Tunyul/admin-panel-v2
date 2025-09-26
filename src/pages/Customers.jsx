@@ -98,8 +98,10 @@ function Customers() {
     return getCustomers()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
+        const arr = Array.isArray(items) ? items : [];
+        setData(arr);
         setError(null);
+        return arr;
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
@@ -122,16 +124,14 @@ function Customers() {
   useEffect(() => {
     const handleRefresh = () => {
       showNotification('🔄 Refreshing customers...', 'info')
-      reloadCustomers().then(() => {
-        showNotification(`✅ ${data.length} customers loaded`, 'success')
-      }).catch(() => {
-        showNotification('❌ Failed to refresh customers', 'error')
-      })
+      reloadCustomers()
+        .then((items) => showNotification(`✅ ${Array.isArray(items) ? items.length : 0} customers loaded`, 'success'))
+        .catch(() => showNotification('❌ Failed to refresh customers', 'error'))
     }
-    
+
     window.addEventListener('app:refresh:customers', handleRefresh)
     return () => window.removeEventListener('app:refresh:customers', handleRefresh)
-  }, [reloadCustomers, data.length, showNotification])
+  }, [reloadCustomers, showNotification])
 
   const searchQuery = searchParams.get('q') || ''
   const typeFilter = searchParams.get('type') || ''

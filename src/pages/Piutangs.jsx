@@ -31,11 +31,14 @@ import TableToolbar from '../components/TableToolbar';
 
 const PiutangRow = React.memo(function PiutangRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
   const id = row.id_piutang || row.id;
+  const phone = row.no_hp || row.Customer?.no_hp || row.customer_phone || row.pelanggan_nohp || '';
   
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'lunas': return 'success';
+      case 'terlambat': return 'error';
       case 'overdue': return 'error';
+      case 'belum_lunas': return 'warning';
       case 'outstanding': return 'warning';
       default: return 'default';
     }
@@ -50,8 +53,18 @@ const PiutangRow = React.memo(function PiutangRow({ row, expanded, detailsMap, d
     <>
       <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
         <TableCell>{id}</TableCell>
-        <TableCell>{row.pelanggan_nama || row.customer_name || '-'}</TableCell>
+        <TableCell>{row.no_transaksi || row.no_tx || row.transaksi || '-'}</TableCell>
+        <TableCell>{phone || '-'}</TableCell>
+        <TableCell>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography component="span">{row.pelanggan_nama || row.customer_name || '-'}</Typography>
+            {phone ? (
+              <Typography variant="caption" color="text.secondary">{phone}</Typography>
+            ) : null}
+          </Box>
+        </TableCell>
         <TableCell>{formatAmount(row.jumlah_piutang || row.amount)}</TableCell>
+        <TableCell>{formatAmount(row.paid || row.sudah_dibayar || row.paid_amount || 0)}</TableCell>
         <TableCell>{row.tanggal_piutang ? new Date(row.tanggal_piutang).toLocaleDateString() : '-'}</TableCell>
         <TableCell>
           <Chip 
@@ -68,7 +81,7 @@ const PiutangRow = React.memo(function PiutangRow({ row, expanded, detailsMap, d
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={6} sx={{ p: 0, border: 0 }}>
+  <TableCell colSpan={9} sx={{ p: 0, border: 0 }}>
           <Collapse in={expanded === id} timeout="auto" unmountOnExit>
             <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
               <Typography variant="subtitle2" gutterBottom>Piutang Details</Typography>
@@ -121,8 +134,10 @@ function Piutangs() {
     return getPiutangs()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
+        const arr = Array.isArray(items) ? items : [];
+        setData(arr);
         setError(null);
+        return arr;
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
@@ -145,16 +160,14 @@ function Piutangs() {
   useEffect(() => {
     const handleRefresh = () => {
       showNotification('🔄 Refreshing piutangs...', 'info')
-      reloadPiutangs().then(() => {
-        showNotification(`✅ ${data.length} piutangs loaded`, 'success')
-      }).catch(() => {
-        showNotification('❌ Failed to refresh piutangs', 'error')
-      })
+      reloadPiutangs()
+        .then((items) => showNotification(`✅ ${Array.isArray(items) ? items.length : 0} piutangs loaded`, 'success'))
+        .catch(() => showNotification('❌ Failed to refresh piutangs', 'error'))
     }
-    
+
     window.addEventListener('app:refresh:piutangs', handleRefresh)
     return () => window.removeEventListener('app:refresh:piutangs', handleRefresh)
-  }, [reloadPiutangs, data.length, showNotification])
+  }, [reloadPiutangs, showNotification])
 
   const searchQuery = searchParams.get('q') || ''
   const statusFilter = searchParams.get('status') || ''
@@ -163,14 +176,21 @@ function Piutangs() {
   const filteredData = data.filter((row) => {
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      const hay = `${row.id_piutang || row.id || ''} ${row.pelanggan_nama || row.customer_name || ''} ${row.keterangan || ''}`.toLowerCase();
+      const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || row.pelanggan_nohp || '');
+      const trx = (row.no_transaksi || row.no_tx || row.transaksi || '');
+      const paid = (row.paid || row.sudah_dibayar || row.paid_amount || '');
+      const hay = `${row.id_piutang || row.id || ''} ${trx} ${row.pelanggan_nama || row.customer_name || ''} ${phone} ${paid} ${row.keterangan || ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     if (statusFilter) {
       if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
     }
     if (customerFilter) {
-      if ((row.pelanggan_nama || row.customer_name || '').toLowerCase() !== customerFilter.toLowerCase()) return false;
+      const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || row.pelanggan_nohp || '');
+      const name = (row.pelanggan_nama || row.customer_name || '');
+      const trx = (row.no_transaksi || row.no_tx || row.transaksi || '');
+      const paid = String(row.paid || row.sudah_dibayar || row.paid_amount || '');
+      if (name.toLowerCase() !== customerFilter.toLowerCase() && phone.toLowerCase() !== customerFilter.toLowerCase() && trx.toLowerCase() !== customerFilter.toLowerCase() && paid.toLowerCase() !== customerFilter.toLowerCase()) return false;
     }
     return true;
   });
@@ -315,8 +335,11 @@ function Piutangs() {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
+              <TableCell>No Transaksi</TableCell>
+              <TableCell>No HP</TableCell>
               <TableCell>Customer</TableCell>
-              <TableCell>Amount</TableCell>
+              <TableCell>Jumlah Piutang</TableCell>
+              <TableCell>Sudah Dibayar</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>

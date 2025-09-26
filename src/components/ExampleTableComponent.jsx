@@ -77,6 +77,70 @@ function ExampleTableComponent({
 
   // Helper function untuk render cell berdasarkan column type
   const renderTableCell = (columnKey, row, align = 'left') => {
+    // Special handling for products table to map API fields
+    if (tableId === 'products') {
+      // API returns fields like nama_produk, kategori, harga_per_m2, harga_per_pcs, stock, ukuran_standar, unit_area
+      switch (columnKey) {
+        case 'id':
+          return <TableCell key={columnKey} align={align}>{row.id || row.id_produk}</TableCell>
+        case 'name':
+          return <TableCell key={columnKey} align={align}>{row.name || row.nama_produk}</TableCell>
+        case 'category':
+          return <TableCell key={columnKey} align={align}>{row.category || row.kategori}</TableCell>
+        case 'price':
+          // prefer per pcs if unit is pcs otherwise show per m2
+          const price = row.price != null ? row.price : row.harga_per_pcs || row.harga_per_m2
+          return <TableCell key={columnKey} align={align}>{price != null && price !== '' ? price : '-'}</TableCell>
+        case 'stock':
+          return <TableCell key={columnKey} align={align}>{row.stock != null ? row.stock : row.stok}</TableCell>
+        case 'unit':
+          return <TableCell key={columnKey} align={align}>{row.unit || row.ukuran_standar || row.satuan}</TableCell>
+        case 'description':
+          // combine bahan + finishing for product description if available
+          const desc = row.description || [row.bahan, row.finishing].filter(Boolean).join(' - ')
+          return <TableCell key={columnKey} align={align}>{desc || '-'}</TableCell>
+        case 'createdAt':
+          return (
+            <TableCell key={columnKey} align={align}>
+              {row.createdAt || row.created_at ? new Date(row.createdAt || row.created_at).toLocaleDateString() : '-'}
+            </TableCell>
+          )
+        case 'actions':
+          return (
+            <TableCell key={columnKey} align={align}>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                {onEdit && (
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => { 
+                      e.stopPropagation() 
+                      onEdit(row) 
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                )}
+                {onDelete && (
+                  <IconButton 
+                    size="small" 
+                    color="error"
+                    onClick={(e) => { 
+                      e.stopPropagation() 
+                      onDelete(row) 
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                )}
+              </Box>
+            </TableCell>
+          )
+        default:
+          return <TableCell key={columnKey} align={align}>-</TableCell>
+      }
+    }
+
+    // Generic fallback for other tables
     switch (columnKey) {
       case 'id':
         return <TableCell key={columnKey} align={align}>{row.id}</TableCell>

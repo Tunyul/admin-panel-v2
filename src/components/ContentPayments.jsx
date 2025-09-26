@@ -194,6 +194,8 @@ export default function ContentPayments() {
           const pct = Math.min(100, Math.round((arr.length / Math.max(1, inferredTotal)) * 100));
           setProgress(pct);
         }
+        // return loaded array so callers can react to the fresh data count
+        return arr;
       })
       .catch((err) => {
         if (err?.response?.status === 404) {
@@ -265,7 +267,9 @@ export default function ContentPayments() {
   useEffect(() => {
     const handleRefresh = () => {
       showNotification('🔄 Refreshing payments...', 'info');
-      reloadPayments().then(() => showNotification(`✅ ${data.length} payments loaded`, 'success')).catch(() => showNotification('❌ Failed to refresh payments', 'error'));
+      reloadPayments()
+        .then((items) => showNotification(`✅ ${Array.isArray(items) ? items.length : 0} payments loaded`, 'success'))
+        .catch(() => showNotification('❌ Failed to refresh payments', 'error'));
     };
     window.addEventListener('app:refresh:payments', handleRefresh);
     return () => window.removeEventListener('app:refresh:payments', handleRefresh);
@@ -441,10 +445,14 @@ export default function ContentPayments() {
     setVerifyLoading(true);
     return getPaymentById(id).then((res) => {
       const p = res?.data || res || {};
-      setVerifyDialog((s) => ({ ...s, form: { nominal: p.nominal || p.amount || '', no_transaksi: p.no_transaksi || p.transaksi || p.reference || '', bukti: p.bukti || p.bukti_url || p.proof || '' } }));
-      setVerifyFormLocal({ nominal: p.nominal || p.amount || '', no_transaksi: p.no_transaksi || p.transaksi || p.reference || '', bukti: p.bukti || p.bukti_url || p.proof || '' });
+      const initialNoTrans = p.no_transaksi || p.transaksi || p.reference || '';
+      setVerifyDialog((s) => ({ ...s, form: { nominal: p.nominal || p.amount || '', no_transaksi: initialNoTrans, bukti: p.bukti || p.bukti_url || p.proof || '' } }));
+      setVerifyFormLocal({ nominal: p.nominal || p.amount || '', no_transaksi: initialNoTrans, bukti: p.bukti || p.bukti_url || p.proof || '' });
       setDetailsMap((prev) => ({ ...prev, [id]: p }));
-      const tx = p.no_transaksi || p.transaksi || p.reference || '';
+      // Try to prefill customer name from payment payload first
+      let customerPhone = p.no_hp || p.Customer?.no_hp || '';
+      let customerName = p.Customer?.nama || p.customer_name || p.nama || '';
+      const tx = initialNoTrans;
       if (tx) {
         return Promise.all([getOrderByTransaksi(tx).catch(() => null), getPaymentsByTransaksi(tx).catch(() => null)])
             .then(async ([orderRes, payRes]) => {
@@ -458,15 +466,16 @@ export default function ContentPayments() {
             if (total && (orderDpBayar || orderDpBayar === 0)) remaining = total - orderDpBayar; else remaining = Math.max(0, total - paid);
             remaining = Math.max(0, remaining);
             const suggestedStatus = nominalCompareSuggestion(Number(p.nominal || p.amount || 0), remaining);
-            const customerPhone = p.no_hp || ord.no_hp || ord.no_hp_customer || '';
-            let customerName = ord.nama || ord.nama_customer || ord.customer_name || '';
+            // prefer order-provided customer name if available
+            if (!customerName) customerName = ord.nama || ord.nama_customer || ord.customer_name || '';
+            if (!customerPhone) customerPhone = ord.no_hp || ord.no_hp_customer || '';
             if (!customerName && customerPhone) {
               try {
                 const cRes = await getCustomersByPhone(customerPhone);
                 const c = cRes?.data?.data || cRes?.data || cRes || {};
                 if (Array.isArray(c) && c.length > 0) customerName = c[0].nama || c[0].name || '';
                 else if (c && c.nama) customerName = c.nama || c.name || '';
-              } catch (err) { console.error(err); }
+              } catch (err) { console.error('Failed to fetch customer by phone in verify flow', err); }
             }
             const type = (paid === 0) ? 'belum_bayar' : (paid < total ? 'dp' : 'lunas');
             setVerifySuggested({ remaining, suggestedStatus, total, paid, customerName, customerPhone, type });
@@ -488,15 +497,43 @@ export default function ContentPayments() {
   const handleVerifyClose = () => { setVerifyDialog({ open: false, id: null, form: {} }); setVerifyFormLocal({}); };
 
   const confirmVerify = async () => {
-    const id = verifyDialog.id; const nominal = Number(verifyFormLocal.nominal || 0); if (!id) return; if (!nominal || nominal <= 0) { showNotification('Nominal harus lebih besar dari 0', 'error'); return; }
+    const id = verifyDialog.id;
+    const nominal = Number(verifyFormLocal.nominal || 0);
+    if (!id) return;
+    if (!nominal || nominal <= 0) { showNotification('Nominal harus lebih besar dari 0', 'error'); return; }
+    setVerifyLoading(true);
     try {
       const paymentsApi = await import('../api/payments');
-      if (paymentsApi && paymentsApi.approvePaymentNominal) await paymentsApi.approvePaymentNominal(id, nominal);
-      else if (paymentsApi && paymentsApi.approvePayment) await paymentsApi.approvePayment(id, { nominal });
-      else await paymentsApi.verifyPayment(id, { nominal });
+      if (paymentsApi && paymentsApi.approvePaymentNominal) {
+        await paymentsApi.approvePaymentNominal(id, nominal);
+      } else if (paymentsApi && paymentsApi.approvePayment) {
+        await paymentsApi.approvePayment(id, { nominal });
+      } else if (paymentsApi && paymentsApi.verifyPayment) {
+        await paymentsApi.verifyPayment(id, { nominal });
+      } else {
+        throw new Error('No verify API available');
+      }
       showNotification('Payment verified/approved successfully', 'success');
       handleVerifyClose(); reloadPayments();
-    } catch (err) { console.error('Failed to approve/verify payment', err); showNotification('Failed to verify payment', 'error'); }
+    } catch (err) {
+      console.error('Failed to approve/verify payment', err);
+      // Build a helpful message: include HTTP status and a short preview of response body when available
+      const status = err?.response?.status;
+      const body = err?.response?.data;
+      let serverMsg = err?.message || 'Failed to verify payment';
+      if (status) serverMsg = `Request failed: ${status} - ${serverMsg}`;
+      try {
+        if (body) {
+          const preview = typeof body === 'string' ? body : JSON.stringify(body);
+          serverMsg += ` (${preview.slice(0, 200)})`;
+        }
+      } catch (e) {
+        // ignore
+      }
+      showNotification(serverMsg, 'error');
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   const handleExpandWithDetails = useCallback((id) => {

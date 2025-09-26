@@ -33,14 +33,26 @@ function Products() {
 				const payload = res && res.data ? res.data : res
 				const dataArray = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
 				const normalized = dataArray.map((it, i) => ({
-					id: it.id || it._id || i + 1,
+					// keep both generic keys and raw product API fields so table rendering
+					id: it.id || it._id || it.id_produk || i + 1,
+					id_produk: it.id_produk,
 					name: it.name || it.nama_produk || it.nama || '',
+					nama_produk: it.nama_produk,
 					category: it.category || it.kategori || it.kategori_produk || '',
-					price: it.price != null ? it.price : it.harga || '',
-					stock: it.stock != null ? it.stock : it.stok || '',
-					unit: it.unit || it.satuan || '',
+					kategori: it.kategori,
+					harga_per_m2: it.harga_per_m2,
+					harga_per_pcs: it.harga_per_pcs,
+					price: it.price != null ? it.price : (it.harga_per_pcs || it.harga_per_m2 || it.harga || ''),
+					unit_area: it.unit_area,
+					ukuran_standar: it.ukuran_standar,
+					bahan: it.bahan,
+					finishing: it.finishing,
+					stock: it.stock != null ? it.stock : it.stok || 0,
+					unit: it.unit || it.satuan || it.ukuran_standar || '',
 					description: it.description || it.deskripsi || '',
-					createdAt: it.createdAt || it.created_at || ''
+					createdAt: it.createdAt || it.created_at || '',
+					created_at: it.created_at,
+					updated_at: it.updated_at
 				}))
 				setRows(normalized)
 			})
