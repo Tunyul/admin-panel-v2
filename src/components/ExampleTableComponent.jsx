@@ -91,6 +91,17 @@ function ExampleTableComponent({
           // prefer per pcs if unit is pcs otherwise show per m2
           const price = row.price != null ? row.price : row.harga_per_pcs || row.harga_per_m2
           return <TableCell key={columnKey} align={align}>{price != null && price !== '' ? price : '-'}</TableCell>
+        case 'bahan':
+          return <TableCell key={columnKey} align={align}>{row.bahan || row.material || '-'}</TableCell>
+        case 'finishing':
+          return <TableCell key={columnKey} align={align}>{row.finishing || '-'}</TableCell>
+        case 'harga_per_m2':
+          return <TableCell key={columnKey} align={align}>{row.harga_per_m2 != null ? row.harga_per_m2 : '-'}</TableCell>
+        case 'harga_per_pcs':
+          return <TableCell key={columnKey} align={align}>{row.harga_per_pcs != null ? row.harga_per_pcs : '-'}</TableCell>
+        case 'waktu_proses':
+          return <TableCell key={columnKey} align={align}>{row.waktu_proses || '-'}</TableCell>
+        
         case 'stock':
           return <TableCell key={columnKey} align={align}>{row.stock != null ? row.stock : row.stok}</TableCell>
         case 'unit':
@@ -99,12 +110,7 @@ function ExampleTableComponent({
           // combine bahan + finishing for product description if available
           const desc = row.description || [row.bahan, row.finishing].filter(Boolean).join(' - ')
           return <TableCell key={columnKey} align={align}>{desc || '-'}</TableCell>
-        case 'createdAt':
-          return (
-            <TableCell key={columnKey} align={align}>
-              {row.createdAt || row.created_at ? new Date(row.createdAt || row.created_at).toLocaleDateString() : '-'}
-            </TableCell>
-          )
+        
         case 'actions':
           return (
             <TableCell key={columnKey} align={align}>
@@ -268,8 +274,31 @@ function ExampleTableComponent({
 
   return (
     <Paper>
-      <TableContainer sx={{ maxHeight: 600 }}>
-        <Table stickyHeader size="small">
+      <TableContainer
+        className="table-responsive"
+        sx={{
+          /* Responsive max height: prefer available viewport space but clamp between 40vh and 75vh */
+          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
+          overflow: 'auto',
+          overflowX: 'auto',
+          background: 'transparent'
+        }}
+      >
+        <Table
+          stickyHeader
+          size="small"
+          sx={{
+            minWidth: 'max-content',
+            tableLayout: 'auto',
+            // defensive: ensure sticky header styles are applied even if global CSS overrides exist
+            '& .MuiTableCell-stickyHeader': {
+              position: 'sticky',
+              top: 0,
+              zIndex: 3,
+              backgroundColor: 'background.paper',
+            }
+          }}
+        >
           <TableHead>
             <TableRow>
               {/* Checkbox column */}

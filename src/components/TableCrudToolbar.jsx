@@ -7,10 +7,11 @@ export default function TableCrudToolbar() {
   const isOrders = location.pathname === '/orders' || location.pathname.startsWith('/orders')
   const isPayments = location.pathname === '/payments' || location.pathname.startsWith('/payments')
   const isProducts = location.pathname === '/products' || location.pathname.startsWith('/products')
+  const isCustomers = location.pathname === '/customers' || location.pathname.startsWith('/customers')
 
-  // For orders and payments pages the toolbar is handled elsewhere or not needed
+  // For orders, payments, products and customers pages the toolbar is handled elsewhere or not needed
   // Avoid rendering an empty toolbar on those pages
-  if (isOrders || isPayments || isProducts) return null
+  if (isOrders || isPayments || isProducts || isCustomers) return null
 
   return (
     <Box

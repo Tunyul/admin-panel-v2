@@ -7,6 +7,7 @@ import { useSearchParams } from 'react-router-dom'
 import TableToolbar from '../components/TableToolbar'
 import TableSettingsButton from '../components/TableSettingsButton'
 import ExampleTableComponent from '../components/ExampleTableComponent'
+import ContentProducts from '../components/ContentProducts'
 import { getProducts, createProduct } from '../api/products'
 
 function Products() {
@@ -123,7 +124,8 @@ function Products() {
 				</Box>
 			</Box>
 
-			<ExampleTableComponent tableId="products" data={rows} loading={loading} />
+			{/* Use ContentProducts which follows the Orders/Payments page pattern */}
+			<ContentProducts />
 
 			<Dialog open={showAddModal} onClose={() => setShowAddModal(false)} maxWidth="sm" fullWidth>
 				<DialogTitle>Add Product</DialogTitle>

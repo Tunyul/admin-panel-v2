@@ -39,11 +39,17 @@ export const TABLE_COLUMN_CONFIGS = {
     { key: 'id', label: 'ID', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'name', label: 'Nama Produk', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'category', label: 'Kategori', sortable: true, defaultVisible: true, align: 'left' },
+    { key: 'bahan', label: 'Bahan', sortable: false, defaultVisible: true, align: 'left' },
+    { key: 'finishing', label: 'Finishing', sortable: false, defaultVisible: true, align: 'left' },
+    { key: 'unit', label: 'Ukuran Standar', sortable: true, defaultVisible: true, align: 'left' },
+    { key: 'harga_per_m2', label: 'Harga / m2', sortable: true, defaultVisible: true, align: 'right' },
+    { key: 'harga_per_pcs', label: 'Harga / pcs', sortable: true, defaultVisible: true, align: 'right' },
     { key: 'price', label: 'Harga', sortable: true, defaultVisible: true, align: 'right' },
     { key: 'stock', label: 'Stok', sortable: true, defaultVisible: true, align: 'right' },
-    { key: 'unit', label: 'Satuan', sortable: true, defaultVisible: true, align: 'left' },
-    { key: 'description', label: 'Deskripsi', sortable: false, defaultVisible: false, align: 'left' },
-    { key: 'createdAt', label: 'Tanggal Dibuat', sortable: true, defaultVisible: false, align: 'left' },
+    { key: 'waktu_proses', label: 'Waktu Proses', sortable: false, defaultVisible: true, align: 'left' },
+    { key: 'description', label: 'Deskripsi', sortable: false, defaultVisible: true, align: 'left' },
+    
+    
     { key: 'actions', label: 'Actions', sortable: false, defaultVisible: true, align: 'center' },
   ],
   payments: [

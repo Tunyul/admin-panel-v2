@@ -162,16 +162,24 @@ export default function Dashboard() {
       try {
         // local no-op: global loading removed
         notify('Refreshing counts…', 'info');
-      const [cP, pP, payP, piuP, oP] = await Promise.all([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
+      // Use Promise.allSettled so a single failing endpoint doesn't abort all counts
+      const settled = await Promise.allSettled([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
+      const [cRes, pRes, payRes, piuRes, oRes] = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
       const mapLen = (r, idKey) => {
-        const arr = Array.isArray(r?.data?.data) ? r.data.data : (Array.isArray(r?.data) ? r.data : []);
-        if (!Array.isArray(arr)) return '—';
-        if (!idKey) return arr.length;
-        const uniq = new Set(arr.map((it) => it[idKey] ?? it.id ?? JSON.stringify(it)));
-        return uniq.size;
+        try {
+          const arr = Array.isArray(r?.data?.data) ? r.data.data : (Array.isArray(r?.data) ? r.data : []);
+          if (!Array.isArray(arr)) return '—';
+          if (!idKey) return arr.length;
+          const uniq = new Set(arr.map((it) => it[idKey] ?? it.id ?? JSON.stringify(it)));
+          return uniq.size;
+        } catch (err) {
+          // If parsing fails, return placeholder
+          console.error('[Dashboard.mapLen] parse error', err);
+          return '—';
+        }
       };
       // compute uang_masuk from verified/approved payments
-      const paymentsArr = Array.isArray(payP?.data?.data) ? payP.data.data : (Array.isArray(payP?.data) ? payP.data : []);
+  const paymentsArr = Array.isArray(payRes?.data?.data) ? payRes.data.data : (Array.isArray(payRes?.data) ? payRes.data : []);
       // build payments map keyed by transaction/no_transaksi to sum verified payments per order
       const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
         const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
@@ -185,7 +193,7 @@ export default function Dashboard() {
       const uangMasukSum = Object.values(paymentsByTx).reduce((a, b) => a + (Number(b) || 0), 0);
 
       // compute order status counts and unpaid total
-      const ordersArr = Array.isArray(oP?.data?.data) ? oP.data.data : (Array.isArray(oP?.data) ? oP.data : []);
+  const ordersArr = Array.isArray(oRes?.data?.data) ? oRes.data.data : (Array.isArray(oRes?.data) ? oRes.data : []);
       if (import.meta.env.DEV) {
         try {
           console.debug('[Dashboard.refreshCounts] ordersArr length:', Array.isArray(ordersArr) ? ordersArr.length : 0);
@@ -218,19 +226,20 @@ export default function Dashboard() {
       });
 
       setStats((prev) => prev.map((s) => {
-        if (s.key === 'customers') return { ...s, value: mapLen(cP, 'id_customer') };
-        if (s.key === 'products') return { ...s, value: mapLen(pP, 'id_produk') };
-        if (s.key === 'payments') return { ...s, value: mapLen(payP, 'id_payment') };
-        if (s.key === 'piutangs') return { ...s, value: mapLen(piuP, 'id_piutang') };
-        if (s.key === 'orders') return { ...s, value: mapLen(oP, 'id_order') };
+        if (s.key === 'customers') return { ...s, value: mapLen(cRes, 'id_customer') };
+        if (s.key === 'products') return { ...s, value: mapLen(pRes, 'id_produk') };
+        if (s.key === 'payments') return { ...s, value: mapLen(payRes, 'id_payment') };
+        if (s.key === 'piutangs') return { ...s, value: mapLen(piuRes, 'id_piutang') };
+        if (s.key === 'orders') return { ...s, value: mapLen(oRes, 'id_order') };
         if (s.key === 'uang_masuk') return { ...s, value: `Rp${Number(uangMasukSum).toLocaleString('id-ID')}` };
         if (s.key === 'belum_dibayar') return { ...s, value: `Rp${Number(unpaidTotal).toLocaleString('id-ID')}` };
         if (s.key === 'orders_selesai') return { ...s, value: selesai };
         if (s.key === 'orders_pending') return { ...s, value: pending };
         return s;
       }));
-    } catch {
-      notify('Failed to refresh counts', 'error');
+    } catch (err) {
+      console.error('[Dashboard.refreshCounts] unexpected error', err);
+      notify(`Failed to refresh counts: ${err?.message || 'unknown error'}`, 'error');
     }
   };
 

@@ -13,7 +13,7 @@ export default function AppMainToolbar() {
     status_bayar: '',
     date_from: '',
     date_to: '',
-    category: '', // Products
+  category: '', // Products
     type: '', // Customers  
     status: '', // Payments, Piutangs
     customer: '', // Piutangs
@@ -67,7 +67,7 @@ export default function AppMainToolbar() {
   // Define which filter keys belong to which page so we only emit relevant keys
   const pageFilterKeys = {
     orders: ['status_urgensi', 'status_order', 'status_bayar', 'date_from', 'date_to'],
-    products: ['category'],
+  products: ['category'],
     customers: ['type'],
     payments: ['no_transaksi', 'no_hp', 'tipe', 'nominal_min', 'nominal_max', 'has_bukti', 'date_from', 'date_to'],
     piutangs: ['status', 'customer']
