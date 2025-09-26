@@ -5,7 +5,13 @@ const base = '/api/payments';
 
 export const getPayments = crud.getAll(client, base);
 // Support fetching payments with query parameters (e.g. ?status=verified&tipe=dp)
-export const getPaymentsWithParams = (params = {}) => client.get(base, { params });
+export const getPaymentsWithParams = (params = {}) => {
+  try { console.debug('[API][payments] getPaymentsWithParams params=', params); } catch (e) {}
+  return client.get(base, { params }).then((res) => {
+    try { console.debug('[API][payments] response received, status=', res?.status, 'dataCount=', Array.isArray(res?.data?.data) ? res.data.data.length : (Array.isArray(res?.data) ? res.data.length : null)); } catch (e) {}
+    return res;
+  });
+};
 export const getPaymentById = crud.getById(client, base);
 export const createPayment = crud.create(client, base);
 export const updatePayment = crud.update(client, base);

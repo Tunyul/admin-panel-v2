@@ -10,6 +10,8 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
+  Tooltip,
   IconButton,
   Collapse,
   Dialog,
@@ -35,7 +37,7 @@ import { getPaymentsWithParams, getPaymentById, createPayment, updatePayment, de
 import { getCustomersByPhone } from '../api/customers';
 import { getOrderByTransaksi } from '../api/orders';
 import useNotificationStore from '../store/notificationStore';
-import { useTableColumns } from '../hooks/useTableSettings';
+import { useTableColumns, useTableSorting } from '../hooks/useTableSettings';
 
 // PaymentRow - small, memoized row renderer used by the table
 const PaymentRow = React.memo(function PaymentRow({ row, rowIndex, expanded, detailsMap, detailsLoading, visibleColumns, renderTableCell }) {
@@ -108,6 +110,40 @@ export default function ContentPayments() {
   const [verifyFormLocal, setVerifyFormLocal] = useState({});
   const { showNotification } = useNotificationStore();
   const { visibleColumns } = useTableColumns('payments');
+  const tableId = 'payments';
+  const { sortConfig, handleSort: handleSortGlobal, getSortDirection } = useTableSorting(tableId);
+
+  // Local handler that updates global sorting and notifies the toolbar
+  const handleSort = (key) => {
+    try {
+      handleSortGlobal(key);
+      const newSortKey = sortConfig.key === key && sortConfig.direction === 'desc' ? null : key;
+      const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+      window.dispatchEvent(new CustomEvent('toolbar:sort-change', { detail: { sortKey: newSortKey, direction } }));
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  // Persist sort config to URL so sort state survives reloads and is shareable
+  useEffect(() => {
+    try {
+      const key = sortConfig.key;
+      const dir = sortConfig.direction || 'asc';
+      const params = new URLSearchParams(searchParams.toString());
+      if (!key) {
+        params.delete('sort');
+        params.delete('sort_dir');
+      } else {
+        params.set('sort', String(key));
+        params.set('sort_dir', String(dir));
+      }
+      // push to router without removing other unrelated params
+      setSearchParams(params);
+    } catch (err) {
+      // ignore
+    }
+  }, [sortConfig.key, sortConfig.direction]);
 
   // helper to convert current URL search params to a plain object
   const paramsObject = useCallback(() => {
@@ -118,12 +154,12 @@ export default function ContentPayments() {
     return obj;
   }, [searchParams]);
 
-  const updateParam = (key, value) => {
+  const updateParam = React.useCallback((key, value) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value === '' || value == null) params.delete(key);
     else params.set(key, value);
     setSearchParams(params);
-  };
+  }, [searchParams, setSearchParams]);
 
   // Reload payments from server using current search params so server-side filters apply
   const reloadPayments = useCallback((extraParams = {}) => {
@@ -136,7 +172,12 @@ export default function ContentPayments() {
       }, 300);
     } catch (e) { console.error(e); }
 
-    const params = { ...(paramsObject() || {}), ...(extraParams || {}) };
+  const params = { ...(paramsObject() || {}), ...(extraParams || {}) };
+  // Ensure status filtering is disabled for Payments: do not forward `status` to API
+  try {
+    if (params && Object.prototype.hasOwnProperty.call(params, 'status')) delete params.status;
+  } catch (e) {}
+  try { console.debug('[ContentPayments] reloadPayments params=', params); } catch (e) {}
     return getPaymentsWithParams(params)
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -171,9 +212,11 @@ export default function ContentPayments() {
   }, [paramsObject]);
 
   // initial load and reload when search params change
+  const searchParamsString = searchParams.toString();
   useEffect(() => {
+    try { console.debug('[ContentPayments] searchParams changed ->', searchParams.toString()); } catch (e) {}
     reloadPayments();
-  }, [reloadPayments, searchParams.toString()]);
+  }, [reloadPayments, searchParamsString]);
 
   useEffect(() => {
     return () => {
@@ -183,7 +226,7 @@ export default function ContentPayments() {
 
   // Allow external components/pages to open the Add Payment dialog
   useEffect(() => {
-    const handler = (e) => {
+    const handler = () => {
       try { setOpen(true); } catch (err) { console.error(err); }
     };
     window.addEventListener('app:open:add-payment', handler);
@@ -198,14 +241,25 @@ export default function ContentPayments() {
         const page = detail.page || null;
         if (!page || !String(page).startsWith('/payments')) return;
         const all = detail.allFilters || {};
-        setExternalFilters(all || {});
-        if (all && Object.prototype.hasOwnProperty.call(all, 'tipe')) updateParam('tipe', all.tipe);
-        if (all && Object.prototype.hasOwnProperty.call(all, 'type')) updateParam('tipe', all.type);
+  setExternalFilters(all || {});
+  // Write the page-scoped filters into the router search params so the
+  // component's searchParams effect will pick them up and trigger reload.
+  try {
+    const pageKeys = ['no_transaksi','no_hp','tipe','nominal_min','nominal_max','has_bukti','date_from','date_to'];
+    const params = new URLSearchParams();
+    pageKeys.forEach((k) => {
+      const v = all[k];
+      if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v));
+    });
+    setSearchParams(params);
+  } catch (err) {
+    console.error('Failed to sync toolbar filters to search params', err);
+  }
       } catch (err) { console.error(err); }
     };
     window.addEventListener('toolbar:filter', handleTipeFilter);
     return () => window.removeEventListener('toolbar:filter', handleTipeFilter);
-  }, [searchParams]);
+  }, [searchParams, updateParam]);
 
   // Listen for explicit refresh events
   useEffect(() => {
@@ -232,7 +286,6 @@ export default function ContentPayments() {
   };
 
   const searchQuery = searchParams.get('q') || '';
-  const statusFilter = searchParams.get('status') || '';
   const tipeFilter = searchParams.get('tipe') || '';
   const noTransaksiFilter = searchParams.get('no_transaksi') || '';
   const customerFilter = searchParams.get('customer') || '';
@@ -246,10 +299,10 @@ export default function ContentPayments() {
   // smart query parser copied from previous implementation (keeps client-side filtering available)
   const parseSmartQuery = (input) => {
     const q = String(input || '').trim();
-    const crit = { text: '', tx: '', name: '', hp: '', amtMin: null, amtMax: null, tipe: '', status: '' };
+    const crit = { text: '', tx: '', name: '', hp: '', amtMin: null, amtMax: null, tipe: '' };
     if (!q) return crit;
     let remaining = q;
-    const kvRegex = /(\b(?:tx|no_transaksi|no|name|n|hp|h|tipe|status)\b)\s*:\s*(?:"([^"]+)"|'([^']+)'|([^\s]+))/gi;
+    const kvRegex = /(\b(?:tx|no_transaksi|no|name|n|hp|h|tipe)\b)\s*:\s*(?:"([^"]+)"|'([^']+)'|([^\s]+))/gi;
     let m;
     while ((m = kvRegex.exec(q)) !== null) {
       const key = (m[1] || '').toLowerCase();
@@ -259,7 +312,6 @@ export default function ContentPayments() {
       else if (['name', 'n'].includes(key)) crit.name = value;
       else if (['hp', 'h'].includes(key)) crit.hp = value;
       else if (key === 'tipe') crit.tipe = value;
-      else if (key === 'status') crit.status = value;
     }
     const amtCompRegex = /(?:\b(?:amt|amount)\b)?\s*([<>]=?)\s*([0-9.,]+)/gi;
     while ((m = amtCompRegex.exec(q)) !== null) {
@@ -285,9 +337,10 @@ export default function ContentPayments() {
     if (!data || data.length === 0) return [];
     const tokens = parseSmartQuery(searchQuery || '');
     const q = (tokens.text || '').trim().toLowerCase();
-    return data.filter((row) => {
+    const res = data.filter((row) => {
       if (tokens.tx) {
-        const tx = (row.no_transaksi || row.Order?.no_transaksi || '');
+        // Only check payment-local transaction fields for filtering (avoid reading Order rel)
+        const tx = (row.no_transaksi || row.transaksi || row.reference || row.referensi || '');
         if (!tx.toLowerCase().includes(String(tokens.tx).toLowerCase())) return false;
       }
       if (tokens.name) {
@@ -299,17 +352,38 @@ export default function ContentPayments() {
         if (!phone.toLowerCase().includes(String(tokens.hp).toLowerCase())) return false;
       }
       const rowTipeVal = String(row.tipe || row.type || row.payment_type || '').trim().toLowerCase();
-      if (tokens.tipe) { if (rowTipeVal !== String(tokens.tipe).toLowerCase()) return false; }
+      // tolerant matcher for `tipe` (allows synonyms like 'downpayment' -> 'dp')
+      const normalizeValue = (s) => String(s || '').replace(/[_\s]+/g, '').toLowerCase();
+      const tipeMatches = (filter, value) => {
+        const f = normalizeValue(filter);
+        const v = normalizeValue(value);
+        if (!f) return true;
+        if (f === v) return true;
+        // groups of common equivalents for tipe
+        const groups = {
+          dp: ['dp', 'downpayment', 'down_payment', 'dp_bayar'],
+          pelunasan: ['pelunasan', 'lunas', 'full', 'fullpayment'],
+          belum_bayar: ['belum_bayar', 'belumbayar', 'unpaid']
+        };
+        for (const [k, arr] of Object.entries(groups)) {
+          if (f === normalizeValue(k) && arr.map(normalizeValue).includes(v)) return true;
+          if (v === normalizeValue(k) && arr.map(normalizeValue).includes(f)) return true;
+        }
+        // substring fallback (e.g., 'dp' matches 'downpayment')
+        if (v.includes(f) || f.includes(v)) return true;
+        return false;
+      }
+      if (tokens.tipe) { if (!tipeMatches(tokens.tipe, rowTipeVal)) return false; }
       if (!tokens.tipe && externalFilters && (externalFilters.tipe || externalFilters.type)) {
         const tf = String(externalFilters.tipe || externalFilters.type || '').trim().toLowerCase();
-        if (tf && rowTipeVal !== tf) return false;
+        if (tf && !tipeMatches(tf, rowTipeVal)) return false;
       }
-      if (tokens.status) { if ((row.status || '').toLowerCase() !== String(tokens.status).toLowerCase()) return false; }
+  // status filter removed — server-side status filtering is not used on this page
       if (tokens.amtMin != null) { const amt = Number(row.nominal || row.amount || 0) || 0; if (amt < tokens.amtMin) return false; }
       if (tokens.amtMax != null) { const amt = Number(row.nominal || row.amount || 0) || 0; if (amt > tokens.amtMax) return false; }
 
-      if (statusFilter) { if ((row.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false; }
-      if (tipeFilter) { if (rowTipeVal !== tipeFilter.toLowerCase()) return false; }
+  // removed statusFilter from client-side checks
+    if (tipeFilter) { if (!tipeMatches(tipeFilter, rowTipeVal)) return false; }
       if (noTransaksiFilter) { const tx = (row.no_transaksi || row.Order?.no_transaksi || ''); if (!tx.toLowerCase().includes(noTransaksiFilter.toLowerCase())) return false; }
       if (customerFilter) { const name = (row.Customer?.nama || row.customer_name || row.customer || ''); if (!name.toLowerCase().includes(customerFilter.toLowerCase())) return false; }
       if (noHpFilter) { const phone = (row.no_hp || row.Customer?.no_hp || row.customer_phone || ''); if (!phone.toLowerCase().includes(noHpFilter.toLowerCase())) return false; }
@@ -320,12 +394,40 @@ export default function ContentPayments() {
       if (nominalMax != null) { const amt = Number(row.nominal || row.amount || 0); if (amt > nominalMax) return false; }
 
       if (q) {
-        const hay = `${row.no_transaksi || ''} ${row.tipe || ''} ${row.reference || row.referensi || ''} ${row.Order?.no_transaksi || ''} ${row.Customer?.nama || ''} ${row.Customer?.no_hp || ''}`.toLowerCase();
+        // Note: do not include Order.* values in search haystack to avoid matching order fields when filtering payments
+        const hay = `${row.no_transaksi || ''} ${row.tipe || ''} ${row.reference || row.referensi || ''} ${row.Customer?.nama || ''} ${row.Customer?.no_hp || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, searchQuery, statusFilter, tipeFilter, noTransaksiFilter, customerFilter, noHpFilter, nominalMin, nominalMax, dateFrom, dateTo, hasBukti, externalFilters]);
+    // After filtering, apply client-side sorting based on table settings
+    const sorted = (() => {
+      try {
+        const key = sortConfig.key;
+        const dir = sortConfig.direction === 'desc' ? -1 : 1;
+        if (!key) return res;
+        const copy = res.slice();
+        copy.sort((a, b) => {
+          const va = a[key] != null ? a[key] : (a[key] === 0 ? 0 : '');
+          const vb = b[key] != null ? b[key] : (b[key] === 0 ? 0 : '');
+          // numeric compare
+          const na = typeof va === 'number' ? va : (Number(String(va).replace(/[^0-9.-]+/g, '')) || String(va));
+          const nb = typeof vb === 'number' ? vb : (Number(String(vb).replace(/[^0-9.-]+/g, '')) || String(vb));
+          if (typeof na === 'number' && typeof nb === 'number' && !Number.isNaN(na) && !Number.isNaN(nb)) {
+            return (na - nb) * dir;
+          }
+          const sa = String(va || '').toLowerCase();
+          const sb = String(vb || '').toLowerCase();
+          if (sa < sb) return -1 * dir;
+          if (sa > sb) return 1 * dir;
+          return 0;
+        });
+        return copy;
+      } catch (err) { return res; }
+    })();
+
+    return sorted;
+  }, [data, searchQuery, tipeFilter, noTransaksiFilter, customerFilter, noHpFilter, nominalMin, nominalMax, dateFrom, dateTo, hasBukti, externalFilters]);
 
   const handleDelete = useCallback((id) => setDeleteConfirm({ open: true, id }), []);
   const confirmDelete = () => {
@@ -407,7 +509,7 @@ export default function ContentPayments() {
   }, [expanded, detailsMap, detailsLoading]);
 
   // Map keys to cells (copied/adapted)
-  const renderTableCell = (key, r, align = 'left', rowIndex = null) => {
+  const renderTableCell = React.useCallback((key, r, align = 'left', rowIndex = null) => {
     const id = r.id_payment || r.id;
     const sanitizePhone = (p) => (String(p || '').replace(/\D/g, ''));
     const formatCurrency = (val) => (val == null || val === '') ? '-' : `Rp ${Number(val).toLocaleString('id-ID')}`;
@@ -471,7 +573,7 @@ export default function ContentPayments() {
       }
       default: return <TableCell align={align}>{r[key] ?? '-'}</TableCell>;
     }
-  };
+  }, [handleExpandWithDetails, handleOpen, handleDelete, handleVerify]);
 
   const rows = React.useMemo(() => filteredData.map((row, idx) => (
     <PaymentRow
@@ -484,32 +586,13 @@ export default function ContentPayments() {
       visibleColumns={visibleColumns}
       renderTableCell={(k, r, a, i) => renderTableCell(k, r, a, i)}
     />
-  )), [filteredData, expanded, detailsLoading, detailsMap, visibleColumns]);
+  )), [filteredData, expanded, detailsLoading, detailsMap, visibleColumns, renderTableCell]);
 
   // filter option arrays intentionally removed to avoid unused-variable lint warnings
 
   return (
     <Box>
-      {/* Status filter (moved into content component) */}
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1 }}>
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel>Status</InputLabel>
-          <Select
-            label="Status"
-            value={searchParams.get('status') || ''}
-            onChange={(e) => {
-              const v = e.target.value
-              updateParam('status', v)
-            }}
-          >
-            <MenuItem value="">(all)</MenuItem>
-            <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="menunggu_verifikasi">Menunggu Verifikasi</MenuItem>
-            <MenuItem value="verified">Verified</MenuItem>
-            <MenuItem value="confirmed">Confirmed</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
+      {/* filters are provided by the AppMainToolbar; status control was removed to avoid duplication */}
       {progress > 0 && (
         <Box sx={{ width: '100%', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box sx={{ flex: 1 }}>
@@ -525,7 +608,22 @@ export default function ContentPayments() {
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              {visibleColumns.map((col) => (<TableCell key={`hdr-${col.key}`} align={col.align}>{col.label || col.key}</TableCell>))}
+              {visibleColumns.map((col) => {
+                if (col.sortable) {
+                  const isActive = sortConfig.key === col.key;
+                  const direction = isActive ? sortConfig.direction : 'asc';
+                  return (
+                    <TableCell key={`hdr-${col.key}`} align={col.align}>
+                      <Tooltip title={`Sort by ${col.label || col.key}`}>
+                        <TableSortLabel active={isActive} direction={direction} onClick={() => handleSort(col.key)}>
+                          {col.label || col.key}
+                        </TableSortLabel>
+                      </Tooltip>
+                    </TableCell>
+                  );
+                }
+                return <TableCell key={`hdr-${col.key}`} align={col.align}>{col.label || col.key}</TableCell>;
+              })}
             </TableRow>
           </TableHead>
           <TableBody>

@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Button } from '@mui/material'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 
 export default function AppMainToolbar() {
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   
   // Local state for filters (no URL params)
   const [localFilters, setLocalFilters] = useState({
@@ -68,7 +69,7 @@ export default function AppMainToolbar() {
     orders: ['status_urgensi', 'status_order', 'status_bayar', 'date_from', 'date_to'],
     products: ['category'],
     customers: ['type'],
-    payments: ['status', 'no_transaksi', 'no_hp', 'tipe', 'nominal_min', 'nominal_max', 'has_bukti', 'date_from', 'date_to'],
+    payments: ['no_transaksi', 'no_hp', 'tipe', 'nominal_min', 'nominal_max', 'has_bukti', 'date_from', 'date_to'],
     piutangs: ['status', 'customer']
   }
 
@@ -109,6 +110,26 @@ export default function AppMainToolbar() {
     } catch {
       // ignore
     }
+    // Also sync URL search params for the current page by writing the full
+    // page-scoped filteredAll object to the router searchParams. This keeps
+    // the URL authoritative and avoids partial/one-key-only updates.
+    try {
+      const keysForPage = getKeysForPath(pathname);
+      if (Array.isArray(keysForPage) && keysForPage.length > 0) {
+        try {
+          const params = new URLSearchParams();
+          // Only include keys that belong to the page (filteredAll was built above)
+          Object.keys(filteredAll || {}).forEach((k) => {
+            const v = filteredAll[k];
+            if (v === undefined || v === null || String(v) === '') params.delete(k);
+            else params.set(k, String(v));
+          });
+          setSearchParams(params);
+        } catch (e) {
+          // fallback: ignore
+        }
+      }
+    } catch (e) { /* ignore */ }
   }
 
   const resetAllFilters = () => {
@@ -415,26 +436,9 @@ export default function AppMainToolbar() {
           </>
         )}
 
-        {/* Payments: status */}
+        {/* Payments: filters (status removed) */}
         {isPayments && (
           <>
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel shrink>Status</InputLabel>
-              <Select
-                value={localFilters.status || ''}
-                label="Status"
-                onChange={(e) => updateFilter('status', e.target.value)}
-                displayEmpty
-              >
-                <MenuItem value="">(all)</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="menunggu_verifikasi">Menunggu Verifikasi</MenuItem>
-                <MenuItem value="verified">Verified</MenuItem>
-                <MenuItem value="confirmed">Confirmed</MenuItem>
-              </Select>
-            </FormControl>
-            {/* No Transaksi, Nama Customer, and No HP moved to TableToolbar under the app toolbar */}
-
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel shrink>Tipe</InputLabel>
               <Select
