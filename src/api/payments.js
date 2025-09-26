@@ -4,6 +4,8 @@ import * as crud from './crudutils';
 const base = '/api/payments';
 
 export const getPayments = crud.getAll(client, base);
+// Support fetching payments with query parameters (e.g. ?status=verified&tipe=dp)
+export const getPaymentsWithParams = (params = {}) => client.get(base, { params });
 export const getPaymentById = crud.getById(client, base);
 export const createPayment = crud.create(client, base);
 export const updatePayment = crud.update(client, base);
