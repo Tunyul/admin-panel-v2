@@ -7,15 +7,15 @@ import { useSearchParams } from 'react-router-dom'
 import TableToolbar from '../components/TableToolbar'
 import TableSettingsButton from '../components/TableSettingsButton'
 import ExampleTableComponent from '../components/ExampleTableComponent'
-import { getCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer } from '../api/customers'
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/customers'
 import useNotificationStore from '../store/notificationStore'
 import { useTableColumns, useTableFilters, useTableSorting } from '../hooks/useTableSettings'
 
 function Customers() {
   const tableId = 'customers'
-  const { visibleColumns } = useTableColumns(tableId)
-  const { filters, setFilters } = useTableFilters(tableId, { type: '' })
-  const { sortConfig, handleSort } = useTableSorting(tableId)
+  const { visibleColumns: _visibleColumns } = useTableColumns(tableId)
+  const { filters: _filters, setFilters } = useTableFilters(tableId, { type: '' })
+  useTableSorting(tableId)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState([])
@@ -24,8 +24,7 @@ function Customers() {
   const [form, setForm] = useState({})
   const [errors, setErrors] = useState({})
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null })
-  const [detailsMap, setDetailsMap] = useState({})
-  const [detailsLoading, setDetailsLoading] = useState({})
+  // detailsMap/detailsLoading were removed as they are not used in this page
   const { showNotification } = useNotificationStore()
   const intervalRef = useRef(null)
 
@@ -39,7 +38,7 @@ function Customers() {
 
   const reloadCustomers = useCallback((extra = {}) => {
     setLoading(true)
-    try { if (intervalRef.current) clearInterval(intervalRef.current); intervalRef.current = setInterval(() => {}, 1000) } catch (e) {}
+  try { if (intervalRef.current) clearInterval(intervalRef.current); intervalRef.current = setInterval(() => {}, 1000) } catch { /* ignore */ }
     const params = { ...(paramsObject() || {}), ...(extra || {}) }
     return getCustomers(params)
       .then((res) => {
@@ -66,17 +65,18 @@ function Customers() {
         showNotification && showNotification(`Loaded ${normalized.length} customers`, 'success')
         return normalized
       })
-      .catch((err) => {
-        setData([])
-        showNotification && showNotification('Gagal memuat customers', 'error')
-      })
-      .finally(() => {
-        try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } } catch (e) {}
-        setLoading(false)
-      })
+        .catch(() => {
+          setData([])
+          showNotification && showNotification('Gagal memuat customers', 'error')
+        })
+        .finally(() => {
+          try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } } catch { /* ignore */ }
+          setLoading(false)
+        })
   }, [paramsObject, showNotification])
 
-  useEffect(() => { reloadCustomers() }, [reloadCustomers, searchParams.toString()])
+  const searchParamsString = searchParams.toString()
+  useEffect(() => { reloadCustomers() }, [reloadCustomers, searchParamsString])
 
   // listen to toolbar filter events scoped to customers
   useEffect(() => {
@@ -93,8 +93,8 @@ function Customers() {
             if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v))
           })
           setSearchParams(params)
-        } catch {}
-      } catch {}
+        } catch { /* ignore */ }
+      } catch { /* ignore */ }
     }
     window.addEventListener('toolbar:filter', handler)
     return () => window.removeEventListener('toolbar:filter', handler)
@@ -109,7 +109,9 @@ function Customers() {
         if (q === '' || q == null) params.delete('q')
         else params.set('q', q)
         setSearchParams(params)
-      } catch {}
+      } catch {
+        /* ignore malformed toolbar:search event payload */
+      }
     }
     window.addEventListener('toolbar:search', h)
     return () => window.removeEventListener('toolbar:search', h)

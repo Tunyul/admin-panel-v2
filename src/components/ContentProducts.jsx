@@ -8,9 +8,9 @@ import useNotificationStore from '../store/notificationStore'
 
 export default function ContentProducts() {
   const tableId = 'products'
-  const { visibleColumns } = useTableColumns(tableId)
-  const { filters, setFilters } = useTableFilters(tableId, { category: '' })
-  const { sortConfig, handleSort } = useTableSorting(tableId)
+  const { visibleColumns: _visibleColumns } = useTableColumns(tableId)
+  const { /* filters, */ setFilters } = useTableFilters(tableId, { category: '' })
+  useTableSorting(tableId)
   const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -30,7 +30,7 @@ export default function ContentProducts() {
     try {
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = setInterval(() => {}, 1000)
-    } catch (e) {}
+    } catch { /* ignore */ }
     const params = { ...(paramsObject() || {}), ...(extra || {}) }
     return getProducts(params)
       .then((res) => {
@@ -40,20 +40,21 @@ export default function ContentProducts() {
         showNotification && showNotification(`Loaded ${items.length} products`, 'success')
         return items
       })
-      .catch((err) => {
+      .catch(() => {
         setData([])
         showNotification && showNotification('Gagal memuat produk', 'error')
       })
       .finally(() => {
-        try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } } catch (e) {}
-        setLoading(false)
+  try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } } catch { /* ignore */ }
+  setLoading(false)
       })
   }, [paramsObject, showNotification])
 
   // initial load and reload on searchParams changes
+  const searchParamsString = searchParams.toString()
   useEffect(() => {
     reloadProducts()
-  }, [reloadProducts, searchParams.toString()])
+  }, [reloadProducts, searchParamsString])
 
   // Listen to toolbar filter events scoped to products page
   useEffect(() => {
@@ -71,8 +72,8 @@ export default function ContentProducts() {
             if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v))
           })
           setSearchParams(params)
-        } catch {}
-      } catch {}
+        } catch { /* ignore */ }
+      } catch { /* ignore */ }
     }
     window.addEventListener('toolbar:filter', handler)
     return () => window.removeEventListener('toolbar:filter', handler)
@@ -95,7 +96,7 @@ export default function ContentProducts() {
         if (q === '' || q == null) params.delete('q')
         else params.set('q', q)
         setSearchParams(params)
-      } catch {}
+    } catch { /* ignore */ }
     }
     window.addEventListener('toolbar:search', h)
     return () => window.removeEventListener('toolbar:search', h)

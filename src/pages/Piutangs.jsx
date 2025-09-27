@@ -13,12 +13,12 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import InfoIcon from '@mui/icons-material/InfoOutlined';
+// InfoIcon previously used for inline details; removed because details are loaded via dialog
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSearchParams } from 'react-router-dom';
 
-import { getPiutangs, getPiutangById, createPiutang, updatePiutang, deletePiutang } from '../api/piutangs';
+import { getPiutangs, createPiutang, updatePiutang, deletePiutang } from '../api/piutangs';
 import useNotificationStore from '../store/notificationStore';
 import TableToolbar from '../components/TableToolbar';
 import ExampleTableComponent from '../components/ExampleTableComponent'
@@ -32,16 +32,14 @@ function Piutangs() {
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
-  const [detailsMap, setDetailsMap] = useState({});
-  const [detailsLoading, setDetailsLoading] = useState({});
-  const [expanded, setExpanded] = useState(null);
+  // details/loading/expanded state removed - details are loaded on-demand by dialog/modal
   const [errors, setErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const { showNotification } = useNotificationStore();
   const tableId = 'piutangs'
-  const { visibleColumns } = useTableColumns(tableId)
-  const { filters, setFilters } = useTableFilters(tableId, { status: '', customer: '' })
-  const { sortConfig, handleSort } = useTableSorting(tableId)
+  const { visibleColumns: _visibleColumns } = useTableColumns(tableId)
+  const { filters: _filters, setFilters: _setFilters } = useTableFilters(tableId, { status: '', customer: '' })
+  useTableSorting(tableId)
 
   const updateParam = (key, value) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -64,22 +62,30 @@ function Piutangs() {
           // primary id expected by table
           id: it.id_piutang || it.id || i + 1,
           id_piutang: it.id_piutang,
-          // order relation
-          id_order: it.id_order || it.orderId || it.order_id || null,
-          // transaction / invoice numbers
-          no_transaksi: it.no_transaksi || it.no_tx || it.transaksi || it.no || '',
+          // order relation - prefer nested Order object when available
+          id_order: it.Order?.id_order || it.id_order || it.orderId || it.order_id || null,
+          // Also provide `orderId` for compatibility with other table renderers
+          orderId: it.Order?.id_order || it.id_order || it.orderId || it.order_id || null,
+          // transaction / invoice numbers - prefer Order.no_transaksi when present
+          no_transaksi: it.no_transaksi || it.Order?.no_transaksi || it.no_tx || it.transaksi || it.no || '',
+          // expose a convenient orderNo and orderTotal
+          orderNo: it.Order?.no_transaksi || it.no_transaksi || it.Order?.no_transaksi || '',
+          orderTotal: it.Order?.total_bayar != null ? Number(it.Order.total_bayar) : (it.Order?.total || null),
           // customer info (prefer embedded Customer object)
           customerName: it.Customer?.nama || it.pelanggan_nama || it.customer_name || '',
-          customerId: it.Customer?.id_customer || it.id_customer || it.id_customer || null,
+          customerId: it.Customer?.id_customer || it.id_customer || null,
           customerPhone: it.Customer?.no_hp || it.no_hp || it.customer_phone || it.pelanggan_nohp || '',
-          // monetary and date fields
-          amount: it.jumlah_piutang != null ? it.jumlah_piutang : (it.amount != null ? it.amount : 0),
-          jumlah_piutang: it.jumlah_piutang,
-          paid: it.paid || it.sudah_dibayar || it.paid_amount || 0,
+          // monetary and date fields (normalize numeric strings to numbers)
+          amount: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : (it.amount != null ? Number(it.amount) : 0),
+          jumlah_piutang: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : null,
+          paid: it.paid != null ? Number(it.paid) : (it.sudah_dibayar != null ? Number(it.sudah_dibayar) : (it.paid_amount != null ? Number(it.paid_amount) : 0)),
           dueDate: it.tanggal_piutang || it.tanggal || it.date || null,
-          tanggal_piutang: it.tanggal_piutang,
+          tanggal_piutang: it.tanggal_piutang || null,
           status: it.status || 'belum_lunas',
-          keterangan: it.keterangan || it.description || it.notes || null
+          keterangan: it.keterangan || it.description || it.notes || null,
+          // Expose related Order fields for convenience in the UI
+          Order: it.Order || null,
+          Customer: it.Customer || null
         }))
         setData(normalized);
         setError(null);
@@ -201,38 +207,10 @@ function Piutangs() {
       });
   };
 
-  const handleExpandWithDetails = useCallback((id) => {
-    if (expanded === id) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(id);
-    if (!detailsMap[id] && !detailsLoading[id]) {
-      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
-      getPiutangById(id)
-        .then((res) => {
-          setDetailsMap((prev) => ({ ...prev, [id]: res?.data?.data || res?.data || {} }));
-        })
-        .catch((err) => {
-          console.error(`Failed to load details for piutang ${id}`, err);
-          setDetailsMap((prev) => ({ ...prev, [id]: {} }));
-        })
-        .finally(() => {
-          setDetailsLoading((prev) => ({ ...prev, [id]: false }));
-        });
-    }
-  }, [expanded, detailsMap, detailsLoading]);
+  // Inline expand handler removed (details view uses dialog/modal to avoid per-row variable height in heavy lists)
 
   // Filter options
-  const statusFilterOptions = [
-    { value: 'outstanding', label: 'Outstanding' },
-    { value: 'lunas', label: 'Lunas' },
-    { value: 'overdue', label: 'Overdue' }
-  ]
-
-  const customerFilterOptions = [
-    ...new Set(data.map(d => d.pelanggan_nama || d.customer_name))
-  ].filter(Boolean).map(c => ({ value: c, label: c }))
+  // statusFilterOptions and customerFilterOptions were unused; kept logic inline where needed
 
   return (
     <Box>

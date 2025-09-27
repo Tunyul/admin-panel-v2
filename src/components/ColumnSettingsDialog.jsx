@@ -41,8 +41,6 @@ const ColumnSettingsDialog = ({ open, onClose, tableId, title = 'Pengaturan Kolo
     visibleColumns,
     hiddenColumns,
     toggleColumn,
-    showColumn,
-    hideColumn,
     resetColumnVisibility,
     showAllColumns,
     hideAllColumns

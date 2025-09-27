@@ -12,8 +12,8 @@ import { getProducts, createProduct } from '../api/products'
 
 function Products() {
 	const [searchParams, setSearchParams] = useSearchParams()
-	const [rows, setRows] = useState([])
-	const [loading, setLoading] = useState(false)
+	const [_rows, setRows] = useState([])
+	const [_loading, setLoading] = useState(false)
 	const [showAddModal, setShowAddModal] = useState(false)
 	const [creating, setCreating] = useState(false)
 

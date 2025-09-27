@@ -30,10 +30,9 @@ function ExampleTableComponent({
   onDelete 
 }) {
   // Gunakan hooks untuk pengaturan global
-  const { visibleColumns, columnVisibility } = useTableColumns(tableId)
+  const { visibleColumns } = useTableColumns(tableId)
   const { 
-    filters, 
-    setFilter 
+    filters
   } = useTableFilters(tableId, {
     status: '',
     category: '',
@@ -87,10 +86,11 @@ function ExampleTableComponent({
           return <TableCell key={columnKey} align={align}>{row.name || row.nama_produk}</TableCell>
         case 'category':
           return <TableCell key={columnKey} align={align}>{row.category || row.kategori}</TableCell>
-        case 'price':
+        case 'price': {
           // prefer per pcs if unit is pcs otherwise show per m2
           const price = row.price != null ? row.price : row.harga_per_pcs || row.harga_per_m2
           return <TableCell key={columnKey} align={align}>{price != null && price !== '' ? price : '-'}</TableCell>
+        }
         case 'bahan':
           return <TableCell key={columnKey} align={align}>{row.bahan || row.material || '-'}</TableCell>
         case 'finishing':
@@ -106,10 +106,11 @@ function ExampleTableComponent({
           return <TableCell key={columnKey} align={align}>{row.stock != null ? row.stock : row.stok}</TableCell>
         case 'unit':
           return <TableCell key={columnKey} align={align}>{row.unit || row.ukuran_standar || row.satuan}</TableCell>
-        case 'description':
+        case 'description': {
           // combine bahan + finishing for product description if available
           const desc = row.description || [row.bahan, row.finishing].filter(Boolean).join(' - ')
           return <TableCell key={columnKey} align={align}>{desc || '-'}</TableCell>
+        }
         
         case 'actions':
           return (
@@ -156,6 +157,14 @@ function ExampleTableComponent({
 
       case 'no_transaksi':
         return <TableCell key={columnKey} align={align}>{row.no_transaksi || row.no_tx || row.transaksi || row.no || '-'}</TableCell>
+
+      case 'orderNo':
+        return <TableCell key={columnKey} align={align}>{row.orderNo || row.Order?.no_transaksi || '-'}</TableCell>
+
+      case 'orderTotal': {
+        const val = row.orderTotal != null ? row.orderTotal : (row.Order?.total_bayar != null ? Number(row.Order.total_bayar) : null)
+        return <TableCell key={columnKey} align={align}>{val != null ? `Rp ${Number(val).toLocaleString('id-ID')}` : '-'}</TableCell>
+      }
 
       case 'customerId':
         return <TableCell key={columnKey} align={align}>{row.customerId || row.Customer?.id_customer || row.id_customer || '-'}</TableCell>
@@ -396,8 +405,8 @@ function ExampleTableComponent({
                   </Typography>
                 </TableCell>
               </TableRow>
-            ) : (
-              processedData.map((row, index) => (
+          ) : (
+                processedData.map((row) => (
                 <TableRow 
                   key={row.id} 
                   hover 

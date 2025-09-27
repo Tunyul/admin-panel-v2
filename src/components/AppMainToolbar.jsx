@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Button } from '@mui/material'
 import { useLocation, useSearchParams } from 'react-router-dom'
 
 export default function AppMainToolbar() {
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [, setSearchParams] = useSearchParams()
   
   // Local state for filters (no URL params)
   const [localFilters, setLocalFilters] = useState({
@@ -29,7 +29,7 @@ export default function AppMainToolbar() {
   const [hasActiveSorting, setHasActiveSorting] = useState(false)
 
   // Listen for search events to track if search is active
-  React.useEffect(() => {
+  useEffect(() => {
     const handleSearch = (e) => {
       try {
         const q = e?.detail?.q ?? ''
@@ -43,7 +43,7 @@ export default function AppMainToolbar() {
   }, [])
 
   // Listen for sorting changes to track if sorting is active
-  React.useEffect(() => {
+  useEffect(() => {
     const handleSortChange = (e) => {
       try {
         const sortKey = e?.detail?.sortKey || null
@@ -102,7 +102,7 @@ export default function AppMainToolbar() {
     try {
       if (typeof window !== 'undefined') {
         // debug: log what we're emitting
-        try { console.debug('[AppMainToolbar] dispatch toolbar:filter', { key, value, allFilters: filteredAll, page: pathname }); } catch (err) {}
+  try { console.debug('[AppMainToolbar] dispatch toolbar:filter', { key, value, allFilters: filteredAll, page: pathname }); } catch { /* debug may fail in some environments */ }
         window.dispatchEvent(new CustomEvent('toolbar:filter', {
           detail: { [key]: value, allFilters: filteredAll, page: pathname }
         }))
@@ -125,11 +125,11 @@ export default function AppMainToolbar() {
             else params.set(k, String(v));
           });
           setSearchParams(params);
-        } catch (e) {
+        } catch {
           // fallback: ignore
         }
       }
-    } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
   }
 
   const resetAllFilters = () => {

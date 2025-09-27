@@ -152,7 +152,7 @@ const TableSettingsButton = ({
           } else {
             throw new Error('Invalid file format')
           }
-        } catch (error) {
+        } catch {
           // Show error notification
           if (typeof window !== 'undefined' && window.dispatchEvent) {
             window.dispatchEvent(new CustomEvent('show-notification', { 
@@ -332,7 +332,7 @@ const TableSettingsButton = ({
 }
 
 // Preferences Dialog Component
-const PreferencesDialog = ({ open, onClose, tableId, settings, onUpdate }) => {
+const PreferencesDialog = ({ open, onClose, settings, onUpdate }) => {
   const [layout, setLayout] = useState(settings.layout || {})
   const [preferences, setPreferences] = useState(settings.preferences || {})
 
@@ -469,7 +469,6 @@ const PreferencesDialog = ({ open, onClose, tableId, settings, onUpdate }) => {
 // Copy Settings Dialog Component
 const CopySettingsDialog = ({ open, onClose, sourceTableId, onCopy }) => {
   const [targetTableId, setTargetTableId] = useState('')
-  const tableStore = useTableSettingsStore()
   
   const availableTableIds = ['orders', 'customers', 'products', 'payments', 'piutangs']
     .filter(id => id !== sourceTableId)

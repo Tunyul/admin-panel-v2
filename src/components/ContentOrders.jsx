@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { List } from 'react-window'
 import {
   Box,
   TableContainer,
@@ -46,7 +47,7 @@ import InputLabel from '@mui/material/InputLabel'
 import useSelectionStore from '../store/selectionStore'
 import { useSearchParams } from 'react-router-dom'
 import client from '../api/client'
-import { getOrders, updateOrder, deleteOrder } from '../api/orders'
+import { updateOrder, deleteOrder } from '../api/orders'
 import useNotificationStore from '../store/notificationStore'
 import { getCustomerById } from '../api/customers'
 import waIcon from '../assets/WhatsApp.svg.webp'
@@ -66,8 +67,7 @@ export default function ContentOrders() {
   const { visibleColumns, columnVisibility } = useTableColumns(tableId)
   const { 
     filters: localFilters, 
-    setFilters: setLocalFilters,
-    setFilter: setLocalFilter 
+    setFilters: setLocalFilters
   } = useTableFilters(tableId, {
     status_urgensi: '',
     status_order: '',
@@ -83,26 +83,26 @@ export default function ContentOrders() {
 
   const [expandedIds, setExpandedIds] = useState(new Set())
 
-  const toggleExpand = (id) => {
+  const toggleExpand = React.useCallback((id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }
+  }, [])
   const handleRowClick = React.useCallback((e, id) => {
     const target = e.target
     try {
       if (target.closest && target.closest('input,button,a')) return
-    } catch (err) {}
+    } catch {
+      // ignore
+    }
     toggleExpand(id)
   }, [toggleExpand])
 
-  // Memoize common handlers passed to rows to keep stable references
-  const memoHandleOpenEdit = React.useCallback((row) => handleOpenEdit(row), [/* handleOpenEdit defined earlier but stable */])
-  const memoHandleDelete = React.useCallback((id) => handleDelete(id), [])
-  const memoOpenRowMenu = React.useCallback((e, row) => openRowMenu(e, row), [])
+  // Memoized handlers will be created later (after handler functions are defined)
+  // to avoid capturing stale references. See bottom of this component.
 
   // Handle table column sorting with global state
   const handleSort = (key) => {
@@ -116,7 +116,7 @@ export default function ContentOrders() {
       window.dispatchEvent(new CustomEvent('toolbar:sort-change', { 
         detail: { sortKey: newSortKey, direction }
       }))
-    } catch (err) {
+    } catch {
       // ignore
     }
   }
@@ -168,6 +168,8 @@ export default function ContentOrders() {
   const { showNotification } = useNotificationStore()
   const [searchParams, setSearchParams] = useSearchParams()
   const [liveQuery, setLiveQuery] = useState('')
+  // Control whether to show all rows or limit rendering to improve performance
+  const [showAllRows, setShowAllRows] = useState(false)
 
   // Listen to live typing events from TableToolbar (client-side immediate filtering)
   useEffect(() => {
@@ -175,13 +177,13 @@ export default function ContentOrders() {
       try {
         const q = e?.detail?.q ?? ''
         setLiveQuery(q || '')
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
     window.addEventListener('toolbar:search', handler)
     return () => window.removeEventListener('toolbar:search', handler)
-  }, [])
+  }, [setLiveQuery])
 
   // Listen to filter events from AppMainToolbar (client-side filtering)
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function ContentOrders() {
         // Also sync filters to URL search params so server-side/API filtering is updated.
         try {
           // remove empty values before setting search params
-          const entries = Object.entries(allFilters).filter(([k, v]) => v !== undefined && v !== null && String(v) !== '')
+          const entries = Object.entries(allFilters).filter(([, v]) => v !== undefined && v !== null && String(v) !== '')
           if (entries.length === 0) {
             setSearchParams({})
           } else {
@@ -201,68 +203,54 @@ export default function ContentOrders() {
         } catch {
           // ignore URL param sync errors
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
     window.addEventListener('toolbar:filter', handler)
     return () => window.removeEventListener('toolbar:filter', handler)
-  }, [])
+  }, [setLocalFilters, setSearchParams])
 
   // Keyboard shortcut for reset sorting
   useEffect(() => {
     const handleKeyPress = (e) => {
       // Reset sorting with 'R' key (when not typing in inputs)
-      if (e.key.toLowerCase() === 'r' && !e.target.matches('input, textarea, [contenteditable]')) {
-        if (sortConfig.key) {
-          resetSort()
-          // Optional: show notification
-          if (typeof window !== 'undefined' && window.dispatchEvent) {
-            window.dispatchEvent(new CustomEvent('show-notification', { 
-              detail: { message: 'Sorting reset', type: 'info' } 
-            }))
+      try {
+        if (e.key.toLowerCase() === 'r' && !e.target.matches('input, textarea, [contenteditable]')) {
+          if (sortConfig.key) {
+            resetSort()
+            // Optional: show notification
+            if (typeof window !== 'undefined' && window.dispatchEvent) {
+              window.dispatchEvent(new CustomEvent('show-notification', { 
+                detail: { message: 'Sorting reset', type: 'info' } 
+              }))
+            }
           }
         }
+      } catch {
+        // ignore
       }
     }
-    
+
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [sortConfig.key, resetSort])
 
-  // Listen for reset-sort events from AppMainToolbar
-  useEffect(() => {
-    const handleResetSort = (e) => {
-      try {
-        if (e?.detail?.resetSort) {
-          resetSort()
-          // Notify AppMainToolbar about sorting changes
-          window.dispatchEvent(new CustomEvent('toolbar:sort-change', { 
-            detail: { sortKey: null, direction: 'asc' }
-          }))
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-    
-    window.addEventListener('toolbar:reset-sort', handleResetSort)
-    return () => window.removeEventListener('toolbar:reset-sort', handleResetSort)
-  }, [resetSort])
-
   // Notify AppMainToolbar about sorting changes when sortConfig changes
   useEffect(() => {
     try {
-      window.dispatchEvent(new CustomEvent('toolbar:sort-change', { 
-        detail: { sortKey: sortConfig.key, direction: sortConfig.direction }
-      }))
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('toolbar:sort-change', { 
+          detail: { sortKey: sortConfig.key, direction: sortConfig.direction }
+        }))
+      }
     } catch {
       // ignore
     }
   }, [sortConfig])
 
   // normalize API response into the table row shape
-  const normalize = (item, idx) => {
+  const normalize = useCallback((item, idx) => {
     // map API response fields to table fields
     const id = item.id_order || item.id || item._id || idx + 1
     const orderNo = item.no_transaksi || item.orderNo || item.no || ''
@@ -341,7 +329,7 @@ export default function ContentOrders() {
       _sisaText: formatRupiah(sisaNum),
       _totalBayarText: formatRupiah(totalNum),
     }
-  }
+  }, [])
 
   // Format number to Indonesian Rupiah string e.g. "Rp. 400.000"
   const formatRupiah = (value) => {
@@ -437,105 +425,9 @@ export default function ContentOrders() {
     return 'status-chip-info'
   }
 
-  const fetchOrders = (isManualRefresh = false) => {
-    let mounted = true
-    setLoading(true)
-    setError(null)
-    setProgress(5)
-    
-    // Show appropriate notification based on refresh type
-    if (isManualRefresh) {
-      showNotification('🔄 Refreshing orders table...', 'info')
-    }
-    
-    // start a gentle progress animation up to 85% while fetching
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    intervalRef.current = setInterval(() => {
-      setProgress((p) => {
-        const next = p + Math.floor(Math.random() * 6) + 1
-        return next >= 85 ? 85 : next
-      })
-    }, 180)
+  const searchParamsString = searchParams.toString()
 
-    // Pass current URL search params to the API so server-side filtering/search works
-    const paramsObj = Object.fromEntries(searchParams.entries())
-    return client
-      .get('/api/orders', { params: paramsObj })
-      .then((res) => {
-        const payload = res && res.data ? res.data : res
-        const dataArray = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
-        if (mounted) {
-          if (dataArray.length > 0) {
-            const normalized = dataArray.map((it, i) => normalize(it, i))
-            setRows(normalized)
-            // prefetch customers with progress tracking
-            const ids = Array.from(new Set(normalized.map((r) => r.idCustomer).filter(Boolean)))
-            fetchAllCustomers(ids)
-            
-            // Show success notification
-            if (isManualRefresh) {
-              showNotification(`✅ Table refreshed! ${normalized.length} orders loaded`, 'success')
-            }
-          } else {
-            setRows([])
-            if (isManualRefresh) {
-              showNotification('📋 Table refreshed - No orders found', 'info')
-            }
-          }
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load orders', err)
-        if (mounted) {
-          setError(err)
-          // Show error notification
-          const errorMsg = err.response?.data?.message || err.message || 'Connection failed'
-          if (isManualRefresh) {
-            showNotification(`❌ Refresh failed: ${errorMsg}`, 'error')
-          }
-        }
-      })
-      .finally(() => {
-        // complete progress for orders loading (85%)
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current)
-          intervalRef.current = null
-        }
-        setProgress(85) // Reserve remaining 15% for customer loading
-        // small delay so the 85% state is visible
-        setTimeout(() => {
-          if (mounted) setLoading(false)
-          // Don't reset progress here - let customer loading handle it
-        }, 220)
-      })
-  }
-
-  useEffect(() => {
-    fetchOrders(false) // Initial load, not manual refresh
-    return () => {
-      // cleanup any interval
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-    // re-fetch whenever URL search params change (search, filters, etc.) - excluding _r param
-  }, [searchParams.toString()])
-
-  // Listen for manual refresh events from toolbar
-  useEffect(() => {
-    const handleRefresh = () => {
-      fetchOrders(true) // Pass true to indicate manual refresh
-    }
-    
-    window.addEventListener('app:refresh:orders', handleRefresh)
-    return () => window.removeEventListener('app:refresh:orders', handleRefresh)
-  }, [showNotification])
-
-  const fetchAllCustomers = async (customerIds) => {
+  const fetchAllCustomers = useCallback(async (customerIds) => {
     if (!customerIds || customerIds.length === 0) return
 
     // Filter out customers already in cache
@@ -588,20 +480,111 @@ export default function ContentOrders() {
         setTimeout(() => setProgress(0), 150)
       }, 200)
       
-    } catch (err) {
-      console.error('Error fetching customers:', err)
-      setCustomerLoading(false)
-      setPendingCustomers(new Set())
+      } catch (err) {
+        console.error('Error fetching customers:', err)
+        setCustomerLoading(false)
+        setPendingCustomers(new Set())
+      }
+  }, [customerCache])
+
+
+  const fetchOrders = useCallback((isManualRefresh = false) => {
+    let mounted = true
+    setLoading(true)
+    setError(null)
+    setProgress(5)
+    
+    // Show appropriate notification based on refresh type
+    if (isManualRefresh) {
+      showNotification('🔄 Refreshing orders table...', 'info')
     }
-  }
+    
+    // start a gentle progress animation up to 85% while fetching
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    intervalRef.current = setInterval(() => {
+      setProgress((p) => {
+        const next = p + Math.floor(Math.random() * 6) + 1
+        return next >= 85 ? 85 : next
+      })
+    }, 180)
 
-  const fetchCustomerIfNeeded = (idCustomer) => {
-    if (!idCustomer) return
-    if (customerCache.has(idCustomer)) return
-    fetchAllCustomers([idCustomer])
-  }
+    // Pass current URL search params to the API so server-side filtering/search works
+  const paramsObj = Object.fromEntries(new URLSearchParams(searchParamsString).entries())
+    return client
+      .get('/api/orders', { params: paramsObj })
+      .then((res) => {
+        const payload = res && res.data ? res.data : res
+        const dataArray = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
+        if (mounted) {
+          if (dataArray.length > 0) {
+            const normalized = dataArray.map((it, i) => normalize(it, i))
+            setRows(normalized)
+            // prefetch customers with progress tracking
+            const ids = Array.from(new Set(normalized.map((r) => r.idCustomer).filter(Boolean)))
+            fetchAllCustomers(ids)
+            
+            // Show success notification
+            if (isManualRefresh) {
+              showNotification(`✅ Table refreshed! ${normalized.length} orders loaded`, 'success')
+            }
+          } else {
+            setRows([])
+            if (isManualRefresh) {
+              showNotification('📋 Table refreshed - No orders found', 'info')
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load orders', err)
+        if (mounted) {
+          setError(err)
+          // Show error notification
+          const errorMsg = err.response?.data?.message || err.message || 'Connection failed'
+          if (isManualRefresh) {
+            showNotification(`❌ Refresh failed: ${errorMsg}`, 'error')
+          }
+        }
+      })
+      .finally(() => {
+        // complete progress for orders loading (85%)
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
+        setProgress(85) // Reserve remaining 15% for customer loading
+        // small delay so the 85% state is visible
+        setTimeout(() => {
+          if (mounted) setLoading(false)
+          // Don't reset progress here - let customer loading handle it
+        }, 220)
+      })
+  }, [searchParamsString, showNotification, fetchAllCustomers, normalize])
 
-  const handleOpenEdit = (row) => {
+  useEffect(() => {
+    fetchOrders(false) // Initial load, not manual refresh
+    return () => {
+      // cleanup any interval
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+    // re-fetch whenever URL search params change (search, filters, etc.) - excluding _r param
+  }, [searchParamsString, fetchOrders, searchParams])
+
+  // Listen for manual refresh events from toolbar
+  const handleRefresh = useCallback(() => fetchOrders(true), [fetchOrders])
+  useEffect(() => {
+    window.addEventListener('app:refresh:orders', handleRefresh)
+    return () => window.removeEventListener('app:refresh:orders', handleRefresh)
+  }, [handleRefresh])
+
+
+  const handleOpenEdit = useCallback((row) => {
     // Try to fetch fresh order data from API (prefer id_order / id)
     const id = row.id || row.id_order || row.idOrder
     if (!id) {
@@ -659,13 +642,13 @@ export default function ContentOrders() {
           if (editRequestIdRef.current === reqId) setEditLoading(false)
         })
     })
-  }
+  }, [showNotification])
 
   // Actions Menu handlers
-  const openRowMenu = (e, row) => {
+  const openRowMenu = useCallback((e, row) => {
     setMenuAnchor(e.currentTarget)
     setMenuRow(row)
-  }
+  }, [])
   const closeRowMenu = () => {
     setMenuAnchor(null)
     setMenuRow(null)
@@ -706,8 +689,8 @@ export default function ContentOrders() {
       showNotification('Duplicating order (not implemented backend) — copying data to clipboard', 'info')
       // copy order details to clipboard as JSON for quick reorder workflow
       await navigator.clipboard?.writeText(JSON.stringify(menuRow))
-    } catch (err) {
-      // ignore clipboard failures
+    } catch {
+      /* ignore clipboard failures */
     }
     closeRowMenu()
   }
@@ -752,7 +735,7 @@ export default function ContentOrders() {
       .catch(() => showNotification('Failed to update order', 'error'))
   }
 
-  const handleDelete = (id) => setDeleteConfirm({ open: true, id })
+  const handleDelete = useCallback((id) => setDeleteConfirm({ open: true, id }), [])
 
   const confirmDelete = () => {
     const id = deleteConfirm.id
@@ -1063,7 +1046,7 @@ export default function ContentOrders() {
     const statusBayar = localFilters.status_bayar
     if (statusBayar) {
       // Debug: log actual status_bayar values to help troubleshoot
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('Filter statusBayar:', statusBayar)
         console.log('Available statusBayar values:', [...new Set(rowsWithSearchStrings.map(r => r.statusBayar).filter(Boolean))])
       }
@@ -1087,18 +1070,29 @@ export default function ContentOrders() {
     return sortData(filtered, sortConfig)
   }, [rowsWithSearchStrings, liveQuery, localFilters, sortConfig, sortData])
 
-  // Reduce display limit for better performance
-  const MAX_DISPLAYED_ROWS = 30 // Further reduced for optimal performance
+  // Reduce display limit for better performance while keeping option to show more
+  const DEFAULT_MAX_ROWS = 200
+  const SEARCH_MAX_ROWS = 100
   const displayedRows = React.useMemo(() => {
-    // If no client-side filters or live search are active, show all rows (avoid truncating full dataset)
+    const total = filteredAndSortedRows.length
     const hasLocalFilters = Object.values(localFilters || {}).some((v) => v !== undefined && v !== null && String(v) !== '')
     const hasLiveSearch = !!liveQuery
-    if (!hasLocalFilters && !hasLiveSearch) {
-      return filteredAndSortedRows
+
+    if (showAllRows) return filteredAndSortedRows
+
+    // When user is searching or filtering, keep a tighter cap
+    if (hasLocalFilters || hasLiveSearch) {
+      return filteredAndSortedRows.slice(0, SEARCH_MAX_ROWS)
     }
-    // When filtering/searching is active, apply display limit for performance
-    return filteredAndSortedRows.slice(0, MAX_DISPLAYED_ROWS)
-  }, [filteredAndSortedRows, localFilters, liveQuery])
+
+    // Default: if dataset is very large, cap to DEFAULT_MAX_ROWS to avoid rendering thousands of rows
+    if (total > DEFAULT_MAX_ROWS) return filteredAndSortedRows.slice(0, DEFAULT_MAX_ROWS)
+    return filteredAndSortedRows
+  }, [filteredAndSortedRows, localFilters, liveQuery, showAllRows])
+
+  // Virtualization threshold: if filtered dataset large, use react-window
+  const VIRTUALIZE_THRESHOLD = 300
+  const rowHeight = 48 // estimated row height in px (adjust as needed)
 
   // Emit stats for toolbar (Showing X of Y) when displayed/filtered rows change
   React.useEffect(() => {
@@ -1120,6 +1114,11 @@ export default function ContentOrders() {
 
   const allChecked = allIds.length > 0 && allIds.every((id) => selected.has(id))
   const someChecked = allIds.some((id) => selected.has(id)) && !allChecked
+
+  // Memoize handlers so child rows don't re-render unnecessarily
+  const memoHandleOpenEdit = React.useCallback((row) => handleOpenEdit(row), [handleOpenEdit])
+  const memoHandleDelete = React.useCallback((id) => handleDelete(id), [handleDelete])
+  const memoOpenRowMenu = React.useCallback((e, row) => openRowMenu(e, row), [openRowMenu])
 
   return (
     <Box
@@ -1161,7 +1160,7 @@ export default function ContentOrders() {
                   color="secondary"
                   variant="outlined"
                   sx={{ fontSize: '0.75rem' }}
-                  onDelete={() => setSortConfig({ key: null, direction: 'asc' })}
+                  onDelete={() => resetSort()}
                 />
               )}
               {sortConfig.key && (
@@ -1326,7 +1325,7 @@ export default function ContentOrders() {
                     <Typography color="error">Failed to load orders</Typography>
                   </TableCell>
                 </TableRow>
-              ) : filteredAndSortedRows.length === 0 ? (
+                ) : filteredAndSortedRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={18}>
                     <Typography>
@@ -1334,170 +1333,273 @@ export default function ContentOrders() {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : (
-                displayedRows.map((row, idx) => (
-                  <React.Fragment key={row.id}>
-                    <TableRow hover selected={selected.has(row.id)} onClick={(e) => handleRowClick(e, row.id)} sx={{ cursor: 'pointer' }}>
-                      <TableCell padding="checkbox">
-                        <Checkbox size="small" checked={selected.has(row.id)} onChange={() => toggle(row.id)} />
-                      </TableCell>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell>{row.id}</TableCell>
-                      <TableCell>{row.orderNo}</TableCell>
-                      <TableCell>{row.idCustomer}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const c = customerCache.get(row.idCustomer)
-                          const nohp = c?.no_hp || c?.noHp || ''
-                          if (!nohp) return ''
-                          const waUrl = `https://wa.me/${nohp}?text=${encodeURIComponent('haiii')}`
+                ) : filteredAndSortedRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={18}>
+                      <Typography>
+                        {rows.length === 0 ? 'No orders found' : 'No orders match current filters'}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  // If data is very large, use virtualization for the table body to avoid heavy renders.
+                  (filteredAndSortedRows.length > VIRTUALIZE_THRESHOLD) ? (
+                    <TableBody>
+                      <List
+                        height={Math.min(600, displayedRows.length * rowHeight)}
+                        itemCount={displayedRows.length}
+                        itemSize={rowHeight}
+                        width="100%"
+                      >
+                        {({ index, style }) => {
+                          const row = displayedRows[index]
                           return (
-                            <a href={waUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                              <img src={waIcon} alt="wa" style={{ width: 18, height: 18 }} />
-                              <span style={{ fontSize: 13 }}>{nohp}</span>
-                            </a>
+                            <TableRow
+                              key={row.id}
+                              hover
+                              selected={selected.has(row.id)}
+                              onClick={(e) => { /* open view dialog instead of expand to keep fixed row height */
+                                e.stopPropagation()
+                                setMenuRow(row)
+                                setViewDialogOpen(true)
+                              }}
+                              style={style}
+                              sx={{ display: 'table', tableLayout: 'fixed', width: '100%' }}
+                            >
+                              <TableCell padding="checkbox">
+                                <Checkbox size="small" checked={selected.has(row.id)} onChange={() => toggle(row.id)} />
+                              </TableCell>
+                              <TableCell>{index + 1}</TableCell>
+                              <TableCell>{row.id}</TableCell>
+                              <TableCell>{row.orderNo}</TableCell>
+                              <TableCell>{row.idCustomer}</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const c = customerCache.get(row.idCustomer)
+                                  const nohp = c?.no_hp || c?.noHp || ''
+                                  if (!nohp) return ''
+                                  const waUrl = `https://wa.me/${nohp}?text=${encodeURIComponent('haiii')}`
+                                  return (
+                                    <a href={waUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                      <img src={waIcon} alt="wa" style={{ width: 18, height: 18 }} />
+                                      <span style={{ fontSize: 13 }}>{nohp}</span>
+                                    </a>
+                                  )
+                                })()}
+                              </TableCell>
+                              <TableCell>{(customerCache.get(row.idCustomer) && (customerCache.get(row.idCustomer).nama || customerCache.get(row.idCustomer).nama_customer || customerCache.get(row.idCustomer).name)) || ''}</TableCell>
+                              <TableCell>{row.date}</TableCell>
+                              <TableCell>
+                                <Chip label={row.statusUrgensi || ''} size="small" className={getStatusChipClass(row.statusUrgensi)} sx={{ backgroundColor: statusColor(row.statusUrgensi), color: '#fff' }} />
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={row.status || ''} size="small" className={getStatusChipClass(row.status)} sx={{ backgroundColor: statusColor(row.status), color: '#fff' }} />
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={row.statusOrder || ''} size="small" className={getStatusChipClass(row.statusOrder)} sx={{ backgroundColor: statusColor(row.statusOrder), color: '#fff' }} />
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={row.statusBot || ''} size="small" className={getStatusChipClass(row.statusBot)} sx={{ backgroundColor: statusColor(row.statusBot), color: '#fff' }} />
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={row.statusBayar || ''} size="small" className={getStatusChipClass(row.statusBayar)} sx={{ backgroundColor: statusColor(row.statusBayar), color: '#fff' }} />
+                              </TableCell>
+                              <TableCell>{row.dpBayar ? (<Chip label={formatRupiah(row.dpBayar)} size="small" sx={{ backgroundColor: '#fbbf24', color: '#000' }} />) : ''}</TableCell>
+                              <TableCell align="right"><Box component="span" className="total-paid" sx={{ fontWeight: 600, color: '#16a34a' }}>{formatRupiah(row.totalBayar)}</Box></TableCell>
+                              <TableCell align="right"><Box component="span" className="total-price" sx={{ fontWeight: 600, color: '#3b82f6' }}>{formatRupiah(computeSisaBayar(row))}</Box></TableCell>
+                              <TableCell>{row.tanggalJatuhTempo}</TableCell>
+                              <TableCell>{row.linkInvoice ? (<a href={row.linkInvoice} target="_blank" rel="noreferrer">View</a>) : ('')}</TableCell>
+                              <TableCell>{row.linkDrive ? (<a href={row.linkDrive} target="_blank" rel="noreferrer">Drive</a>) : ('')}</TableCell>
+                              <TableCell sx={{ whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflow: 'visible', wordBreak: 'break-word' }}>{Array.isArray(row.items) && row.items.length > 0 ? (<div style={{ fontSize: 13 }}>{row.items.length} item(s)</div>) : ('—')}</TableCell>
+                              <TableCell align="right">
+                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); openRowMenu(e, row); }} aria-label="more actions">
+                                  <MoreVertIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
                           )
-                        })()}
-                      </TableCell>
-                      <TableCell>{(customerCache.get(row.idCustomer) && (customerCache.get(row.idCustomer).nama || customerCache.get(row.idCustomer).nama_customer || customerCache.get(row.idCustomer).name)) || ''}</TableCell>
-                      
-                      
-                      <TableCell>{row.date}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.statusUrgensi || ''} 
-                          size="small" 
-                          className={getStatusChipClass(row.statusUrgensi)}
-                          sx={{ backgroundColor: statusColor(row.statusUrgensi), color: '#fff' }} 
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.status || ''} 
-                          size="small" 
-                          className={getStatusChipClass(row.status)}
-                          sx={{ backgroundColor: statusColor(row.status), color: '#fff' }} 
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.statusOrder || ''} 
-                          size="small" 
-                          className={getStatusChipClass(row.statusOrder)}
-                          sx={{ backgroundColor: statusColor(row.statusOrder), color: '#fff' }} 
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.statusBot || ''} 
-                          size="small" 
-                          className={getStatusChipClass(row.statusBot)}
-                          sx={{ backgroundColor: statusColor(row.statusBot), color: '#fff' }} 
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.statusBayar || ''} 
-                          size="small" 
-                          className={getStatusChipClass(row.statusBayar)}
-                          sx={{ backgroundColor: statusColor(row.statusBayar), color: '#fff' }} 
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {row.dpBayar ? (
-                          <Chip label={formatRupiah(row.dpBayar)} size="small" sx={{ backgroundColor: '#fbbf24', color: '#000' }} />
-                        ) : (
-                          ''
-                        )}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box component="span" className="total-paid" sx={{ fontWeight: 600, color: '#16a34a' }}>
-                          {formatRupiah(row.totalBayar)}
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box component="span" className="total-price" sx={{ fontWeight: 600, color: '#3b82f6' }}>
-                          {formatRupiah(computeSisaBayar(row))}
-                        </Box>
-                      </TableCell>
-                      <TableCell>{row.tanggalJatuhTempo}</TableCell>
-                      <TableCell>
-                        {row.linkInvoice ? (
-                          <a href={row.linkInvoice} target="_blank" rel="noreferrer">View</a>
-                        ) : (
-                          ''
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {row.linkDrive ? (
-                          <a href={row.linkDrive} target="_blank" rel="noreferrer">Drive</a>
-                        ) : (
-                          ''
-                        )}
-                      </TableCell>
-                      <TableCell sx={{ whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflow: 'visible', wordBreak: 'break-word' }}>
-                        {Array.isArray(row.items) && row.items.length > 0 ? (
-                          <div style={{ fontSize: 13 }}>
-                            {row.items.length} item(s)
-                          </div>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      
-                      <TableCell align="right">
-                        <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); openRowMenu(e, row); }} aria-label="more actions">
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                    {/* Expanded details row */}
-                    <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={18}>
-                        <Collapse in={expandedIds.has(row.id)} timeout="auto" unmountOnExit>
-                          <Box sx={{ margin: 1 }}>
-                            {Array.isArray(row.items) && row.items.length > 0 ? (
-                              <Table size="small">
-                                <TableHead>
-                                  <TableRow>
-                                    <TableCell>Produk</TableCell>
-                                    <TableCell>Kategori</TableCell>
-                                    <TableCell>Qty</TableCell>
-                                    <TableCell>Harga Satuan</TableCell>
-                                    <TableCell>Subtotal</TableCell>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {row.items.map((it, ii) => (
-                                    <TableRow key={ii}>
-                                      <TableCell>{it.name}</TableCell>
-                                      <TableCell>{it.kategori}</TableCell>
-                                      <TableCell>{it.quantity}</TableCell>
-                                      <TableCell>{formatRupiah(it.harga_satuan)}</TableCell>
-                                      <TableCell>{formatRupiah(it.subtotal_item)}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                        }}
+                      </List>
+                    </TableBody>
+                  ) : (
+                    displayedRows.map((row, idx) => (
+                      <React.Fragment key={row.id}>
+                        <TableRow hover selected={selected.has(row.id)} onClick={(e) => handleRowClick(e, row.id)} sx={{ cursor: 'pointer' }}>
+                          <TableCell padding="checkbox">
+                            <Checkbox size="small" checked={selected.has(row.id)} onChange={() => toggle(row.id)} />
+                          </TableCell>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{row.id}</TableCell>
+                          <TableCell>{row.orderNo}</TableCell>
+                          <TableCell>{row.idCustomer}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const c = customerCache.get(row.idCustomer)
+                              const nohp = c?.no_hp || c?.noHp || ''
+                              if (!nohp) return ''
+                              const waUrl = `https://wa.me/${nohp}?text=${encodeURIComponent('haiii')}`
+                              return (
+                                <a href={waUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                  <img src={waIcon} alt="wa" style={{ width: 18, height: 18 }} />
+                                  <span style={{ fontSize: 13 }}>{nohp}</span>
+                                </a>
+                              )
+                            })()}
+                          </TableCell>
+                          <TableCell>{(customerCache.get(row.idCustomer) && (customerCache.get(row.idCustomer).nama || customerCache.get(row.idCustomer).nama_customer || customerCache.get(row.idCustomer).name)) || ''}</TableCell>
+                        
+                        
+                          <TableCell>{row.date}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={row.statusUrgensi || ''} 
+                              size="small" 
+                              className={getStatusChipClass(row.statusUrgensi)}
+                              sx={{ backgroundColor: statusColor(row.statusUrgensi), color: '#fff' }} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={row.status || ''} 
+                              size="small" 
+                              className={getStatusChipClass(row.status)}
+                              sx={{ backgroundColor: statusColor(row.status), color: '#fff' }} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={row.statusOrder || ''} 
+                              size="small" 
+                              className={getStatusChipClass(row.statusOrder)}
+                              sx={{ backgroundColor: statusColor(row.statusOrder), color: '#fff' }} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={row.statusBot || ''} 
+                              size="small" 
+                              className={getStatusChipClass(row.statusBot)}
+                              sx={{ backgroundColor: statusColor(row.statusBot), color: '#fff' }} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={row.statusBayar || ''} 
+                              size="small" 
+                              className={getStatusChipClass(row.statusBayar)}
+                              sx={{ backgroundColor: statusColor(row.statusBayar), color: '#fff' }} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {row.dpBayar ? (
+                              <Chip label={formatRupiah(row.dpBayar)} size="small" sx={{ backgroundColor: '#fbbf24', color: '#000' }} />
                             ) : (
-                              <Typography variant="body2">No items</Typography>
+                              ''
                             )}
-                          </Box>
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))
-              )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Box component="span" className="total-paid" sx={{ fontWeight: 600, color: '#16a34a' }}>
+                              {formatRupiah(row.totalBayar)}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Box component="span" className="total-price" sx={{ fontWeight: 600, color: '#3b82f6' }}>
+                              {formatRupiah(computeSisaBayar(row))}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{row.tanggalJatuhTempo}</TableCell>
+                          <TableCell>
+                            {row.linkInvoice ? (
+                              <a href={row.linkInvoice} target="_blank" rel="noreferrer">View</a>
+                            ) : (
+                              ''
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {row.linkDrive ? (
+                              <a href={row.linkDrive} target="_blank" rel="noreferrer">Drive</a>
+                            ) : (
+                              ''
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflow: 'visible', wordBreak: 'break-word' }}>
+                            {Array.isArray(row.items) && row.items.length > 0 ? (
+                              <div style={{ fontSize: 13 }}>
+                                {row.items.length} item(s)
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </TableCell>
+                        
+                          <TableCell align="right">
+                            <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); openRowMenu(e, row); }} aria-label="more actions">
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                        {/* Expanded details row */}
+                        <TableRow>
+                          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={18}>
+                            <Collapse in={expandedIds.has(row.id)} timeout="auto" unmountOnExit>
+                              <Box sx={{ margin: 1 }}>
+                                {Array.isArray(row.items) && row.items.length > 0 ? (
+                                  <Table size="small">
+                                    <TableHead>
+                                      <TableRow>
+                                        <TableCell>Produk</TableCell>
+                                        <TableCell>Kategori</TableCell>
+                                        <TableCell>Qty</TableCell>
+                                        <TableCell>Harga Satuan</TableCell>
+                                        <TableCell>Subtotal</TableCell>
+                                      </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                      {row.items.map((it, ii) => (
+                                        <TableRow key={ii}>
+                                          <TableCell>{it.name}</TableCell>
+                                          <TableCell>{it.kategori}</TableCell>
+                                          <TableCell>{it.quantity}</TableCell>
+                                          <TableCell>{formatRupiah(it.harga_satuan)}</TableCell>
+                                          <TableCell>{formatRupiah(it.subtotal_item)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                ) : (
+                                  <Typography variant="body2">No items</Typography>
+                                )}
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    ))
+                  )
+                )}
             </TableBody>
           </Table>
         </TableContainer>
+        {/* Show more / show less toggle to allow rendering all rows when needed */}
+        {filteredAndSortedRows.length > displayedRows.length && (
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button size="small" onClick={() => setShowAllRows((s) => !s)}>
+              {showAllRows ? 'Show less' : `Show all (${filteredAndSortedRows.length})`}
+            </Button>
+          </Box>
+        )}
       </Box>
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={handleCloseEdit} fullWidth maxWidth="sm">

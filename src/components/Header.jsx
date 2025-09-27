@@ -37,7 +37,8 @@ export default function Header() {
     const fetchPending = async () => {
       try {
         const mod = await import('../api/payments');
-        const res = await mod.getPayments();
+        // pass silent:true so client interceptor doesn't log 500s for this background check
+        const res = await mod.getPayments({ silent: true });
         const items = res?.data?.data || res?.data || [];
     const arr = Array.isArray(items) ? items : [];
     // determine pending payments if needed; not used for badge
@@ -178,7 +179,7 @@ export default function Header() {
       setTimeout(() => setApiFlash(false), 2000);
     }
     prevApiRef.current = apiStatus.ok;
-  }, [apiStatus.ok]);
+    }, [apiStatus.ok, apiStatus.error]);
 
   useEffect(() => {
     if (prevDbRef.current != null && prevDbRef.current !== dbStatus.ok) {
@@ -190,7 +191,7 @@ export default function Header() {
       setTimeout(() => setDbFlash(false), 2000);
     }
     prevDbRef.current = dbStatus.ok;
-  }, [dbStatus.ok]);
+    }, [dbStatus.ok, dbStatus.error]);
 
   return (
     <>

@@ -22,25 +22,7 @@ function Orders() {
     setSearchParams(params)
   }
 
-  const statusUrgensiOptions = [
-    { value: 'urgent', label: 'Urgent' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'low', label: 'Low' }
-  ]
-
-  const statusOrderOptions = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'processing', label: 'Processing' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' }
-  ]
-
-  const statusBayarOptions = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'partial', label: 'Partial' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'overdue', label: 'Overdue' }
-  ]
+  // status option arrays removed — not used in this page
 
   return (
     <Box>

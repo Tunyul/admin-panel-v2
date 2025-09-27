@@ -27,6 +27,7 @@ import {
   Button,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { List } from 'react-window';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
@@ -111,7 +112,12 @@ export default function ContentPayments() {
   const { showNotification } = useNotificationStore();
   const { visibleColumns } = useTableColumns('payments');
   const tableId = 'payments';
-  const { sortConfig, handleSort: handleSortGlobal, getSortDirection } = useTableSorting(tableId);
+  const { sortConfig, handleSort: handleSortGlobal } = useTableSorting(tableId);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [detailsDialogId, setDetailsDialogId] = useState(null);
+
+  const VIRTUALIZE_THRESHOLD = 300;
+  const rowHeight = 56;
 
   // Local handler that updates global sorting and notifies the toolbar
   const handleSort = (key) => {
@@ -120,8 +126,8 @@ export default function ContentPayments() {
       const newSortKey = sortConfig.key === key && sortConfig.direction === 'desc' ? null : key;
       const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
       window.dispatchEvent(new CustomEvent('toolbar:sort-change', { detail: { sortKey: newSortKey, direction } }));
-    } catch (err) {
-      // ignore
+    } catch {
+      /* ignore */
     }
   };
 
@@ -140,10 +146,10 @@ export default function ContentPayments() {
       }
       // push to router without removing other unrelated params
       setSearchParams(params);
-    } catch (err) {
-      // ignore
+    } catch {
+      /* ignore */
     }
-  }, [sortConfig.key, sortConfig.direction]);
+  }, [sortConfig.key, sortConfig.direction, searchParams, setSearchParams]);
 
   // helper to convert current URL search params to a plain object
   const paramsObject = useCallback(() => {
@@ -165,19 +171,23 @@ export default function ContentPayments() {
   const reloadPayments = useCallback((extraParams = {}) => {
     setLoading(true);
     try {
-      setProgress(5);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(() => {
-        setProgress((p) => Math.min(85, p + Math.floor(Math.random() * 8) + 3));
-      }, 300);
-    } catch (e) { console.error(e); }
+        setProgress(5);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+          setProgress((p) => Math.min(85, p + Math.floor(Math.random() * 8) + 3));
+        }, 300);
+    } catch {
+      /* ignore setInterval errors in rare environments */
+    }
 
   const params = { ...(paramsObject() || {}), ...(extraParams || {}) };
   // Ensure status filtering is disabled for Payments: do not forward `status` to API
   try {
     if (params && Object.prototype.hasOwnProperty.call(params, 'status')) delete params.status;
-  } catch (e) {}
-  try { console.debug('[ContentPayments] reloadPayments params=', params); } catch (e) {}
+  } catch {
+    /* ignore URL param sync errors */
+  }
+  try { console.debug('[ContentPayments] reloadPayments params=', params); } catch { /* ignore */ }
     return getPaymentsWithParams(params)
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
@@ -216,7 +226,7 @@ export default function ContentPayments() {
   // initial load and reload when search params change
   const searchParamsString = searchParams.toString();
   useEffect(() => {
-    try { console.debug('[ContentPayments] searchParams changed ->', searchParams.toString()); } catch (e) {}
+    try { console.debug('[ContentPayments] searchParams changed ->', searchParamsString); } catch { /* ignore */ }
     reloadPayments();
   }, [reloadPayments, searchParamsString]);
 
@@ -233,7 +243,7 @@ export default function ContentPayments() {
     };
     window.addEventListener('app:open:add-payment', handler);
     return () => window.removeEventListener('app:open:add-payment', handler);
-  }, []);
+  }, [setOpen]);
 
   // listen for toolbar filter events (keeps externalFilters in sync and URL params)
   useEffect(() => {
@@ -261,7 +271,7 @@ export default function ContentPayments() {
     };
     window.addEventListener('toolbar:filter', handleTipeFilter);
     return () => window.removeEventListener('toolbar:filter', handleTipeFilter);
-  }, [searchParams, updateParam]);
+  }, [searchParams, updateParam, setSearchParams]);
 
   // Listen for explicit refresh events
   useEffect(() => {
@@ -427,11 +437,11 @@ export default function ContentPayments() {
           return 0;
         });
         return copy;
-      } catch (err) { return res; }
+  } catch { return res; }
     })();
 
     return sorted;
-  }, [data, searchQuery, tipeFilter, noTransaksiFilter, customerFilter, noHpFilter, nominalMin, nominalMax, dateFrom, dateTo, hasBukti, externalFilters]);
+  }, [data, searchQuery, tipeFilter, noTransaksiFilter, customerFilter, noHpFilter, nominalMin, nominalMax, dateFrom, dateTo, hasBukti, externalFilters, sortConfig.key, sortConfig.direction]);
 
   const handleDelete = useCallback((id) => setDeleteConfirm({ open: true, id }), []);
   const confirmDelete = () => {
@@ -487,6 +497,28 @@ export default function ContentPayments() {
     }).catch((err) => { console.error('Failed to load payment details for verify modal', err); }).finally(() => setVerifyLoading(false));
   }, []);
 
+
+  const handleExpandWithDetails = useCallback((id) => {
+    if (expanded === id) { setExpanded(null); return; }
+    setExpanded(id);
+    if (!detailsMap[id] && !detailsLoading[id]) {
+      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
+      getPaymentById(id).then((res) => { setDetailsMap((prev) => ({ ...prev, [id]: res?.data || res })); }).catch((err) => { console.error(`Failed to load details for payment ${id}`, err); setDetailsMap((prev) => ({ ...prev, [id]: null })); }).finally(() => { setDetailsLoading((prev) => ({ ...prev, [id]: false })); });
+    }
+  }, [expanded, detailsMap, detailsLoading]);
+
+  const openDetailsDialog = useCallback((id) => {
+    // ensure details are loaded then open the dialog
+    handleExpandWithDetails(id);
+    setDetailsDialogId(id);
+    setDetailsDialogOpen(true);
+  }, [handleExpandWithDetails]);
+
+  const closeDetailsDialog = useCallback(() => {
+    setDetailsDialogOpen(false);
+    setDetailsDialogId(null);
+  }, []);
+
   const nominalCompareSuggestion = (nominal, remaining) => {
     if (remaining == null) return '';
     if (nominal >= remaining) return 'approved';
@@ -527,63 +559,54 @@ export default function ContentPayments() {
           const preview = typeof body === 'string' ? body : JSON.stringify(body);
           serverMsg += ` (${preview.slice(0, 200)})`;
         }
-      } catch (e) {
-        // ignore
+      } catch {
+        /* ignore */
       }
       showNotification(serverMsg, 'error');
     } finally {
-      setVerifyLoading(false);
-    }
-  };
+        setVerifyLoading(false);
+      }
+    };
 
-  const handleExpandWithDetails = useCallback((id) => {
-    if (expanded === id) { setExpanded(null); return; }
-    setExpanded(id);
-    if (!detailsMap[id] && !detailsLoading[id]) {
-      setDetailsLoading((prev) => ({ ...prev, [id]: true }));
-      getPaymentById(id).then((res) => { setDetailsMap((prev) => ({ ...prev, [id]: res?.data || res })); }).catch((err) => { console.error(`Failed to load details for payment ${id}`, err); setDetailsMap((prev) => ({ ...prev, [id]: null })); }).finally(() => { setDetailsLoading((prev) => ({ ...prev, [id]: false })); });
-    }
-  }, [expanded, detailsMap, detailsLoading]);
-
-  // Map keys to cells (copied/adapted)
-  const renderTableCell = React.useCallback((key, r, align = 'left', rowIndex = null) => {
+    // Map keys to cells (copied/adapted)
+  const renderTableCell = React.useCallback((key, r, align = 'left', rowIndex = null, isVirtual = false) => {
     const id = r.id_payment || r.id;
     const sanitizePhone = (p) => (String(p || '').replace(/\D/g, ''));
     const formatCurrency = (val) => (val == null || val === '') ? '-' : `Rp ${Number(val).toLocaleString('id-ID')}`;
 
     switch (key) {
-      case 'id': return <TableCell align={align}>{id}</TableCell>;
-      case 'no': return <TableCell align={align}>{rowIndex != null ? (rowIndex + 1) : '-'}</TableCell>;
-      case 'orderNo': return <TableCell align={align}>{r.no_transaksi || r.Order?.no_transaksi || '-'}</TableCell>;
-      case 'orderId': return <TableCell align={align}>{r.Order?.id_order || r.orderId || r.id_order || '-'}</TableCell>;
-      case 'amount': return <TableCell align={align}>{formatCurrency(r.nominal)}</TableCell>;
-      case 'idCustomer': return <TableCell align={align}>{r.id_customer || r.idCustomer || '-'}</TableCell>;
+      case 'id': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{id}</TableCell>;
+      case 'no': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{rowIndex != null ? (rowIndex + 1) : '-'}</TableCell>;
+      case 'orderNo': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.no_transaksi || r.Order?.no_transaksi || '-'}</TableCell>;
+      case 'orderId': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.Order?.id_order || r.orderId || r.id_order || '-'}</TableCell>;
+      case 'amount': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{formatCurrency(r.nominal)}</TableCell>;
+      case 'idCustomer': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.id_customer || r.idCustomer || '-'}</TableCell>;
       case 'customerPhone': {
         const phoneVal = r.no_hp || r.phone || r.Customer?.no_hp || '';
         const s = sanitizePhone(phoneVal);
-        return (<TableCell align={align}>{phoneVal ? <a href={`https://wa.me/${s}`} target="_blank" rel="noreferrer">{phoneVal}</a> : '-'}</TableCell>);
+        return (<TableCell component={isVirtual ? 'div' : undefined} align={align}>{phoneVal ? <a href={`https://wa.me/${s}`} target="_blank" rel="noreferrer">{phoneVal}</a> : '-'}</TableCell>);
       }
-      case 'customerName': return <TableCell align={align}>{r.Customer?.nama || r.nama || r.customer_name || r.name || '-'}</TableCell>;
-      case 'date': return <TableCell align={align}>{r.tanggal ? new Date(r.tanggal).toLocaleString() : '-'}</TableCell>;
-      case 'items': return <TableCell align={align}>{r.tipe || '-'}</TableCell>;
+      case 'customerName': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.Customer?.nama || r.nama || r.customer_name || r.name || '-'}</TableCell>;
+      case 'date': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.tanggal ? new Date(r.tanggal).toLocaleString() : '-'}</TableCell>;
+      case 'items': return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r.tipe || '-'}</TableCell>;
       case 'tipe': {
         const label = (r.tipe || '-');
         const map = { dp: 'warning', pelunasan: 'success' };
         const color = map[(r.tipe || '').toLowerCase()] || 'default';
-        return (<TableCell align={align}><Chip label={String(label)} size="small" color={color} /></TableCell>);
+        return (<TableCell component={isVirtual ? 'div' : undefined} align={align}><Chip label={String(label)} size="small" color={color} /></TableCell>);
       }
       case 'linkInvoice': {
         const url = r.bukti || r.bukti_url || r.proof || '';
-        return <TableCell align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
+        return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
       }
       case 'linkDrive': {
         const url = r.bukti || r.bukti_url || r.proof || '';
-        return <TableCell align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
+        return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{url ? <a href={url} target="_blank" rel="noreferrer">Link</a> : '-'}</TableCell>;
       }
       case 'dpBayar':
       case 'totalBayar':
       case 'totalHarga':
-        return <TableCell align={align}>{formatCurrency(r.nominal)}</TableCell>;
+        return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{formatCurrency(r.nominal)}</TableCell>;
       case 'status':
       case 'statusBayar': {
         const s = (r.status || '').toLowerCase();
@@ -593,13 +616,13 @@ export default function ContentPayments() {
         else if (s === 'menunggu_verifikasi' || s === 'menunggu') statusColor = 'warning';
         else if (['verified', 'confirmed', 'approved'].includes(s)) statusColor = 'success';
         else if (s === 'rejected') statusColor = 'error';
-        return (<TableCell align={align}><Chip label={label} size="small" color={statusColor} /></TableCell>);
+        return (<TableCell component={isVirtual ? 'div' : undefined} align={align}><Chip label={label} size="small" color={statusColor} /></TableCell>);
       }
       case 'actions': {
         const s = (r.status || '').toLowerCase();
         return (
-          <TableCell align={align} sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-start' }}>
-            <IconButton size="small" onClick={() => handleExpandWithDetails(id)}><InfoIcon fontSize="small" /></IconButton>
+          <TableCell component={isVirtual ? 'div' : undefined} align={align} sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-start' }}>
+            <IconButton size="small" onClick={() => (isVirtual ? openDetailsDialog(id) : handleExpandWithDetails(id))}><InfoIcon fontSize="small" /></IconButton>
             <IconButton size="small" onClick={() => handleOpen(r)}><EditIcon fontSize="small" /></IconButton>
             <IconButton size="small" onClick={() => handleDelete(id)}><DeleteIcon fontSize="small" /></IconButton>
             {s !== 'verified' && (
@@ -608,9 +631,9 @@ export default function ContentPayments() {
           </TableCell>
         );
       }
-      default: return <TableCell align={align}>{r[key] ?? '-'}</TableCell>;
+      default: return <TableCell component={isVirtual ? 'div' : undefined} align={align}>{r[key] ?? '-'}</TableCell>;
     }
-  }, [handleExpandWithDetails, handleOpen, handleDelete, handleVerify]);
+  }, [handleExpandWithDetails, handleOpen, handleDelete, handleVerify, openDetailsDialog]);
 
   const rows = React.useMemo(() => filteredData.map((row, idx) => (
     <PaymentRow
@@ -624,6 +647,24 @@ export default function ContentPayments() {
       renderTableCell={(k, r, a, i) => renderTableCell(k, r, a, i)}
     />
   )), [filteredData, expanded, detailsLoading, detailsMap, visibleColumns, renderTableCell]);
+
+  // Prepare memoized virtual row renderer and item data to avoid recreating closures
+  const virtualItemData = filteredData;
+  const VirtualRow = React.useCallback(({ index, style, data }) => {
+    const r = data && data[index];
+    const key = (r && (r.id_payment || r.id)) || index;
+    return (
+      <div style={style} key={key}>
+        <div style={{ display: 'flex', width: '100%', alignItems: 'center', boxSizing: 'border-box', minHeight: rowHeight }}>
+          {visibleColumns.map((col) => (
+            <div key={`vcell-${key}-${col.key}`} style={{ flex: col.width ? `0 0 ${col.width}` : 1, padding: '12px 16px' }}>
+              {renderTableCell(col.key, r || {}, col.align, index, true)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }, [visibleColumns, renderTableCell, rowHeight, filteredData]);
 
   // filter option arrays intentionally removed to avoid unused-variable lint warnings
 
@@ -666,7 +707,30 @@ export default function ContentPayments() {
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow><TableCell colSpan={visibleColumns.length}><Typography>{data.length === 0 ? 'No payments found' : 'No payments match current filters'}</Typography></TableCell></TableRow>
-            ) : rows}
+            ) : (
+              filteredData.length > VIRTUALIZE_THRESHOLD ? (
+                // Virtualized rendering using react-window - render fixed-height rows
+                <TableRow>
+                  <TableCell colSpan={visibleColumns.length} sx={{ p: 0, border: 0 }}>
+                    <div style={{ height: Math.min(filteredData.length, 1000) * rowHeight, width: '100%' }}>
+                      <List
+                        height={Math.min(600, filteredData.length * rowHeight)}
+                        itemCount={filteredData.length}
+                        itemSize={rowHeight}
+                        width="100%"
+                        itemData={virtualItemData}
+                        itemKey={(index, data) => {
+                          const r = data && data[index];
+                          return r ? (r.id_payment || r.id) : index;
+                        }}
+                      >
+                        {VirtualRow}
+                      </List>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : rows
+            )}
           </TableBody>
         </Table>
       </TableContainer>

@@ -13,7 +13,6 @@ const PublicInvoice = React.lazy(() => import('./pages/PublicInvoice'))
 const Piutangs = React.lazy(() => import('./pages/Piutangs'))
 import Notification from './components/Notification'
 import Login from './pages/Login'
-import LogoutButton from './components/LogoutButton'
 import PageTransition from './components/PageTransition'
 import AppMainToolbar from './components/AppMainToolbar'
 import TableCrudToolbar from './components/TableCrudToolbar'

@@ -47,23 +47,8 @@ export default function AddOrderModal({ open, onClose, onOrderCreated }) {
     notes: ''
   })
 
-  // Load data on mount
-  useEffect(() => {
-    if (open) {
-      loadCustomers()
-      loadProducts()
-    } else {
-      // Cleanup when modal closes
-      setActiveStep(0)
-      setSelectedCustomer(null)
-      setSelectedProducts([])
-      setShowAddCustomer(false)
-      setNewCustomer({ nama: '', no_hp: '', alamat: '' })
-      setOrderSummary({ statusUrgensi: 'normal', notes: '' })
-    }
-  }, [open])
 
-  const loadCustomers = async () => {
+  const loadCustomers = React.useCallback(async () => {
     setLoadingCustomers(true)
     try {
       const res = await getCustomers()
@@ -77,9 +62,9 @@ export default function AddOrderModal({ open, onClose, onOrderCreated }) {
     } finally {
       setLoadingCustomers(false)
     }
-  }
+  }, [showNotification])
 
-  const loadProducts = async () => {
+  const loadProducts = React.useCallback(async () => {
     setLoadingProducts(true)
     try {
       const res = await getProducts()
@@ -93,7 +78,23 @@ export default function AddOrderModal({ open, onClose, onOrderCreated }) {
     } finally {
       setLoadingProducts(false)
     }
-  }
+  }, [showNotification])
+
+  // Load data on mount (placed after callbacks to avoid TDZ)
+  useEffect(() => {
+    if (open) {
+      loadCustomers()
+      loadProducts()
+    } else {
+      // Cleanup when modal closes
+      setActiveStep(0)
+      setSelectedCustomer(null)
+      setSelectedProducts([])
+      setShowAddCustomer(false)
+      setNewCustomer({ nama: '', no_hp: '', alamat: '' })
+      setOrderSummary({ statusUrgensi: 'normal', notes: '' })
+    }
+  }, [open, loadCustomers, loadProducts])
 
   const handleNext = () => {
     setActiveStep((prev) => prev + 1)
