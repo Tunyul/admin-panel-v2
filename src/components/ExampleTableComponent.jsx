@@ -148,6 +148,31 @@ function ExampleTableComponent({
 
     // Generic fallback for other tables
     switch (columnKey) {
+      case 'customerPhone':
+        return <TableCell key={columnKey} align={align}>{row.customerPhone || row.no_hp || row.Customer?.no_hp || '-'}</TableCell>
+
+      case 'orderId':
+        return <TableCell key={columnKey} align={align}>{row.id_order || row.orderId || row.order_id || '-'}</TableCell>
+
+      case 'no_transaksi':
+        return <TableCell key={columnKey} align={align}>{row.no_transaksi || row.no_tx || row.transaksi || row.no || '-'}</TableCell>
+
+      case 'customerId':
+        return <TableCell key={columnKey} align={align}>{row.customerId || row.Customer?.id_customer || row.id_customer || '-'}</TableCell>
+
+      case 'customerName':
+        return <TableCell key={columnKey} align={align}>{row.customerName || row.pelanggan_nama || row.Customer?.nama || '-'}</TableCell>
+
+      case 'amount':
+        // piutangs use jumlah_piutang as string sometimes
+        return <TableCell key={columnKey} align={align}>{row.amount ?? row.jumlah_piutang ?? '-'}</TableCell>
+
+      case 'dueDate':
+        return <TableCell key={columnKey} align={align}>{row.dueDate || row.tanggal_piutang || row.date ? (row.dueDate || row.tanggal_piutang || row.date) : '-'}</TableCell>
+
+      case 'keterangan':
+        return <TableCell key={columnKey} align={align}>{row.keterangan || row.description || row.notes || '-'}</TableCell>
+
       case 'id':
         return <TableCell key={columnKey} align={align}>{row.id}</TableCell>
       
@@ -159,6 +184,22 @@ function ExampleTableComponent({
       
       case 'phone':
         return <TableCell key={columnKey} align={align}>{row.phone}</TableCell>
+
+      case 'type':
+        return <TableCell key={columnKey} align={align}>{row.type || row.tipe_customer || '-'}</TableCell>
+
+      case 'ordersCount':
+        return <TableCell key={columnKey} align={align}>{typeof row.ordersCount === 'number' ? row.ordersCount : (Array.isArray(row.Orders) ? row.Orders.length : '-')}</TableCell>
+
+      case 'batas_piutang':
+        return (
+          <TableCell key={columnKey} align={align}>
+            {row.batas_piutang || row.batasPiutang || row.batas || '-'}
+          </TableCell>
+        )
+
+      case 'catatan':
+        return <TableCell key={columnKey} align={align}>{row.catatan || row.notes || '-'}</TableCell>
       
       case 'status':
         return (

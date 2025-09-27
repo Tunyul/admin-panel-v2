@@ -2,13 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  IconButton,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -28,82 +21,9 @@ import { useSearchParams } from 'react-router-dom';
 import { getPiutangs, getPiutangById, createPiutang, updatePiutang, deletePiutang } from '../api/piutangs';
 import useNotificationStore from '../store/notificationStore';
 import TableToolbar from '../components/TableToolbar';
-
-const PiutangRow = React.memo(function PiutangRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
-  const id = row.id_piutang || row.id;
-  const phone = row.no_hp || row.Customer?.no_hp || row.customer_phone || row.pelanggan_nohp || '';
-  
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'lunas': return 'success';
-      case 'terlambat': return 'error';
-      case 'overdue': return 'error';
-      case 'belum_lunas': return 'warning';
-      case 'outstanding': return 'warning';
-      default: return 'default';
-    }
-  };
-
-  const formatAmount = (amount) => {
-    if (!amount) return 'Rp 0';
-    return `Rp ${Number(amount).toLocaleString('id-ID')}`;
-  };
-
-  return (
-    <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
-        <TableCell>{id}</TableCell>
-        <TableCell>{row.no_transaksi || row.no_tx || row.transaksi || '-'}</TableCell>
-        <TableCell>{phone || '-'}</TableCell>
-        <TableCell>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography component="span">{row.pelanggan_nama || row.customer_name || '-'}</Typography>
-            {phone ? (
-              <Typography variant="caption" color="text.secondary">{phone}</Typography>
-            ) : null}
-          </Box>
-        </TableCell>
-        <TableCell>{formatAmount(row.jumlah_piutang || row.amount)}</TableCell>
-        <TableCell>{formatAmount(row.paid || row.sudah_dibayar || row.paid_amount || 0)}</TableCell>
-        <TableCell>{row.tanggal_piutang ? new Date(row.tanggal_piutang).toLocaleDateString() : '-'}</TableCell>
-        <TableCell>
-          <Chip 
-            label={row.status || 'outstanding'} 
-            color={getStatusColor(row.status)}
-            size="small"
-          />
-        </TableCell>
-        <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)} size="small"><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)} size="small"><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)} size="small"><InfoIcon /></IconButton>
-        </TableCell>
-      </TableRow>
-
-      <TableRow>
-  <TableCell colSpan={9} sx={{ p: 0, border: 0 }}>
-          <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
-              <Typography variant="subtitle2" gutterBottom>Piutang Details</Typography>
-              {detailsLoading[id] ? (
-                <Typography>Loading details...</Typography>
-              ) : detailsMap[id] ? (
-                <Box>
-                  <Typography><strong>Customer ID:</strong> {detailsMap[id].id_customer || '-'}</Typography>
-                  <Typography><strong>Description:</strong> {detailsMap[id].keterangan || '-'}</Typography>
-                  <Typography><strong>Due Date:</strong> {detailsMap[id].tanggal_jatuh_tempo ? new Date(detailsMap[id].tanggal_jatuh_tempo).toLocaleDateString() : '-'}</Typography>
-                  <Typography><strong>Created:</strong> {detailsMap[id].created_at ? new Date(detailsMap[id].created_at).toLocaleString() : '-'}</Typography>
-                </Box>
-              ) : (
-                <Typography>No additional details available</Typography>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
-});
+import ExampleTableComponent from '../components/ExampleTableComponent'
+import TableSettingsButton from '../components/TableSettingsButton'
+import { useTableColumns, useTableFilters, useTableSorting } from '../hooks/useTableSettings'
 
 function Piutangs() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -112,12 +32,16 @@ function Piutangs() {
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
-  const [expanded, setExpanded] = useState(null);
   const [detailsMap, setDetailsMap] = useState({});
   const [detailsLoading, setDetailsLoading] = useState({});
+  const [expanded, setExpanded] = useState(null);
   const [errors, setErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const { showNotification } = useNotificationStore();
+  const tableId = 'piutangs'
+  const { visibleColumns } = useTableColumns(tableId)
+  const { filters, setFilters } = useTableFilters(tableId, { status: '', customer: '' })
+  const { sortConfig, handleSort } = useTableSorting(tableId)
 
   const updateParam = (key, value) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -135,7 +59,29 @@ function Piutangs() {
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         const arr = Array.isArray(items) ? items : [];
-        setData(arr);
+        // normalize to generic table row shape
+        const normalized = arr.map((it, i) => ({
+          // primary id expected by table
+          id: it.id_piutang || it.id || i + 1,
+          id_piutang: it.id_piutang,
+          // order relation
+          id_order: it.id_order || it.orderId || it.order_id || null,
+          // transaction / invoice numbers
+          no_transaksi: it.no_transaksi || it.no_tx || it.transaksi || it.no || '',
+          // customer info (prefer embedded Customer object)
+          customerName: it.Customer?.nama || it.pelanggan_nama || it.customer_name || '',
+          customerId: it.Customer?.id_customer || it.id_customer || it.id_customer || null,
+          customerPhone: it.Customer?.no_hp || it.no_hp || it.customer_phone || it.pelanggan_nohp || '',
+          // monetary and date fields
+          amount: it.jumlah_piutang != null ? it.jumlah_piutang : (it.amount != null ? it.amount : 0),
+          jumlah_piutang: it.jumlah_piutang,
+          paid: it.paid || it.sudah_dibayar || it.paid_amount || 0,
+          dueDate: it.tanggal_piutang || it.tanggal || it.date || null,
+          tanggal_piutang: it.tanggal_piutang,
+          status: it.status || 'belum_lunas',
+          keterangan: it.keterangan || it.description || it.notes || null
+        }))
+        setData(normalized);
         setError(null);
         return arr;
       })
@@ -152,9 +98,7 @@ function Piutangs() {
       });
   }, []);
 
-  useEffect(() => {
-    reloadPiutangs();
-  }, [reloadPiutangs]);
+  useEffect(() => { reloadPiutangs() }, [reloadPiutangs])
 
   // Listen for refresh events
   useEffect(() => {
@@ -302,77 +246,22 @@ function Piutangs() {
             hideFilters
           />
         </Box>
-        
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            startIcon={<RefreshIcon />} 
-            variant="outlined" 
-            size="small" 
-            onClick={() => window.dispatchEvent(new CustomEvent('app:refresh:piutangs'))}
-          >
-            Refresh
-          </Button>
-          <Button 
-            startIcon={<AddIcon />} 
-            variant="contained" 
-            size="small" 
-            onClick={() => handleOpen()}
-          >
-            Add Piutang
-          </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <TableSettingsButton tableId={tableId} variant="button" showLabel={true} />
+          <Button startIcon={<RefreshIcon />} variant="outlined" size="small" onClick={() => window.dispatchEvent(new CustomEvent('app:refresh:piutangs'))}>Refresh</Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpen()}>Add Piutang</Button>
         </Box>
       </Box>
+      {/* Use shared ExampleTableComponent for consistent layout and settings */}
+      <ExampleTableComponent
+        tableId={tableId}
+        data={filteredData}
+        loading={_loading}
+        onEdit={(row) => handleOpen(row)}
+        onDelete={(row) => handleDelete(row.id || row.id_piutang)}
+      />
 
-      {/* Piutangs Table */}
-      <Box 
-        sx={{ 
-          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
-          overflow: 'auto',
-          overflowX: 'auto'
-        }}
-      >
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>No Transaksi</TableCell>
-              <TableCell>No HP</TableCell>
-              <TableCell>Customer</TableCell>
-              <TableCell>Jumlah Piutang</TableCell>
-              <TableCell>Sudah Dibayar</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6}>
-                  <Typography>
-                    {data.length === 0 ? 'No piutangs found' : 'No piutangs match current filters'}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredData.map((row) => (
-                <PiutangRow
-                  key={row.id_piutang || row.id}
-                  row={row}
-                  expanded={expanded}
-                  detailsLoading={detailsLoading}
-                  detailsMap={detailsMap}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Box>
-
-      {/* Add/Edit Piutang Dialog */}
+  {/* Add/Edit Piutang Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{form.id_piutang || form.id ? 'Edit Piutang' : 'Add Piutang'}</DialogTitle>
         <DialogContent>
