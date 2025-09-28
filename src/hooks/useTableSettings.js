@@ -68,14 +68,16 @@ export const TABLE_COLUMN_CONFIGS = {
     // Ordered as requested by user
     { key: 'id', label: 'ID Piutang', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'orderId', label: 'ID Orders', sortable: true, defaultVisible: true, align: 'left' },
-    { key: 'no_transaksi', label: 'No Transaksi', sortable: true, defaultVisible: true, align: 'left' },
-    { key: 'orderNo', label: 'Order No', sortable: true, defaultVisible: true, align: 'left' },
+  { key: 'no_transaksi', label: 'No Transaksi', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'orderTotal', label: 'Order Total', sortable: true, defaultVisible: true, align: 'right' },
     { key: 'customerId', label: 'ID Customer', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'customerName', label: 'Nama Customer', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'customerPhone', label: 'No HP', sortable: false, defaultVisible: true, align: 'left' },
     // keep other useful columns hidden by default after the requested columns
     { key: 'amount', label: 'Jumlah Piutang', sortable: true, defaultVisible: true, align: 'right' },
+  { key: 'paid', label: 'Dibayar', sortable: true, defaultVisible: true, align: 'right' },
+  { key: 'sisa', label: 'Sisa Bayar', sortable: true, defaultVisible: true, align: 'right' },
+  { key: 'totalPiutangOrder', label: 'Total Piutang Order', sortable: true, defaultVisible: true, align: 'right' },
     { key: 'dueDate', label: 'Tanggal Piutang', sortable: true, defaultVisible: true, align: 'left' },
     { key: 'status', label: 'Status', sortable: true, defaultVisible: false, align: 'left' },
     { key: 'keterangan', label: 'Keterangan', sortable: false, defaultVisible: false, align: 'left' },

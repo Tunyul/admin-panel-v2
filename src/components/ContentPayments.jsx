@@ -683,7 +683,20 @@ export default function ContentPayments() {
       )}
 
       <TableContainer className="table-responsive" sx={{ maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)', overflow: 'auto' }}>
-        <Table stickyHeader size="small">
+        <Table
+          stickyHeader
+          size="small"
+          sx={{
+            minWidth: 'max-content',
+            tableLayout: 'auto',
+            '& .MuiTableCell-stickyHeader': {
+              position: 'sticky',
+              top: 0,
+              zIndex: 3,
+              backgroundColor: 'background.paper',
+            }
+          }}
+        >
           <TableHead>
             <TableRow>
               {visibleColumns.map((col) => {

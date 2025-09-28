@@ -25,7 +25,7 @@ export default function ContentProducts() {
     return obj
   }, [searchParams])
 
-  const reloadProducts = useCallback((extra = {}) => {
+  const reloadProducts = useCallback((extra = {}, isManual = false) => {
     setLoading(true)
     try {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -37,7 +37,10 @@ export default function ContentProducts() {
         const payload = res && res.data ? res.data : res
         const items = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
         setData(items)
-        showNotification && showNotification(`Loaded ${items.length} products`, 'success')
+        // Only show notification when user explicitly requested a refresh
+        if (isManual) {
+          showNotification && showNotification(`Loaded ${items.length} products`, 'success')
+        }
         return items
       })
       .catch(() => {
@@ -81,7 +84,7 @@ export default function ContentProducts() {
 
   // Listen for explicit refresh events
   useEffect(() => {
-    const h = () => reloadProducts()
+    const h = () => reloadProducts({}, true)
     window.addEventListener('app:refresh:products', h)
     return () => window.removeEventListener('app:refresh:products', h)
   }, [reloadProducts])

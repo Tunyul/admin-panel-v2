@@ -10,6 +10,12 @@ import {
   Typography,
   Chip,
   MenuItem,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Link
+  ,Table as MuiTable, TableHead, TableRow as MuiTableRow, TableCell as MuiTableCell, TableBody
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -24,6 +30,7 @@ import TableToolbar from '../components/TableToolbar';
 import ExampleTableComponent from '../components/ExampleTableComponent'
 import TableSettingsButton from '../components/TableSettingsButton'
 import { useTableColumns, useTableFilters, useTableSorting } from '../hooks/useTableSettings'
+import { currency } from '../utils/format'
 
 function Piutangs() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -32,6 +39,7 @@ function Piutangs() {
   const [_error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [expandedId, setExpandedId] = useState(null);
   // details/loading/expanded state removed - details are loaded on-demand by dialog/modal
   const [errors, setErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
@@ -75,19 +83,48 @@ function Piutangs() {
           customerName: it.Customer?.nama || it.pelanggan_nama || it.customer_name || '',
           customerId: it.Customer?.id_customer || it.id_customer || null,
           customerPhone: it.Customer?.no_hp || it.no_hp || it.customer_phone || it.pelanggan_nohp || '',
-          // monetary and date fields (normalize numeric strings to numbers)
-          amount: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : (it.amount != null ? Number(it.amount) : 0),
-          jumlah_piutang: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : null,
-          paid: it.paid != null ? Number(it.paid) : (it.sudah_dibayar != null ? Number(it.sudah_dibayar) : (it.paid_amount != null ? Number(it.paid_amount) : 0)),
-          dueDate: it.tanggal_piutang || it.tanggal || it.date || null,
-          tanggal_piutang: it.tanggal_piutang || null,
-          status: it.status || 'belum_lunas',
-          keterangan: it.keterangan || it.description || it.notes || null,
-          // Expose related Order fields for convenience in the UI
-          Order: it.Order || null,
-          Customer: it.Customer || null
+            // monetary and date fields (normalize numeric strings to numbers)
+            amount: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : (it.amount != null ? Number(it.amount) : 0),
+            jumlah_piutang: it.jumlah_piutang != null ? Number(it.jumlah_piutang) : null,
+            paid: it.paid != null ? Number(it.paid) : (it.sudah_dibayar != null ? Number(it.sudah_dibayar) : (it.paid_amount != null ? Number(it.paid_amount) : 0)),
+            dueDate: it.tanggal_piutang || it.tanggal || it.date || null,
+            tanggal_piutang: it.tanggal_piutang || null,
+            status: it.status || 'belum_lunas',
+            keterangan: it.keterangan || it.description || it.notes || null,
+            // preserve payments history fields returned by API (if present)
+            verified_payments: it.verified_payments || it.verifiedPayments || [],
+            verified_payments_count: it.verified_payments_count != null ? Number(it.verified_payments_count) : (Array.isArray(it.verified_payments) ? it.verified_payments.length : 0),
+            verified_paid: it.verified_paid != null ? Number(it.verified_paid) : (it.verified_paid_amount != null ? Number(it.verified_paid_amount) : null),
+            dp_bayar: it.dp_bayar != null ? Number(it.dp_bayar) : (it.Order?.dp_bayar != null ? Number(it.Order.dp_bayar) : null),
+            // Expose related Order and Customer fields for convenience in the UI
+            Order: it.Order || null,
+            Customer: it.Customer || null
         }))
-        setData(normalized);
+        // Compute total piutangs per orderId so we can show order-level total
+        const totalsByOrder = normalized.reduce((acc, r) => {
+          const oid = r.orderId || r.id_order || null
+          if (!oid) return acc
+          acc[oid] = (acc[oid] || 0) + (Number(r.amount) || 0)
+          return acc
+        }, {})
+
+        const enriched = normalized.map((r) => {
+          // Prefer authoritative order-level total when available (from embedded Order object)
+          const orderTotalValue = (r.orderTotal != null && !Number.isNaN(Number(r.orderTotal))) ? Number(r.orderTotal) : (r.orderId ? (totalsByOrder[r.orderId] || 0) : 0)
+          // If Order provides dp_bayar, prefer that as the shown/authoritative 'paid' value
+          const orderDp = r.Order && r.Order.dp_bayar != null ? Number(r.Order.dp_bayar) : null
+          const paidFromRow = Number(r.paid) || 0
+          const paidUsed = orderDp != null ? orderDp : paidFromRow
+          const sisaVal = orderTotalValue > 0 ? orderTotalValue - paidUsed : (Number(r.amount) || 0) - paidUsed
+          return {
+            ...r,
+            paid: paidUsed,
+            sisa: sisaVal,
+            totalPiutangOrder: orderTotalValue
+          }
+        })
+
+        setData(enriched);
         setError(null);
         return arr;
       })
@@ -146,10 +183,18 @@ function Piutangs() {
   });
 
   const handleOpen = useCallback((item = {}) => {
+    // legacy: keep modal open handler
     setForm(item);
     setErrors({});
     setOpen(true);
   }, []);
+
+  const handleToggleExpand = useCallback((item = {}) => {
+    const id = item.id || item.id_piutang
+    setExpandedId((prev) => (prev === id ? null : id))
+    // also set current form so details can be shown in expanded area
+    setForm(item)
+  }, [])
 
   const handleClose = useCallback(() => setOpen(false), []);
   const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
@@ -237,6 +282,36 @@ function Piutangs() {
         loading={_loading}
         onEdit={(row) => handleOpen(row)}
         onDelete={(row) => handleDelete(row.id || row.id_piutang)}
+        onRowClick={(row) => handleToggleExpand(row)}
+        expandedRowId={expandedId}
+        renderExpandedRow={(row) => (
+          <Box sx={{ p: 1 }}>
+            {row && Array.isArray(row.verified_payments) && row.verified_payments.length > 0 ? (
+              <MuiTable size="small">
+                <TableHead>
+                  <MuiTableRow>
+                    <MuiTableCell>No Transaksi</MuiTableCell>
+                    <MuiTableCell align="right">Uang</MuiTableCell>
+                    <MuiTableCell>Bukti</MuiTableCell>
+                    <MuiTableCell>Waktu</MuiTableCell>
+                  </MuiTableRow>
+                </TableHead>
+                <TableBody>
+                  {row.verified_payments.map((p) => (
+                    <MuiTableRow key={p.id_payment || p.id || `${p.no_transaksi}-${p.tanggal}`}>
+                      <MuiTableCell>{p.no_transaksi || p.reference || '-'}</MuiTableCell>
+                      <MuiTableCell align="right">{p.nominal ? currency(Number(p.nominal)) : (p.nominal_raw ? currency(Number(p.nominal_raw)) : '-')}</MuiTableCell>
+                      <MuiTableCell>{p.bukti ? <Link href={p.bukti} target="_blank" rel="noreferrer">Lihat</Link> : '-'}</MuiTableCell>
+                      <MuiTableCell>{p.tanggal ? new Date(p.tanggal).toLocaleString() : (p.tanggal_pay || '-')}</MuiTableCell>
+                    </MuiTableRow>
+                  ))}
+                </TableBody>
+              </MuiTable>
+            ) : (
+              <Typography>Belum ada pembayaran terverifikasi untuk piutang ini.</Typography>
+            )}
+          </Box>
+        )}
       />
 
   {/* Add/Edit Piutang Dialog */}
@@ -296,6 +371,46 @@ function Piutangs() {
               fullWidth
             />
           </Box>
+          {/* Payments history (read-only) */}
+          {form && Array.isArray(form.verified_payments) && form.verified_payments.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1">Payments History ({form.verified_payments_count || form.verified_payments.length})</Typography>
+              <List dense>
+                {form.verified_payments.map((p) => (
+                  <React.Fragment key={p.id_payment || p.id || `${p.no_transaksi}-${p.tanggal}`}>
+                    <ListItem alignItems="flex-start">
+                      <ListItemText
+                        primary={
+                          <>
+                            <strong>{p.tipe ? `${p.tipe} · ` : ''}</strong>
+                            {p.nominal ? currency(Number(p.nominal)) : (p.nominal_raw ? currency(Number(p.nominal_raw)) : '-')}
+                            {' — '}
+                            <em>{p.tanggal ? new Date(p.tanggal).toLocaleString() : (p.tanggal_pay || '-')}</em>
+                          </>
+                        }
+                        secondary={
+                          <>
+                            <div>No Transaksi: {p.no_transaksi || p.reference || '-'}</div>
+                            <div>No HP: {p.no_hp || '-'}</div>
+                            {p.bukti && (
+                              <div>
+                                Bukti: <Link href={p.bukti} target="_blank" rel="noreferrer">Lihat</Link>
+                              </div>
+                            )}
+                          </>
+                        }
+                      />
+                    </ListItem>
+                    <Divider component="li" />
+                  </React.Fragment>
+                ))}
+              </List>
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2">Total Verified Paid: {form.verified_paid != null ? currency(Number(form.verified_paid)) : (form.paid != null ? currency(Number(form.paid)) : '-')}</Typography>
+                <Typography variant="body2">DP (Order): {form.dp_bayar != null ? currency(Number(form.dp_bayar)) : (form.Order?.dp_bayar != null ? currency(Number(form.Order.dp_bayar)) : '-')}</Typography>
+              </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>

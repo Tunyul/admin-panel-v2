@@ -172,8 +172,13 @@ svg{color:var(--icon);fill:currentColor}.MuiSvgIcon-root{color:var(--icon) !impo
 
 /* Tables */
 th,td{word-break:break-word;white-space:normal;vertical-align:middle}
-table tbody tr td,table thead tr th,.MuiTableCell-root{padding-bottom:.6rem}
-.table-compact tbody tr td,.table-compact thead tr th,.table-compact .MuiTableCell-root{padding-bottom:.25rem}
+/* Use consistent padding for table cells (matches MUI size="small") */
+table tbody tr td, table thead tr th, .MuiTableCell-root {
+	padding: 0.375rem 0.75rem; /* ~6px top/bottom, 12px left/right */
+}
+.table-compact tbody tr td, .table-compact thead tr th, .table-compact .MuiTableCell-root {
+	padding: 0.25rem 0.5rem; /* tighter compact tables */
+}
 .card .table-responsive,.paper .table-responsive{box-shadow:0 6px 14px -10px rgba(2,6,23,0.12)}
 
 /* Scrollbar styling */

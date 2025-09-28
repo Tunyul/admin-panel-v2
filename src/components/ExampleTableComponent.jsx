@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { currency } from '../utils/format'
 import {
   Box,
   TableContainer,
@@ -29,7 +30,11 @@ function ExampleTableComponent({
   data = [],
   loading = false,
   onEdit,
-  onDelete 
+  onDelete,
+  onRowClick
+  ,
+  expandedRowId,
+  renderExpandedRow
 }) {
   // Gunakan hooks untuk pengaturan global
   const { visibleColumns } = useTableColumns(tableId)
@@ -50,7 +55,7 @@ function ExampleTableComponent({
   const rowHeight = 56
 
   // Lightweight cell content renderer for virtual rows (avoid TableCell wrappers)
-  const renderVirtualCellContent = (columnKey, row) => {
+  const renderVirtualCellContent = React.useCallback((columnKey, row) => {
     if (tableId === 'products') {
       switch (columnKey) {
         case 'id': return row.id || row.id_produk
@@ -71,6 +76,9 @@ function ExampleTableComponent({
       case 'customerId': return row.customerId || row.Customer?.id_customer || row.id_customer || '-'
       case 'customerName': return row.customerName || row.pelanggan_nama || row.Customer?.nama || '-'
       case 'amount': return (row.amount != null ? `Rp ${Number(row.amount).toLocaleString('id-ID')}` : (row.jumlah_piutang != null ? `Rp ${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'))
+      case 'paid': return row.paid != null ? `Rp ${Number(row.paid).toLocaleString('id-ID')}` : '-'
+      case 'sisa': return row.sisa != null ? `Rp ${Number(row.sisa).toLocaleString('id-ID')}` : '-'
+      case 'totalPiutangOrder': return row.totalPiutangOrder != null ? `Rp ${Number(row.totalPiutangOrder).toLocaleString('id-ID')}` : '-'
       case 'orderNo': return row.orderNo || row.Order?.no_transaksi || '-'
       case 'orderTotal': return row.orderTotal != null ? `Rp ${Number(row.orderTotal).toLocaleString('id-ID')}` : (row.Order?.total_bayar != null ? `Rp ${Number(row.Order.total_bayar).toLocaleString('id-ID')}` : '-')
       case 'dueDate': return row.dueDate || row.tanggal_piutang || row.date || '-'
@@ -83,21 +91,21 @@ function ExampleTableComponent({
       case 'ordersCount': return typeof row.ordersCount === 'number' ? row.ordersCount : (Array.isArray(row.Orders) ? row.Orders.length : '-')
       case 'batas_piutang': return row.batas_piutang || row.batasPiutang || row.batas || '-'
       case 'catatan': return row.catatan || row.notes || '-'
-      case 'status': return row.status || '-' 
+      case 'status': return row.status || '-'
       case 'createdAt': return row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-'
       case 'actions': return null // actions will be rendered separately in virtual row
       default: return row[columnKey] ?? '-'
     }
-  }
+  }, [tableId])
 
   const VirtualRow = React.useCallback(({ index, style, data }) => {
     const row = data && data[index]
     const key = row?.id ?? index
     return (
-      <div key={key} style={{ ...style, display: 'flex', width: '100%', boxSizing: 'border-box', alignItems: 'center' }}>
+      <div key={key} onClick={() => onRowClick && onRowClick(row)} style={{ ...style, display: 'flex', width: '100%', boxSizing: 'border-box', alignItems: 'center', cursor: 'pointer' }}>
         {/* Checkbox column */}
         <div style={{ flex: '0 0 48px', padding: '12px' }}>
-          <Checkbox size="small" />
+          <Checkbox size="small" onClick={(e) => e.stopPropagation()} />
         </div>
         {visibleColumns.map((column) => (
           <div key={`${key}-${column.key}`} style={{ flex: column.width ? `0 0 ${column.width}` : 1, padding: '12px 16px', display: 'flex', alignItems: 'center' }}>
@@ -119,7 +127,7 @@ function ExampleTableComponent({
         <div style={{ flex: '0 0 72px', padding: '12px' }} />
       </div>
     )
-  }, [visibleColumns, onEdit, onDelete])
+  }, [visibleColumns, onEdit, onDelete, onRowClick, renderVirtualCellContent])
 
   // State lokal untuk interaksi
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -249,9 +257,26 @@ function ExampleTableComponent({
       case 'customerName':
         return <TableCell key={columnKey} align={align}>{row.customerName || row.pelanggan_nama || row.Customer?.nama || '-'}</TableCell>
 
-      case 'amount':
-        // piutangs use jumlah_piutang as string sometimes
-        return <TableCell key={columnKey} align={align}>{row.amount ?? row.jumlah_piutang ?? '-'}</TableCell>
+      case 'amount': {
+        // piutangs use jumlah_piutang as string sometimes — format as Rupiah
+        const amtVal = row.amount ?? row.jumlah_piutang ?? null
+        return <TableCell key={columnKey} align={align}>{amtVal != null ? currency(amtVal) : '-'}</TableCell>
+      }
+
+      case 'paid': {
+        const paidVal = row.paid ?? null
+        return <TableCell key={columnKey} align={align}>{paidVal != null ? currency(paidVal) : '-'}</TableCell>
+      }
+
+      case 'sisa': {
+        const sisaVal = row.sisa ?? ((row.amount != null ? Number(row.amount) : 0) - (row.paid != null ? Number(row.paid) : 0))
+        return <TableCell key={columnKey} align={align}>{sisaVal != null ? currency(sisaVal) : '-'}</TableCell>
+      }
+
+      case 'totalPiutangOrder': {
+        const totalVal = row.totalPiutangOrder ?? row.orderTotal ?? null
+        return <TableCell key={columnKey} align={align}>{totalVal != null ? currency(totalVal) : '-'}</TableCell>
+      }
 
       case 'dueDate':
         return <TableCell key={columnKey} align={align}>{row.dueDate || row.tanggal_piutang || row.date ? (row.dueDate || row.tanggal_piutang || row.date) : '-'}</TableCell>
@@ -400,8 +425,21 @@ function ExampleTableComponent({
   }
 
   return (
-    <TableContainer component={Paper} sx={{ maxHeight: '70vh' }}>
-      <Table stickyHeader size="small">
+    <TableContainer component={Paper} className="table-responsive" sx={{ maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)', overflow: 'auto' }}>
+      <Table
+        stickyHeader
+        size="small"
+        sx={{
+          minWidth: 'max-content',
+          tableLayout: 'auto',
+          '& .MuiTableCell-stickyHeader': {
+            position: 'sticky',
+            top: 0,
+            zIndex: 3,
+            backgroundColor: 'background.paper',
+          }
+        }}
+      >
         <TableHead>
           <TableRow>
             {/* Checkbox column */}
@@ -481,18 +519,21 @@ function ExampleTableComponent({
         ) : (
           <TableBody>
             {processedData.map((row) => (
+              <React.Fragment key={row.id}>
               <TableRow 
-                key={row.id} 
+                key={`r-${row.id}`} 
                 hover 
                 selected={selectedIds.has(row.id)}
-                sx={{ cursor: 'pointer' }}
+                onClick={() => onRowClick && onRowClick(row)}
+                sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
               >
                 {/* Checkbox */}
                 <TableCell padding="checkbox">
                   <Checkbox 
                     size="small" 
                     checked={selectedIds.has(row.id)} 
-                    onChange={() => handleSelectRow(row.id)} 
+                    onChange={(e) => { e.stopPropagation(); handleSelectRow(row.id) }} 
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </TableCell>
 
@@ -504,6 +545,14 @@ function ExampleTableComponent({
                 {/* Empty cell for settings button alignment */}
                 <TableCell />
               </TableRow>
+              {expandedRowId === row.id && (
+                <TableRow>
+                  <TableCell colSpan={visibleColumns.length + 2} sx={{ backgroundColor: 'background.paper' }}>
+                    {renderExpandedRow ? renderExpandedRow(row) : null}
+                  </TableCell>
+                </TableRow>
+              )}
+              </React.Fragment>
             ))}
           </TableBody>
         )}
