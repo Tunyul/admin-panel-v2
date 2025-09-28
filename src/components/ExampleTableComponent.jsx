@@ -15,9 +15,11 @@ import {
   Tooltip,
   Paper
 } from '@mui/material'
+import { List } from 'react-window'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import CloseIcon from '@mui/icons-material/Close'
 import { useTableColumns, useTableFilters, useTableSorting } from '../hooks/useTableSettings'
 import TableSettingsButton from './TableSettingsButton'
 
@@ -43,6 +45,81 @@ function ExampleTableComponent({
     sortConfig, 
     handleSort 
   } = useTableSorting(tableId)
+
+  const VIRTUALIZE_THRESHOLD = 300
+  const rowHeight = 56
+
+  // Lightweight cell content renderer for virtual rows (avoid TableCell wrappers)
+  const renderVirtualCellContent = (columnKey, row) => {
+    if (tableId === 'products') {
+      switch (columnKey) {
+        case 'id': return row.id || row.id_produk
+        case 'name': return row.name || row.nama_produk
+        case 'category': return row.category || row.kategori
+        case 'price': return row.price != null ? row.price : row.harga_per_pcs || row.harga_per_m2 || '-'
+        case 'stock': return row.stock != null ? row.stock : row.stok
+        case 'unit': return row.unit || row.ukuran_standar || row.satuan
+        case 'description': return row.description || [row.bahan, row.finishing].filter(Boolean).join(' - ')
+        default: return row[columnKey] ?? '-'
+      }
+    }
+
+    switch (columnKey) {
+      case 'customerPhone': return row.customerPhone || row.no_hp || row.Customer?.no_hp || '-'
+      case 'orderId': return row.id_order || row.orderId || row.order_id || '-'
+      case 'no_transaksi': return row.no_transaksi || row.no_tx || row.transaksi || row.no || '-'
+      case 'customerId': return row.customerId || row.Customer?.id_customer || row.id_customer || '-'
+      case 'customerName': return row.customerName || row.pelanggan_nama || row.Customer?.nama || '-'
+      case 'amount': return (row.amount != null ? `Rp ${Number(row.amount).toLocaleString('id-ID')}` : (row.jumlah_piutang != null ? `Rp ${Number(row.jumlah_piutang).toLocaleString('id-ID')}` : '-'))
+      case 'orderNo': return row.orderNo || row.Order?.no_transaksi || '-'
+      case 'orderTotal': return row.orderTotal != null ? `Rp ${Number(row.orderTotal).toLocaleString('id-ID')}` : (row.Order?.total_bayar != null ? `Rp ${Number(row.Order.total_bayar).toLocaleString('id-ID')}` : '-')
+      case 'dueDate': return row.dueDate || row.tanggal_piutang || row.date || '-'
+      case 'keterangan': return row.keterangan || row.description || row.notes || '-'
+      case 'id': return row.id
+      case 'name': return row.name
+      case 'email': return row.email
+      case 'phone': return row.phone
+      case 'type': return row.type || row.tipe_customer || '-'
+      case 'ordersCount': return typeof row.ordersCount === 'number' ? row.ordersCount : (Array.isArray(row.Orders) ? row.Orders.length : '-')
+      case 'batas_piutang': return row.batas_piutang || row.batasPiutang || row.batas || '-'
+      case 'catatan': return row.catatan || row.notes || '-'
+      case 'status': return row.status || '-' 
+      case 'createdAt': return row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-'
+      case 'actions': return null // actions will be rendered separately in virtual row
+      default: return row[columnKey] ?? '-'
+    }
+  }
+
+  const VirtualRow = React.useCallback(({ index, style, data }) => {
+    const row = data && data[index]
+    const key = row?.id ?? index
+    return (
+      <div key={key} style={{ ...style, display: 'flex', width: '100%', boxSizing: 'border-box', alignItems: 'center' }}>
+        {/* Checkbox column */}
+        <div style={{ flex: '0 0 48px', padding: '12px' }}>
+          <Checkbox size="small" />
+        </div>
+        {visibleColumns.map((column) => (
+          <div key={`${key}-${column.key}`} style={{ flex: column.width ? `0 0 ${column.width}` : 1, padding: '12px 16px', display: 'flex', alignItems: 'center' }}>
+            {column.key === 'actions' ? (
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                {onEdit && (
+                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(row) }}><EditIcon /></IconButton>
+                )}
+                {onDelete && (
+                  <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); onDelete(row) }}><DeleteIcon /></IconButton>
+                )}
+              </Box>
+            ) : (
+              renderVirtualCellContent(column.key, row)
+            )}
+          </div>
+        ))}
+        {/* Settings button placeholder column width */}
+        <div style={{ flex: '0 0 72px', padding: '12px' }} />
+      </div>
+    )
+  }, [visibleColumns, onEdit, onDelete])
 
   // State lokal untuk interaksi
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -323,128 +400,115 @@ function ExampleTableComponent({
   }
 
   return (
-    <Paper>
-      <TableContainer
-        className="table-responsive"
-        sx={{
-          /* Responsive max height: prefer available viewport space but clamp between 40vh and 75vh */
-          maxHeight: 'clamp(40vh, calc(100vh - var(--header-height) - 160px), 75vh)',
-          overflow: 'auto',
-          overflowX: 'auto',
-          background: 'transparent'
-        }}
-      >
-        <Table
-          stickyHeader
-          size="small"
-          sx={{
-            minWidth: 'max-content',
-            tableLayout: 'auto',
-            // defensive: ensure sticky header styles are applied even if global CSS overrides exist
-            '& .MuiTableCell-stickyHeader': {
-              position: 'sticky',
-              top: 0,
-              zIndex: 3,
-              backgroundColor: 'background.paper',
-            }
-          }}
-        >
-          <TableHead>
+    <TableContainer component={Paper} sx={{ maxHeight: '70vh' }}>
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            {/* Checkbox column */}
+            <TableCell padding="checkbox">
+              <Checkbox
+                size="small"
+                checked={allSelected}
+                indeterminate={someSelected}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+              />
+            </TableCell>
+
+            {/* Dynamic columns based on visibility settings */}
+            {visibleColumns.map((column) => {
+              if (column.sortable) {
+                return (
+                  <SortableTableCell 
+                    key={column.key} 
+                    sortKey={column.key} 
+                    align={column.align}
+                  >
+                    {column.label}
+                  </SortableTableCell>
+                )
+              } else {
+                return (
+                  <TableCell key={column.key} align={column.align}>
+                    {column.label}
+                  </TableCell>
+                )
+              }
+            })}
+
+            {/* Settings button in header */}
+            <TableCell>
+              <TableSettingsButton 
+                tableId={tableId} 
+                variant="icon" 
+                showLabel={false}
+              />
+            </TableCell>
+          </TableRow>
+        </TableHead>
+
+        {/* Body: empty state, virtualized list, or normal rendering */}
+        {processedData.length === 0 ? (
+          <TableBody>
             <TableRow>
-              {/* Checkbox column */}
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                />
-              </TableCell>
-
-              {/* Dynamic columns based on visibility settings */}
-              {visibleColumns.map((column) => {
-                if (column.sortable) {
-                  return (
-                    <SortableTableCell 
-                      key={column.key} 
-                      sortKey={column.key} 
-                      align={column.align}
-                    >
-                      {column.label}
-                    </SortableTableCell>
-                  )
-                } else {
-                  return (
-                    <TableCell key={column.key} align={column.align}>
-                      {column.label}
-                    </TableCell>
-                  )
-                }
-              })}
-
-              {/* Settings button in header */}
-              <TableCell>
-                <TableSettingsButton 
-                  tableId={tableId} 
-                  variant="icon" 
-                  showLabel={false}
-                />
+              <TableCell 
+                colSpan={visibleColumns.length + 2} 
+                sx={{ textAlign: 'center', p: 3 }}
+              >
+                <Typography color="textSecondary">
+                  Tidak ada data
+                </Typography>
               </TableCell>
             </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {processedData.length === 0 ? (
-              <TableRow>
-                <TableCell 
-                  colSpan={visibleColumns.length + 2} 
-                  sx={{ textAlign: 'center', p: 3 }}
-                >
-                  <Typography color="textSecondary">
-                    Tidak ada data
-                  </Typography>
-                </TableCell>
-              </TableRow>
-          ) : (
-                processedData.map((row) => (
-                <TableRow 
-                  key={row.id} 
-                  hover 
-                  selected={selectedIds.has(row.id)}
-                  sx={{ cursor: 'pointer' }}
-                >
-                  {/* Checkbox */}
-                  <TableCell padding="checkbox">
-                    <Checkbox 
-                      size="small" 
-                      checked={selectedIds.has(row.id)} 
-                      onChange={() => handleSelectRow(row.id)} 
-                    />
-                  </TableCell>
-
-                  {/* Dynamic columns */}
-                  {visibleColumns.map((column) => 
-                    renderTableCell(column.key, row, column.align)
-                  )}
-
-                  {/* Empty cell for settings button alignment */}
-                  <TableCell />
-                </TableRow>
-              ))
-            )}
           </TableBody>
-        </Table>
-      </TableContainer>
+        ) : processedData.length >= VIRTUALIZE_THRESHOLD ? (
+          <TableBody>
+            <tr>
+              <td colSpan={visibleColumns.length + 2} style={{ padding: 0 }}>
+                <div style={{ width: '100%', height: Math.min(600, processedData.length * rowHeight) }}>
+                  <List
+                    height={Math.min(600, processedData.length * rowHeight)}
+                    itemCount={processedData.length}
+                    itemSize={rowHeight}
+                    width={'100%'}
+                    itemData={processedData}
+                  >
+                    {VirtualRow}
+                  </List>
+                </div>
+              </td>
+            </tr>
+          </TableBody>
+        ) : (
+          <TableBody>
+            {processedData.map((row) => (
+              <TableRow 
+                key={row.id} 
+                hover 
+                selected={selectedIds.has(row.id)}
+                sx={{ cursor: 'pointer' }}
+              >
+                {/* Checkbox */}
+                <TableCell padding="checkbox">
+                  <Checkbox 
+                    size="small" 
+                    checked={selectedIds.has(row.id)} 
+                    onChange={() => handleSelectRow(row.id)} 
+                  />
+                </TableCell>
 
-      {/* Summary info */}
-      {selectedIds.size > 0 && (
-        <Box sx={{ p: 2, bgcolor: 'action.selected' }}>
-          <Typography variant="body2">
-            {selectedIds.size} dari {processedData.length} item dipilih
-          </Typography>
-        </Box>
-      )}
-    </Paper>
+                {/* Dynamic columns */}
+                {visibleColumns.map((column) => 
+                  renderTableCell(column.key, row, column.align)
+                )}
+
+                {/* Empty cell for settings button alignment */}
+                <TableCell />
+              </TableRow>
+            ))}
+          </TableBody>
+        )}
+      </Table>
+    </TableContainer>
   )
 }
 
