@@ -9,20 +9,19 @@ const scrollbarStyle = `
 
 import React, { useEffect, useState, Suspense, useRef } from 'react';
 import StatCard from '../components/StatCard';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, CircularProgress, Button, ButtonBase } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, Button, ButtonBase } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
-// Recharts and chart rendering moved to a lazy chunk to reduce initial parse cost
-const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
+// Charts disabled per request to speed up dashboard render
+// const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
 
 import { getCustomers } from '../api/customers';
 import { getProducts } from '../api/products';
 import { getPayments } from '../api/payments';
 import { getPiutangs } from '../api/piutangs';
 import { getOrders } from '../api/orders';
-import useLoadingStore from '../store/loadingStore';
 import useNotificationStore from '../store/notificationStore';
 import Tooltip from '@mui/material/Tooltip';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -50,7 +49,7 @@ function ButtonNeon({ children, startIcon, sx, variantColor = 'blue', pill = tru
       startIcon={startIcon}
       {...rest}
       sx={{
-        color: '#fff',
+  color: 'var(--text)',
         borderRadius: pill ? 999 : 1,
         px: pill ? 2 : 1.5,
         py: pill ? 0.8 : 0.6,
@@ -88,7 +87,7 @@ const DEFAULT_STATS = [
   { key: 'piutangs', title: 'Piutangs', value: '—', icon: <MonetizationOnIcon />, color: 'bg-purple-400' },
 ];
 
-const salesData = [
+const _salesData = [
   { name: 'Sen', omzet: 12000000 },
   { name: 'Sel', omzet: 15000000 },
   { name: 'Rab', omzet: 11000000 },
@@ -113,7 +112,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState({ customers: true, products: true, payments: true, piutangs: true, orders: true });
 
   // Shared card min width so Group A and Group B align consistently
-  const CARD_MIN = 220; // px
+  const CARD_MIN = 320; // px (increased to make cards more horizontal)
+
+  // Feature flags for temporary UI changes
+  const SHOW_ACTIVITY = false; // set to false to hide 'Aktivitas Terbaru'
 
   // Define two groups
   const groupAKeys = ['orders', 'products', 'customers', 'payments', 'piutangs'];
@@ -123,11 +125,11 @@ export default function Dashboard() {
   const GROUP_B_DEFAULTS = [
   { key: 'uang_masuk', title: 'Uang Masuk', value: '—', icon: <MonetizationOnIcon />, color: 'bg-yellow-400' },
   { key: 'belum_dibayar', title: 'Belum Dibayar', value: '—', icon: <PaymentsIcon />, color: 'bg-red-400' },
-  { key: 'orders_selesai', title: 'Selesai', value: '—', icon: <TrendingUpIcon />, color: 'bg-green-400' },
+  { key: 'orders_selesai', title: 'Orders Selesai', value: '—', icon: <TrendingUpIcon />, color: 'bg-green-400' },
   { key: 'orders_pending', title: 'Pending', value: '—', icon: <ShoppingCartIcon />, color: 'bg-blue-400' },
   ];
 
-  const ordersStatusData = [
+  const _ordersStatusData = [
     { name: 'Sen', selesai: 8, pending: 2, belum: 1 },
     { name: 'Sel', selesai: 12, pending: 3, belum: 0 },
     { name: 'Rab', selesai: 7, pending: 1, belum: 2 },
@@ -151,27 +153,111 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Overview stats for layout calculations
+  const overviewStats = stats.filter((s) => groupAKeys.includes(s.key));
+  const overviewCount = overviewStats.length;
+
   // Quick Actions handlers
   const refreshCounts = async () => {
-    try {
-      useLoadingStore.getState().start();
-      notify('Refreshing counts…', 'info');
-      const [cP, pP, payP, piuP, oP] = await Promise.all([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
-      const mapLen = (r) => (Array.isArray(r?.data?.data) ? r.data.data.length : (r?.data?.length || '—'));
+      try {
+        // local no-op: global loading removed
+        notify('Refreshing counts…', 'info');
+      // Use Promise.allSettled so a single failing endpoint doesn't abort all counts
+      const settled = await Promise.allSettled([getCustomers(), getProducts(), getPayments(), getPiutangs(), getOrders()]);
+      const [cRes, pRes, payRes, piuRes, oRes] = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
+      const mapLen = (r, idKey) => {
+        try {
+          const arr = Array.isArray(r?.data?.data) ? r.data.data : (Array.isArray(r?.data) ? r.data : []);
+          if (!Array.isArray(arr)) return '—';
+          if (!idKey) return arr.length;
+          const uniq = new Set(arr.map((it) => it[idKey] ?? it.id ?? JSON.stringify(it)));
+          return uniq.size;
+        } catch (err) {
+          // If parsing fails, return placeholder
+          console.error('[Dashboard.mapLen] parse error', err);
+          return '—';
+        }
+      };
+      // compute uang_masuk from verified/approved payments
+  const paymentsArr = Array.isArray(payRes?.data?.data) ? payRes.data.data : (Array.isArray(payRes?.data) ? payRes.data : []);
+      // build payments map keyed by transaction/no_transaksi to sum verified payments per order
+      const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
+        const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
+        if (!tx) return acc;
+        const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+        const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+        if (!verified) return acc;
+        acc[tx] = (acc[tx] || 0) + nominal;
+        return acc;
+      }, {});
+      const uangMasukSum = Object.values(paymentsByTx).reduce((a, b) => a + (Number(b) || 0), 0);
+
+      // compute order status counts and unpaid total
+  const ordersArr = Array.isArray(oRes?.data?.data) ? oRes.data.data : (Array.isArray(oRes?.data) ? oRes.data : []);
+      if (import.meta.env.DEV) {
+        try {
+          console.debug('[Dashboard.refreshCounts] ordersArr length:', Array.isArray(ordersArr) ? ordersArr.length : 0);
+          console.debug('[Dashboard.refreshCounts] sample orders:', (Array.isArray(ordersArr) ? ordersArr.slice(0, 6) : []).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
+        } catch { /* ignore */ }
+      }
+  let selesai = 0; let pending = 0; let _belum = 0; let unpaidTotal = 0;
+      (Array.isArray(ordersArr) ? ordersArr : []).forEach((o) => {
+        // Count orders_selesai strictly by status_order === 'selesai'
+        const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
+        if (statusOrder === 'selesai') {
+          selesai += 1;
+        }
+
+        // compute unpaid/paid and pending/belum as before but do NOT use these to mark 'selesai'
+        const total = Number(o?.total_bayar || o?.total || o?.total_tagihan || o?.jumlah || 0) || 0;
+        const tx = o?.no_transaksi || o?.no_transaksi_lama || o?.transaksi || o?.id_order || '';
+        const paid = Number(o?.paid_amount || o?.paid_verified_total || o?.total_dibayar || paymentsByTx[tx] || 0) || 0;
+        if (total > 0) {
+          const remaining = Math.max(0, total - paid);
+          unpaidTotal += remaining;
+          if (paid <= 0) _belum += 1;
+          else if (remaining > 0) pending += 1;
+          // NOTE: do not increment `selesai` here; only status_order === 'selesai' counts
+          } else {
+          const st = String(o?.status || o?.status_bot || '').toLowerCase();
+          if (st.includes('pend')) pending += 1;
+          else _belum += 1;
+        }
+      });
+
       setStats((prev) => prev.map((s) => {
-        if (s.key === 'customers') return { ...s, value: mapLen(cP) };
-        if (s.key === 'products') return { ...s, value: mapLen(pP) };
-        if (s.key === 'payments') return { ...s, value: mapLen(payP) };
-        if (s.key === 'piutangs') return { ...s, value: mapLen(piuP) };
-        if (s.key === 'orders') return { ...s, value: mapLen(oP) };
+        if (s.key === 'customers') return { ...s, value: mapLen(cRes, 'id_customer') };
+        if (s.key === 'products') return { ...s, value: mapLen(pRes, 'id_produk') };
+        if (s.key === 'payments') return { ...s, value: mapLen(payRes, 'id_payment') };
+        if (s.key === 'piutangs') return { ...s, value: mapLen(piuRes, 'id_piutang') };
+        if (s.key === 'orders') return { ...s, value: mapLen(oRes, 'id_order') };
+        if (s.key === 'uang_masuk') return { ...s, value: `Rp${Number(uangMasukSum).toLocaleString('id-ID')}` };
+        if (s.key === 'belum_dibayar') return { ...s, value: `Rp${Number(unpaidTotal).toLocaleString('id-ID')}` };
+        if (s.key === 'orders_selesai') return { ...s, value: selesai };
+        if (s.key === 'orders_pending') return { ...s, value: pending };
         return s;
       }));
-    } catch {
-      notify('Failed to refresh counts', 'error');
-    } finally {
-      useLoadingStore.getState().done();
+    } catch (err) {
+      console.error('[Dashboard.refreshCounts] unexpected error', err);
+      notify(`Failed to refresh counts: ${err?.message || 'unknown error'}`, 'error');
     }
   };
+
+  // react to socket events elsewhere in the app to keep dashboard counts in sync
+  useEffect(() => {
+    let t = null;
+    const handler = (e) => {
+      const tp = e?.detail?.type || '';
+      // only refresh for relevant events
+      if (/payment|order|invoice/i.test(tp)) {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => { refreshCounts(); t = null; }, 2000);
+      }
+    };
+    window.addEventListener('app:socket:event', handler);
+    return () => { window.removeEventListener('app:socket:event', handler); if (t) clearTimeout(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Lazy-mount wrapper for heavy charts — uses IntersectionObserver to defer rendering
   function ChartLazyMount({ children }) {
@@ -190,7 +276,7 @@ export default function Dashboard() {
     return <div ref={ref}>{inView ? children : <div style={{ height: 240 }} />}</div>;
   }
 
-  const exportStatsCsv = () => {
+  const _exportStatsCsv = () => {
     const rows = stats.map((s) => ({ key: s.key, title: s.title, value: s.value }));
     const csv = ['key,title,value', ...rows.map(r => `${r.key},"${r.title}",${r.value}`)].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -210,70 +296,146 @@ export default function Dashboard() {
 
   useEffect(() => {
   // Fetch customers count
-    useLoadingStore.getState().start();
-    getCustomers()
+  // getCustomers
+  getCustomers()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'customers' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {
-        // keep placeholder
+      .catch((err) => {
+        // If backend returns 404 (no data), treat as empty list and show 0.
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'customers' ? { ...s, value: 0 } : s)));
+        }
+        // otherwise keep placeholder and don't spam console
       })
       .finally(() => {
         setLoading((l) => ({ ...l, customers: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch products count
-    useLoadingStore.getState().start();
-    getProducts()
+  // getProducts
+  getProducts()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'products' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'products' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, products: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch payments count
-    useLoadingStore.getState().start();
-    getPayments()
+  // getPayments
+  getPayments()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
-        setStats((prev) => prev.map((s) => (s.key === 'payments' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
+        const arr = Array.isArray(items) ? items : [];
+        if (import.meta.env.DEV) {
+          try {
+            console.debug('[Dashboard.initOrders] items length:', arr.length);
+            console.debug('[Dashboard.initOrders] sample orders:', arr.slice(0, 8).map(o => ({ no_transaksi: o?.no_transaksi, status_order: o?.status_order, status_bot: o?.status_bot, status: o?.status, total: o?.total || o?.total_bayar })));
+          } catch { /* ignore */ }
+        }
+        const uangMasuk = arr.reduce((acc, p) => {
+          const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+          const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+          return acc + (verified ? nominal : 0);
+        }, 0);
+        setStats((prev) => prev.map((s) => {
+          if (s.key === 'payments') return { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') };
+          if (s.key === 'uang_masuk') return { ...s, value: `Rp${Number(uangMasuk).toLocaleString('id-ID')}` };
+          return s;
+        }));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'payments' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, payments: false }));
-        useLoadingStore.getState().done();
       });
 
   // Fetch piutangs count
-    useLoadingStore.getState().start();
-    getPiutangs()
+  // getPiutangs
+  getPiutangs()
       .then((res) => {
         const items = res?.data?.data || res?.data || [];
         setStats((prev) => prev.map((s) => (s.key === 'piutangs' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'piutangs' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, piutangs: false }));
-        useLoadingStore.getState().done();
       });
 
     // Fetch orders count
-    useLoadingStore.getState().start();
-    getOrders()
-      .then((res) => {
+  // getOrders
+  getOrders()
+      .then(async (res) => {
         const items = res?.data?.data || res?.data || [];
-        setStats((prev) => prev.map((s) => (s.key === 'orders' ? { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') } : s)));
+        const arr = Array.isArray(items) ? items : [];
+        // fetch payments so we can sum verified payments per transaction
+        let paymentsArr = [];
+        try {
+          const pRes = await getPayments();
+          paymentsArr = Array.isArray(pRes?.data?.data) ? pRes.data.data : (Array.isArray(pRes?.data) ? pRes.data : []);
+        } catch { paymentsArr = []; }
+        const paymentsByTx = (Array.isArray(paymentsArr) ? paymentsArr : []).reduce((acc, p) => {
+          const tx = p?.no_transaksi || p?.transaksi || p?.order_no || p?.order_id || p?.no_transaksi_lama || '';
+          if (!tx) return acc;
+          const nominal = Number(p?.nominal || p?.amount || p?.value || 0) || 0;
+          const verified = Boolean(p?.verified) || String(p?.status || '').toLowerCase() === 'approved' || String(p?.status || '').toLowerCase() === 'verified';
+          if (!verified) return acc;
+          acc[tx] = (acc[tx] || 0) + nominal;
+          return acc;
+        }, {});
+
+        // compute order status counts for dashboard and unpaid total
+        // Note: `orders_selesai` is counted ONLY when `status_order === 'selesai'`.
+  let selesai = 0; let pending = 0; let _belum = 0; let unpaidTotal = 0;
+        arr.forEach((o) => {
+          const statusOrder = (o?.status_order || '').toString().toLowerCase().trim();
+          if (statusOrder === 'selesai') selesai += 1;
+
+          const total = Number(o?.total_bayar || o?.total || o?.total_tagihan || o?.jumlah || 0) || 0;
+          const tx = o?.no_transaksi || o?.no_transaksi_lama || o?.transaksi || o?.id_order || '';
+          const paid = Number(o?.paid_amount || o?.paid_verified_total || o?.total_dibayar || paymentsByTx[tx] || 0) || 0;
+          if (total > 0) {
+            const remaining = Math.max(0, total - paid);
+            unpaidTotal += remaining;
+            if (paid <= 0) _belum += 1;
+            else if (remaining > 0) pending += 1;
+            // do not treat remaining <= 0 as 'selesai' anymore
+          } else {
+            const st = String(o?.status || o?.status_bot || '').toLowerCase();
+            if (st.includes('pend')) pending += 1;
+            else _belum += 1;
+          }
+        });
+        setStats((prev) => prev.map((s) => {
+          if (s.key === 'orders') return { ...s, value: Array.isArray(items) ? items.length : (items?.length || '—') };
+          if (s.key === 'orders_selesai') return { ...s, value: selesai };
+          if (s.key === 'orders_pending') return { ...s, value: pending };
+          if (s.key === 'belum_dibayar') return { ...s, value: `Rp${Number(unpaidTotal).toLocaleString('id-ID')}` };
+          return s;
+        }));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setStats((prev) => prev.map((s) => (s.key === 'orders' ? { ...s, value: 0 } : s)));
+        }
+      })
       .finally(() => {
         setLoading((l) => ({ ...l, orders: false }));
-        useLoadingStore.getState().done();
       });
   }, []);
 
@@ -293,17 +455,17 @@ export default function Dashboard() {
       <Box sx={{ width: '100%' }}>
         <style>{scrollbarStyle}</style>
         {/* Two-column layout (a1 left, a2 right) */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gridAutoRows: 'auto', rowGap: 2, columnGap: 3, alignItems: 'start' }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: SHOW_ACTIVITY ? '1fr 320px' : '1fr' }, gridAutoRows: 'auto', rowGap: 2, columnGap: SHOW_ACTIVITY ? 3 : 0, alignItems: 'start' }}>
 
           {/* a1: left column - contains a1-overview (top) and a1-finance (below) */}
           <Box sx={{ gridColumn: '1', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* a1-overview */}
             <Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${CARD_MIN}px, 1fr))`, gap: '10px', alignItems: 'start', justifyItems: 'stretch', justifyContent: 'center' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${Math.min(overviewCount, 2)}, 1fr)`, md: `repeat(${Math.min(overviewCount, 5)}, 1fr)` }, gap: 3, alignItems: 'start', justifyItems: 'stretch' }}>
                 <Typography sx={{ gridColumn: '1 / -1', color: '#ffe066', fontWeight: 700, mb: 1 }}>Overview</Typography>
-                {stats.filter(s => groupAKeys.includes(s.key)).map((stat) => (
+                {overviewStats.map((stat) => (
                   <div key={stat.key} style={{ width: '100%' }}>
-                    <StatCard title={stat.title} value={loading[stat.key] ? <CircularProgress size={20} color="inherit" /> : stat.value} icon={stat.icon} color={stat.color} />
+                    <StatCard title={stat.title} value={loading[stat.key] ? <Typography sx={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</Typography> : stat.value} icon={stat.icon} color={stat.color} />
                   </div>
                 ))}
               </Box>
@@ -325,89 +487,79 @@ export default function Dashboard() {
 
                 {/* Quick Actions — moved here under Finances & Orders */}
                 <Box sx={{ mt: 1, mb: 1 }}>
-                  <Box sx={{ p: 0, borderRadius: 3, color: '#fff', width: '100%' }}>
+                  <Box sx={{ p: 0, borderRadius: 3, color: 'var(--text)', width: '100%' }}>
                     <Typography variant="subtitle2" sx={{ color: '#ffe066', fontWeight: 700, mb: 1 }}>Quick Actions</Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-                      {[
-                        { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
-                        { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
-                        { key: 'record-payment', title: 'Record Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open record payment (not wired)', 'info'); } },
-                        { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
-                        { key: 'export', title: 'Export CSV', icon: <FileDownloadIcon />, color: 'blue', onClick: exportStatsCsv },
-                        { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
-                        { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
-                        { key: 'setup', title: 'Setup', icon: <DarkModeIcon />, color: 'teal', onClick: () => { if (typeof navigate === 'function') navigate('/setup'); else notify('Open setup (not wired)', 'info'); } },
-                      ].map((b) => {
-                        const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
-                        const accent = accentMap[b.color] || '#3b82f6';
-                        return (
-                          <ButtonBase
-                            key={b.key}
-                            onClick={b.onClick}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.onClick(); } }}
-                            aria-label={`Quick action ${b.title}`}
-                            focusRipple
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1.5,
-                              p: 2,
-                              bgcolor: 'var(--main-card-bg)',
-                              borderRadius: '18px',
-                              width: '100%',
-                              textAlign: 'left',
-                              justifyContent: 'flex-start',
-                              border: '1px solid var(--border)',
-                              boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
-                              transition: 'box-shadow 0.18s, transform 0.18s',
-                              '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' },
-                              '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(${(accent === '#3b82f6' ? '59,130,246' : (accent === '#fbbf24' ? '255,191,36' : '0,0,0'))},0.08)`, color: accent, boxShadow: `0 6px 18px ${accent}10` }}>
-                              {b.icon}
-                            </Box>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography sx={{ color: 'var(--text)', fontWeight: 700 }}>{b.title}</Typography>
-                            </Box>
-                          </ButtonBase>
-                        );
-                      })}
-                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, alignItems: 'stretch' }}>
+                          {[
+                            { key: 'new-order', title: 'New Order', icon: <ShoppingCartIcon />, color: 'yellow', onClick: () => { const el = document.getElementById('qa-open-new-order'); if (el) el.click(); else notify('Open new order (not wired)', 'info'); } },
+                            { key: 'add-customer', title: 'Add Customer', icon: <PeopleIcon />, color: 'pink', onClick: () => { const el = document.getElementById('qa-open-add-customer'); if (el) el.click(); else notify('Open add customer (not wired)', 'info'); } },
+                            { key: 'record-payment', title: 'Verif Payment', icon: <PaymentsIcon />, color: 'teal', onClick: () => { const el = document.getElementById('qa-open-record-payment'); if (el) el.click(); else notify('Open verif payment (not wired)', 'info'); } },
+                            { key: 'refresh', title: 'Refresh', icon: <RefreshIcon />, color: 'blue', onClick: refreshCounts },
+                            { key: 'products', title: 'Products', icon: <ListAltIcon />, color: 'teal', onClick: goProducts },
+                            { key: 'orders', title: 'Orders', icon: <ShoppingCartIcon />, color: 'yellow', onClick: goOrders },
+                          ].map((b) => {
+                            const accentMap = { yellow: '#fbbf24', pink: '#f472b6', teal: '#06b6d4', blue: '#3b82f6' };
+                            const accent = accentMap[b.color] || '#3b82f6';
+                            return (
+                              <Box key={b.key} sx={{ minWidth: 260, flex: '0 0 auto' }}>
+                              <ButtonBase
+                                onClick={b.onClick}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.onClick(); } }}
+                                aria-label={`Quick action ${b.title}`}
+                                focusRipple
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1.5,
+                                  p: 2,
+                                  bgcolor: 'var(--main-card-bg)',
+                                  borderRadius: '18px',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  justifyContent: 'flex-start',
+                                  border: '1px solid var(--border)',
+                                  boxShadow: `0 4px 12px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
+                                  transition: 'box-shadow 0.18s, transform 0.18s',
+                                  '&:hover': { boxShadow: `0 14px 36px ${accent}33, 0 4px 12px rgba(11,33,53,0.08)`, transform: 'translateY(-6px)' },
+                                  '&.Mui-focusVisible': { outline: `2px solid ${accent}33`, boxShadow: `0 14px 36px ${accent}33` },
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', bgcolor: `rgba(var(--accent-rgb),0.06)`, color: 'var(--accent)', boxShadow: `0 6px 18px rgba(var(--accent-rgb),0.08)` }}>
+                                  {b.icon}
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography sx={{ color: 'var(--text)', fontWeight: 700 }}>{b.title}</Typography>
+                                </Box>
+                              </ButtonBase>
+                              </Box>
+                            );
+                          })}
+                        </Box>
                   </Box>
                 </Box>
           </Box>
 
-          {/* a2: right column - Aktivitas Terbaru + separate Quick Actions & System */}
-          <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
-            <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
-                Aktivitas Terbaru
-              </Typography>
-              <Box sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
-                <List>
-                  {aktivitas.map((item, idx) => (
-                    <ListItem key={idx} sx={{ py: 1 }}>
-                      <ListItemText primary={item} primaryTypographyProps={{ sx: { color: 'var(--text)', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            </Paper>
+          {/* Right column (activity) is optional. We removed the System healthcard because health is shown in the header. */}
+          {SHOW_ACTIVITY && (
+            <Box sx={{ gridColumn: { xs: '1', md: '2' }, display: 'flex', flexDirection: 'column', gap: 2, width: { xs: '100%', md: 300 } }}>
+              <Paper elevation={0} sx={{ mt: 0, p: 3, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 16px rgba(var(--accent-rgb),0.06)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="h6" fontWeight={700} mb={2} sx={{ color: 'var(--accent)', letterSpacing: 1 }}>
+                  Aktivitas Terbaru
+                </Typography>
+                <Box className="modal-scroll" sx={{ overflowY: 'auto', maxHeight: { md: 260 } }}>
+                  <List>
+                    {aktivitas.map((item, idx) => (
+                      <ListItem key={idx} sx={{ py: 1 }}>
+                        <ListItemText primary={item} primaryTypographyProps={{ sx: { color: 'var(--text)', fontFamily: 'Poppins, Inter, Arial, sans-serif' } }} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              </Paper>
+            </Box>
+          )}
 
-            {/* Quick Actions removed from here (moved under Overview) */}
-
-            {/* System Info - separate card */}
-            <Paper elevation={0} sx={{ p: 2, bgcolor: 'var(--panel)', borderRadius: 4, boxShadow: '0 0 12px rgba(11,33,53,0.06)', color: 'var(--text)' }}>
-              <Typography variant="subtitle2" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1 }}>System</Typography>
-              <Typography sx={{ color: 'var(--text)', fontSize: 13 }}>API: OK · DB: OK · Version: v1.6.9</Typography>
-            </Paper>
-          </Box>
-
-          {/* Chart row: lazy-loaded charts to reduce initial parse */}
-          <Suspense fallback={<div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading charts…</div>}>
-            <DashboardCharts salesData={salesData} ordersStatusData={ordersStatusData} />
-          </Suspense>
+          {/* Charts disabled - placeholder removed to avoid empty main area */}
         </Box>
   <QuickActionModals onNotify={notify} onSuccess={refreshCounts} />
       </Box>

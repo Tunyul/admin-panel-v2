@@ -10,7 +10,7 @@ export const updateOrder = crud.update(client, ORDERS_URL);
 export const deleteOrder = crud.remove(client, ORDERS_URL);
 
 // Custom endpoint
-export const getOrderByTransaksi = (no_transaksi) => client.get(`${ORDERS_URL}/transaksi/${no_transaksi}`);
+export const getOrderByTransaksi = (no_transaksi) => client.get(`${ORDERS_URL}/transaksi/${no_transaksi}`, { headers: { bot: 'true' } });
 export const updateStatusBot = (no_transaksi, data) => client.put(`${ORDERS_URL}/transaksi/${no_transaksi}/status-bot`, data);
 export const updateOrderDetailByTransaksi = (no_transaksi, data) => client.put(`${ORDERS_URL}/transaksi/${no_transaksi}/orderDetail`, data);
 export const getOrdersByCustomerPhone = (phone) => client.get(`${ORDERS_URL}/customer/phone/${phone}`);

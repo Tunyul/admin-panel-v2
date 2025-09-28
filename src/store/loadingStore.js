@@ -1,34 +1,22 @@
-import { create } from 'zustand'
-
-const useLoadingStore = create((set, get) => ({
+// Loading store disabled — no-op implementation
+// Purpose: keep existing calls to useLoadingStore.getState().start()/done() safe
+// without showing any global overlay or maintaining a counter.
+const _state = {
   busy: 0,
-  start: () => {
-    const next = get().busy + 1;
-    set({ busy: next });
-    if (import.meta.env.DEV) {
-      // lightweight debug logging to help track imbalance
-      console.debug(`[loadingStore] start -> busy=${next} @ ${new Date().toISOString()}`);
-      if (next > 5) {
-        // warn when counter grows unexpectedly large
-        console.warn(`[loadingStore] busy counter high: ${next}. Check for missing done() calls.`);
-      }
-    }
-    return next;
-  },
-  done: () => {
-    const next = Math.max(0, get().busy - 1);
-    set({ busy: next });
-    if (import.meta.env.DEV) {
-      console.debug(`[loadingStore] done -> busy=${next} @ ${new Date().toISOString()}`);
-    }
-    return next;
-  },
-  reset: () => {
-    set({ busy: 0 });
-    if (import.meta.env.DEV) {
-      console.debug('[loadingStore] reset -> busy=0');
-    }
-  },
-}));
+};
+
+function _start() { return 0; }
+function _done() { return 0; }
+function _reset() { return 0; }
+
+// expose the legacy zustand-like API so calls like useLoadingStore.getState().start()
+// continue to work in the codebase.
+const useLoadingStore = {
+  getState: () => ({ busy: 0, start: _start, done: _done, reset: _reset }),
+  start: _start,
+  done: _done,
+  reset: _reset,
+  subscribe: () => { return () => {}; },
+};
 
 export default useLoadingStore;

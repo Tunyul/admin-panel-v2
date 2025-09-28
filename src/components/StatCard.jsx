@@ -23,9 +23,9 @@ export default function StatCard({ title, value, icon, color = 'bg-blue-500' }) 
       className="flex flex-col justify-between relative group"
       style={{
         background: 'var(--main-card-bg)',
-        borderRadius: 18,
-        height: 140,
-        padding: '18px 16px',
+  borderRadius: 18,
+  height: 110,
+  padding: '12px 16px',
         boxShadow: `0 6px 18px 0 ${accent}22, 0 2px 6px rgba(11,33,53,0.06)`,
         fontFamily: 'Poppins, Inter, Arial, sans-serif',
         transition: 'box-shadow 0.18s, transform 0.18s',
@@ -48,7 +48,7 @@ export default function StatCard({ title, value, icon, color = 'bg-blue-500' }) 
     >
       <StatCardHeader title={title} accent={accent} />
 
-      <div style={{ fontSize: 30, fontWeight: 900, color: accent, letterSpacing: 1, marginTop: 8, textShadow: `0 2px 8px ${accent}33`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+  <div style={{ fontSize: 26, fontWeight: 900, color: accent, letterSpacing: 1, marginTop: 6, textShadow: `0 2px 8px ${accent}33`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
 
       <StatCardIcon icon={icon} accent={accent} />
     </div>

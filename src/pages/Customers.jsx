@@ -1,281 +1,217 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  Box,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  IconButton,
-  Paper,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  Typography,
-  CircularProgress,
-} from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import InfoIcon from '@mui/icons-material/InfoOutlined';
+import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import { useSearchParams } from 'react-router-dom'
 
-import { getCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer } from '../api/customers';
-import useNotificationStore from '../store/notificationStore';
-import useLoadingStore from '../store/loadingStore';
-import TableToolbar from '../components/TableToolbar';
-
-const CustomerRow = React.memo(function CustomerRow({ row, expanded, detailsMap, detailsLoading, onOpen, onDelete, onExpand }) {
-  const id = row.id_customer || row.id;
-  return (
-    <>
-      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(96,165,250,0.08)' } }}>
-        <TableCell sx={{ color: '#fff' }}>{id}</TableCell>
-        <TableCell sx={{ color: '#fff' }}>{row.nama || '-'}</TableCell>
-        <TableCell sx={{ color: '#34d399' }}>{row.no_hp || '-'}</TableCell>
-        <TableCell sx={{ color: '#ffe066' }}>{row.tipe_customer || '-'}</TableCell>
-        <TableCell>
-          <IconButton color="primary" onClick={() => onOpen(row)}><EditIcon /></IconButton>
-          <IconButton color="error" onClick={() => onDelete(id)}><DeleteIcon /></IconButton>
-          <IconButton color="info" onClick={() => onExpand(id)}><InfoIcon /></IconButton>
-        </TableCell>
-      </TableRow>
-
-      <TableRow>
-        <TableCell colSpan={5} sx={{ p: 0, border: 0, bgcolor: 'transparent' }}>
-          <Collapse in={expanded === id} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'rgba(35,41,70,0.95)', borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ color: '#60a5fa', fontWeight: 700, mb: 1 }}>Customer Details</Typography>
-              {detailsLoading[id] ? (
-                <Typography sx={{ color: '#60a5fa', fontStyle: 'italic' }}>Loading details...</Typography>
-              ) : (
-                <Box sx={{ color: '#fff' }}>
-                  <Typography><strong>Nama:</strong> {detailsMap[id]?.nama || row.nama}</Typography>
-                  <Typography><strong>No HP:</strong> {detailsMap[id]?.no_hp || row.no_hp}</Typography>
-                  <Typography><strong>Tipe:</strong> {detailsMap[id]?.tipe_customer || row.tipe_customer}</Typography>
-                  <Typography><strong>Batas Piutang:</strong> {detailsMap[id]?.batas_piutang || row.batas_piutang || '-'}</Typography>
-                  <Typography sx={{ mt: 1 }}><strong>Catatan:</strong> {detailsMap[id]?.catatan || row.catatan || '-'}</Typography>
-                </Box>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
-});
+import TableToolbar from '../components/TableToolbar'
+import TableSettingsButton from '../components/TableSettingsButton'
+import ExampleTableComponent from '../components/ExampleTableComponent'
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/customers'
+import useNotificationStore from '../store/notificationStore'
+import { useTableColumns, useTableFilters, useTableSorting } from '../hooks/useTableSettings'
 
 function Customers() {
-  const [data, setData] = useState([]);
-  const [_loading, setLoading] = useState(true);
-  const [_error, setError] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({});
-  const [errors, setErrors] = useState({});
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
-  const [expanded, setExpanded] = useState(null);
-  const [detailsMap, setDetailsMap] = useState({});
-  const [detailsLoading, setDetailsLoading] = useState({});
-  const { showNotification } = useNotificationStore();
+  const tableId = 'customers'
+  const { visibleColumns: _visibleColumns } = useTableColumns(tableId)
+  const { filters: _filters, setFilters } = useTableFilters(tableId, { type: '' })
+  useTableSorting(tableId)
 
-  const reloadCustomers = useCallback(() => {
-    setLoading(true);
-    // mark global busy
-    useLoadingStore.getState().start();
-    return getCustomers()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({})
+  const [errors, setErrors] = useState({})
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null })
+  // detailsMap/detailsLoading were removed as they are not used in this page
+  const { showNotification } = useNotificationStore()
+  const intervalRef = useRef(null)
+
+  const paramsObject = useCallback(() => {
+    const obj = {}
+    for (const [k, v] of searchParams.entries()) {
+      if (v !== undefined && v !== null && String(v) !== '') obj[k] = v
+    }
+    return obj
+  }, [searchParams])
+
+  const reloadCustomers = useCallback((extra = {}) => {
+    setLoading(true)
+  try { if (intervalRef.current) clearInterval(intervalRef.current); intervalRef.current = setInterval(() => {}, 1000) } catch { /* ignore */ }
+    const params = { ...(paramsObject() || {}), ...(extra || {}) }
+    return getCustomers(params)
       .then((res) => {
-        const items = res?.data?.data || res?.data || [];
-        setData(Array.isArray(items) ? items : []);
-        setError(null);
+        const payload = res && res.data ? res.data : res
+        const items = Array.isArray(payload) ? payload : (payload.data && Array.isArray(payload.data) ? payload.data : [])
+        // normalize customers for generic table columns
+        const normalized = items.map((it, i) => ({
+          id: it.id_customer || it.id || it._id || i + 1,
+          id_customer: it.id_customer,
+          name: it.nama || it.nama_customer || it.name || '',
+          nama_customer: it.nama || it.nama_customer || '',
+          phone: it.no_hp || it.phone || '',
+          no_hp: it.no_hp || it.phone || '',
+          type: it.tipe_customer || it.type || '',
+          batas_piutang: it.batas_piutang || it.batas_piutang || null,
+          catatan: it.catatan || it.notes || '',
+          ordersCount: Array.isArray(it.Orders) ? it.Orders.length : (it.ordersCount || 0),
+          tipe_customer: it.tipe_customer || it.type || '',
+          address: it.alamat || it.alamat_lengkap || '',
+          alamat: it.alamat || it.alamat_lengkap || '',
+          email: it.email || ''
+        }))
+        setData(normalized)
+        showNotification && showNotification(`Loaded ${normalized.length} customers`, 'success')
+        return normalized
       })
-      .catch((err) => {
-        if (err?.response?.status === 404) {
-          setData([]);
-          setError('Data customer tidak ditemukan.');
-        } else {
-          setError('Gagal memuat data customers');
-        }
-      })
-      .finally(() => {
-        setLoading(false);
-        useLoadingStore.getState().done();
-      });
-  }, []);
-
-  useEffect(() => {
-    reloadCustomers();
-  }, [reloadCustomers]);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const filteredData = data.filter((row) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      const hay = `${row.nama || ''} ${row.no_hp || ''} ${row.tipe_customer || ''}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (typeFilter) {
-      if ((row.tipe_customer || '').toString() !== typeFilter) return false;
-    }
-    return true;
-  });
-
-
-  const handleOpen = useCallback((item = {}) => { setForm(item); setOpen(true); }, []);
-  const handleClose = useCallback(() => setOpen(false), []);
-  const handleChange = useCallback((e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value })), []);
-  const handleSave = () => {
-    // Validation
-    const newErrors = {};
-    if (!form.nama || !form.nama.trim()) newErrors.nama = 'Nama wajib diisi';
-    if (!form.no_hp || !form.no_hp.trim()) newErrors.no_hp = 'No HP wajib diisi';
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length) return;
-
-    // Build payload matching MySQL schema
-    const payload = {
-      nama: form.nama,
-      no_hp: form.no_hp,
-      tipe_customer: form.tipe_customer || 'reguler',
-      batas_piutang: form.batas_piutang || null,
-      catatan: form.catatan || null,
-    };
-    const op = form.id_customer ? updateCustomer(form.id_customer, payload) : createCustomer(payload);
-    op
-      .then(() => {
-        showNotification('Saved customer', 'success');
-        handleClose();
-        reloadCustomers();
-      })
-      .catch(() => showNotification('Gagal menyimpan customer', 'error'));
-  };
-
-  const handleDelete = useCallback((id) => { setDeleteConfirm({ open: true, id }); }, []);
-
-  const confirmDelete = () => {
-    const id = deleteConfirm.id;
-    setDeleteConfirm({ open: false, id: null });
-    if (!id) return;
-    deleteCustomer(id)
-      .then(() => {
-        showNotification('Customer deleted', 'info');
-        reloadCustomers();
-      })
-      .catch(() => showNotification('Gagal menghapus customer', 'error'));
-  };
-
-  const cancelDelete = () => setDeleteConfirm({ open: false, id: null });
-
-  const handleExpandWithDetails = useCallback((id) => {
-    setExpanded((prev) => (prev !== id ? id : null));
-    if (!detailsMap[id]) {
-      setDetailsLoading((s) => ({ ...s, [id]: true }));
-      useLoadingStore.getState().start();
-      getCustomerById(id)
-        .then((res) => {
-          const details = res?.data?.data || res?.data || {};
-          setDetailsMap((s) => ({ ...s, [id]: details }));
-        })
         .catch(() => {
-          setDetailsMap((s) => ({ ...s, [id]: {} }));
-          showNotification('Gagal memuat detail customer', 'error');
+          setData([])
+          showNotification && showNotification('Gagal memuat customers', 'error')
         })
         .finally(() => {
-          setDetailsLoading((s) => ({ ...s, [id]: false }));
-          useLoadingStore.getState().done();
-        });
-    }
-  }, [detailsMap, showNotification]);
+          try { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } } catch { /* ignore */ }
+          setLoading(false)
+        })
+  }, [paramsObject, showNotification])
 
-  // Show a loading spinner while initial load is happening.
-  // Keep this after hooks/callbacks so hook order is stable.
-  if (_loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress color="inherit" />
-      </Box>
-    );
+  const searchParamsString = searchParams.toString()
+  useEffect(() => { reloadCustomers() }, [reloadCustomers, searchParamsString])
+
+  // listen to toolbar filter events scoped to customers
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const page = e?.detail?.page || null
+        if (!page || !String(page).startsWith('/customers')) return
+        const all = e?.detail?.allFilters || {}
+        setFilters(all || {})
+        try {
+          const params = new URLSearchParams()
+          Object.keys(all || {}).forEach((k) => {
+            const v = all[k]
+            if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v))
+          })
+          setSearchParams(params)
+        } catch { /* ignore */ }
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('toolbar:filter', handler)
+    return () => window.removeEventListener('toolbar:filter', handler)
+  }, [setFilters, setSearchParams])
+
+  // listen to search events
+  useEffect(() => {
+    const h = (e) => {
+      try {
+        const q = e?.detail?.q || ''
+        const params = new URLSearchParams(searchParams.toString())
+        if (q === '' || q == null) params.delete('q')
+        else params.set('q', q)
+        setSearchParams(params)
+      } catch {
+        /* ignore malformed toolbar:search event payload */
+      }
+    }
+    window.addEventListener('toolbar:search', h)
+    return () => window.removeEventListener('toolbar:search', h)
+  }, [searchParams, setSearchParams])
+
+  // refresh event
+  useEffect(() => {
+    const h = () => reloadCustomers()
+    window.addEventListener('app:refresh:customers', h)
+    return () => window.removeEventListener('app:refresh:customers', h)
+  }, [reloadCustomers])
+
+  // CRUD handlers
+  const handleOpen = (item = {}) => { setForm(item || {}); setErrors({}); setOpen(true) }
+  const handleClose = () => setOpen(false)
+  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+
+  const handleSave = () => {
+    const newErrors = {}
+    if (!form.name && !form.nama && !form.nama_customer) newErrors.name = 'Customer name is required'
+    if (!form.phone && !form.no_hp) newErrors.phone = 'Phone number is required'
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
+
+    const payload = {
+      ...form,
+      nama: form.name || form.nama || form.nama_customer,
+      no_hp: form.phone || form.no_hp
+    }
+    const promise = form.id_customer || form.id ? updateCustomer(form.id_customer || form.id, payload) : createCustomer(payload)
+    promise.then(() => { showNotification('Customer saved', 'success'); handleClose(); reloadCustomers() }).catch(() => showNotification('Failed to save customer', 'error'))
+  }
+
+  const handleDelete = (id) => setDeleteConfirm({ open: true, id })
+  const confirmDelete = () => {
+    const id = deleteConfirm.id
+    setDeleteConfirm({ open: false, id: null })
+    if (!id) return
+    deleteCustomer(id).then(() => { showNotification('Customer deleted', 'success'); reloadCustomers() }).catch(() => showNotification('Failed to delete customer', 'error'))
   }
 
   return (
-  <Box className="main-card" sx={{ bgcolor: 'rgba(35,41,70,0.98)', borderRadius: 4, p: { xs: 2, md: 2 }, width: '100%', mx: 'auto', mt: { xs: 2, md: 4 }, fontFamily: 'Poppins, Inter, Arial, sans-serif' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ color: '#ffe066', letterSpacing: 1 }}>
-          Customers
-        </Typography>
-        <Button variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3, textTransform: 'none' }} onClick={() => handleOpen()}>
-          Add Customer
-        </Button>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+          <TableToolbar
+            value={searchParams.get('q') || ''}
+            onChange={(v) => { const p = new URLSearchParams(searchParams.toString()); if (!v) p.delete('q'); else p.set('q', v); setSearchParams(p) }}
+            placeholder="Search customers (name, phone, address)"
+            hideFilters
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <TableSettingsButton tableId={tableId} variant="button" showLabel={true} />
+          <Button startIcon={<RefreshIcon />} variant="outlined" size="small" onClick={() => reloadCustomers(true)}>Refresh</Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpen({})}>Add Customer</Button>
+        </Box>
       </Box>
 
-      <Paper elevation={0} sx={{ bgcolor: 'transparent', boxShadow: 'none', width: '100%' }}>
-        <Box className="table-responsive" sx={{ width: '100%', overflowX: 'auto' }}>
-          <TableToolbar value={searchQuery} onChange={setSearchQuery} placeholder="Search customers by name or phone" filterValue={typeFilter} onFilterChange={setTypeFilter} filterOptions={[{ value: 'reguler', label: 'Reguler' }, { value: 'vip', label: 'VIP' }, { value: 'hutang', label: 'Hutang' }]} />
-          <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(35,41,70,0.95)' }}>
-              <TableCell sx={{ color: '#60a5fa', fontWeight: 700 }}>ID</TableCell>
-              <TableCell sx={{ color: '#f472b6', fontWeight: 700 }}>Nama</TableCell>
-              <TableCell sx={{ color: '#34d399', fontWeight: 700 }}>No HP</TableCell>
-              <TableCell sx={{ color: '#ffe066', fontWeight: 700 }}>Tipe</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Aksi</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData && filteredData.length > 0 ? (
-              filteredData.map((row) => (
-                <CustomerRow
-                  key={row.id_customer || row.id}
-                  row={row}
-                  expanded={expanded}
-                  detailsMap={detailsMap}
-                  detailsLoading={detailsLoading}
-                  onOpen={handleOpen}
-                  onDelete={handleDelete}
-                  onExpand={handleExpandWithDetails}
-                />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ color: '#60a5fa', fontStyle: 'italic' }}>
-                  Belum ada data customer.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          </Table>
-        </Box>
-        <Box className="table-bottom-space" />
-      </Paper>
+      {/* Filters row: rely on AppMainToolbar for page-scoped filters; keep a small filter toolbar for type */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TableToolbar hideSearch filterValue={searchParams.get('type') || ''} onFilterChange={(v) => { const p = new URLSearchParams(searchParams.toString()); if (!v) p.delete('type'); else p.set('type', v); setSearchParams(p) }} />
+      </Box>
 
-      <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: 4, bgcolor: 'rgba(35,41,70,0.98)' } }}>
-        <DialogTitle sx={{ color: '#ffe066', fontWeight: 700 }}>{form.id_customer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
+      {/* Shared ExampleTableComponent ensures consistent layout/UX */}
+      {loading ? (
+        <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress size={24} /></Box>
+      ) : (
+        <ExampleTableComponent tableId={tableId} data={data} loading={loading} onEdit={(row) => handleOpen(row)} onDelete={(row) => handleDelete(row.id || row.id_customer)} />
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>{form.id_customer || form.id ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" name="nama" label="Nama" type="text" fullWidth value={form.nama || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#ffe066' } }} error={!!errors.nama} helperText={errors.nama || ''} />
-          <TextField margin="dense" name="no_hp" label="No HP" type="text" fullWidth value={form.no_hp || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#60a5fa' } }} error={!!errors.no_hp} helperText={errors.no_hp || ''} />
-          <TextField select margin="dense" name="tipe_customer" label="Tipe Customer" fullWidth value={form.tipe_customer || 'reguler'} onChange={handleChange} SelectProps={{ native: true }} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#f472b6' } }}>
-            <option value="reguler">reguler</option>
-            <option value="vip">vip</option>
-            <option value="hutang">hutang</option>
-          </TextField>
-          <TextField margin="dense" name="batas_piutang" label="Batas Piutang" type="datetime-local" fullWidth value={form.batas_piutang ? form.batas_piutang.replace(' ', 'T') : ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#fbbf24' } }} />
-          <TextField margin="dense" name="catatan" label="Catatan" type="text" fullWidth multiline rows={3} value={form.catatan || ''} onChange={handleChange} InputProps={{ sx: { color: '#fff' } }} InputLabelProps={{ sx: { color: '#a78bfa' } }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField label="Customer Name" name="name" value={form.name || form.nama || form.nama_customer || ''} onChange={handleChange} error={!!errors.name} helperText={errors.name} fullWidth />
+            <TextField label="Phone Number" name="phone" value={form.phone || form.no_hp || ''} onChange={handleChange} error={!!errors.phone} helperText={errors.phone} fullWidth />
+            <TextField label="Customer Type" name="type" value={form.type || form.tipe_customer || ''} onChange={handleChange} fullWidth />
+            <TextField label="Address" name="address" value={form.address || form.alamat || ''} onChange={handleChange} multiline rows={3} fullWidth />
+            <TextField label="Email" name="email" type="email" value={form.email || ''} onChange={handleChange} fullWidth />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: '#fff' }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#ffe066', color: '#232946', fontWeight: 700, borderRadius: 3 }}>Save</Button>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={deleteConfirm.open} onClose={cancelDelete} PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle>Hapus customer</DialogTitle>
+
+      {/* Delete confirm */}
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, id: null })}>
+        <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>Yakin ingin menghapus customer ini?</Typography>
+          <Box>
+            Are you sure you want to delete this customer?
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelDelete}>Batal</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">Hapus</Button>
+          <Button onClick={() => setDeleteConfirm({ open: false, id: null })}>Cancel</Button>
+          <Button onClick={confirmDelete} variant="contained" color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>
@@ -283,5 +219,3 @@ function Customers() {
 }
 
 export default Customers;
-
-

@@ -1,31 +1,34 @@
 # Changelog
-
 All notable changes to this project will be documented in this file.
 
----
-
-## [v1.7.0] - 2025-09-18
+## [v1.7.14] - 2025-09-28
 ### Added
-- Release notes placeholder: minor fixes and improvements.
-### Changed
-- Bumped package version to `v1.7.0`.
-
-## [v1.7.1] - 2025-09-18
-### Added
-- UI: Improved product autocomplete layout and product metadata in Add Order modal (step 2).
-### Changed
-- Minor UI polish and dropdown styling for dark mode.
-
-
-## [v1.7.2] - 2025-09-18
-### Added
-### Changed
-
-## [v1.7.3] - 2025-09-18
+- Virtualization: shared table component now virtualizes large datasets (react-window) to improve UI responsiveness across Products, Customers, Piutangs, Payments, and Orders.
 ### Fixed
-- Payments: removed duplicate `sx` key in the verify modal TextField which could cause style overrides and build warnings.
-- Lint: cleaned up unused variables and hook dependency handling to reduce ESLint warnings.
+- Runtime: resolved several TDZ (temporal dead zone) ReferenceErrors in Orders, Payments, and AddOrderModal components.
+- Polling: background API polling now respects a `silent` flag to avoid noisy console errors during expected 500 responses.
+### Changed
+- Piutangs: normalized API rows to expose nested Order and Customer fields and parse numeric amounts for better table rendering.
 
+## [v1.7.13] - 2025-09-24
+### Added
+- Backup: saved current working state and committed ongoing changes across multiple components.
+### Changed
+- Bumped package version to `v1.7.13` and pushed git tag `v1.7.13`.
+
+## [v1.7.9] - 2025-09-20
+### Added
+- API helpers: `updatePaymentByBody`, `approvePayment`, and `approvePaymentNominal` in `src/api/payments.js` to support PUT /api/payments and PUT /api/payments/approve/:id flows.
+### Changed
+- Payments: verify modal now uses the approve endpoint (PUT /api/payments/approve/:id with { nominal }) and falls back to PUT /api/payments/:id when approve is not available.
+- Payments: small UI flow fixes for verify modal (prefill nominal, preview bukti image link).
+- OrdersTable: improved payment status mapping and tooltip for failure reasons (supporting 'lunas', 'proses', 'gagal', 'belum bayar').
+
+## [v1.7.6] - 2025-09-19
+### Added
+- Visual: applied neon table glow to Products, Customers, Payments, and Piutangs to match Orders list visual contract.
+### Changed
+- Styling: harmonized table container shadows and improved dark-mode surface consistency across list pages.
 
 ## [v1.7.4] - 2025-09-19
 ### Added
@@ -34,6 +37,28 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Styling: toolbar and filter controls adjusted for dark theme compatibility.
 
+## [v1.7.3] - 2025-09-18
+### Fixed
+- Payments: removed duplicate `sx` key in the verify modal TextField which could cause style overrides and build warnings.
+- Lint: cleaned up unused variables and hook dependency handling to reduce ESLint warnings.
+
+## [v1.7.2] - 2025-09-18
+### Added
+### Changed
+
+## [v1.7.1] - 2025-09-18
+### Added
+- UI: Improved product autocomplete layout and product metadata in Add Order modal (step 2).
+### Changed
+- Minor UI polish and dropdown styling for dark mode.
+
+## [v1.7.0] - 2025-09-18
+### Added
+- Release notes placeholder: minor fixes and improvements.
+### Changed
+- Bumped package version to `v1.7.0`.
+
+---
 
 ## [v1.6.9] - 2025-09-18
 ### Added
@@ -42,40 +67,11 @@ All notable changes to this project will be documented in this file.
 - Bumped package version to `v1.6.9` and updated Dashboard System card to display the new version.
 - Added one Quick Action tile to Dashboard to avoid an empty slot and removed Quick Actions container padding for a tighter layout.
 
-
-## [v1.2] - 2025-09-16
-### Added
-- Fitur login halaman admin
-- Style login modern (Material UI, warna kuning, dark mode)
-- Validasi login dan notifikasi sukses/gagal
-- Responsive layout login
-
+## [v1.6.8] - 2025-09-18
 ### Changed
-- Penambahan jarak antar form dan komponen login
-- Border kuning pada TextField saat hover dan focus
-
----
-
-## [v1.3] - 2025-09-16
-### Changed
-- Dashboard/root page benar-benar kosong (clean)
-- Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
-- Perbaikan struktur routes dan pemisahan pages/components
-
----
-
-## [v1.3.2] - 2025-09-16
-### Added
-  - Logout
-
----
-
-## [v1.6.5] - 2025-09-18
-### Changed
-- Fixed layout issues so header and sidebar remain fixed while only main content scrolls.
-- Removed unexpected bottom/overflow space in main content and unified responsive padding across pages.
-
----
+- Dashboard charts: each chart now rendered as its own themed card with neon shadow, rounded corners, and hover elevation.
+- Quick Actions: tiles converted to accessible, full-card clickable buttons with neon accents, keyboard activation (Enter/Space), and focus styles.
+- Visual polish: chart card styling updated to match `StatCard` neon theme.
 
 ## [v1.6.6] - 2025-09-18
 ### Changed
@@ -87,26 +83,67 @@ All notable changes to this project will be documented in this file.
   - Notifikasi
   - Padding kanan pada fitur header
 
+## [v1.6.5] - 2025-09-18
+### Changed
+- Fixed layout issues so header and sidebar remain fixed while only main content scrolls.
+- Removed unexpected bottom/overflow space in main content and unified responsive padding across pages.
+
+## [v1.6.2] - 2025-09-18
+### Added
+- Dashboard layout: a1/a2 split (overview + finances on left, activity on right)
+- Three compact dashboard charts (Omzet, Orders grouped bars, Payments)
+
+### Changed
+- Adjusted main content padding and activity panel sizing
+
 ---
 
-## [v1.6.8] - 2025-09-18
-### Changed
-- Dashboard charts: each chart now rendered as its own themed card with neon shadow, rounded corners, and hover elevation.
-- Quick Actions: tiles converted to accessible, full-card clickable buttons with neon accents, keyboard activation (Enter/Space), and focus styles.
-- Visual polish: chart card styling updated to match `StatCard` neon theme.
+## [v1.6] - 2025-09-17
+### Added
+- Halaman dan tabel Payments: CRUD dasar, tampilan serupa Customers, validasi input, dan detail lazy-load
+- Halaman dan tabel Piutangs: CRUD dasar, penyesuaian ke skema DB (id_piutang, id_customer, jumlah_piutang, tanggal_piutang, status, keterangan), validasi, dan detail lazy-load
 
-
-## [v1.3.5] - 2025-09-16
 ### Changed
-- Header kini tanpa padding untuk tampilan lebih clean dan minimalis.
+- Perbaikan dan pembersihan komponen Products dan beberapa perbaikan import/exports
+- Build dan validasi produksi dilakukan untuk memastikan tidak ada error sintaks
 
 ---
 
-## [v1.3.8] - 2025-09-16
+## [v1.5.5] - 2025-09-17
+### Added
+- Customers page: full CRUD wiring with API integration (list, detail, create, update, delete)
+  - Table with always-visible headers and in-table empty state
+  - Lazy-loaded customer details on row expand
+  - Add/Edit dialog with validation (nama & no_hp required)
+  - MUI confirmation dialog for delete
+
 ### Changed
-- Modularisasi ThemeSwitcher: animasi, ikon matahari, dan bulan dipisah ke file/komponen terpisah (ThemeSwitchAnim, ThemeSwitchMoon, ThemeSwitchSun)
-- Penghapusan seluruh animasi transisi moon-to-sun dan sun-to-moon, sekarang hanya render moon statis di kiri (dark) atau sun statis di kanan (light)
-- Perbaikan error import/export, error runtime, dan error boundary
+- Polishing and small UX improvements around customers table and dialogs
+
+## [v1.5.3] - 2025-09-17
+### Changed
+- Perbaikan scroll vertikal main content/dashboard agar selalu muncul
+- Area ungu (overflow) di bawah dashboard dihilangkan (flex dan minHeight diperbaiki)
+- Padding kanan dan bawah pada main content diatur agar konten tidak menempel ke tepi/scrollbar
+- Card "Fitur Baru" dihapus dari dashboard
+- Layout dashboard lebih proporsional dan responsif di semua ukuran layar
+
+## [v1.5] - 2025-09-17
+### Changed
+- Default theme sekarang dark/malam (ThemeSwitcher default gelap)
+- Sidebar: font diganti ke modern sans-serif (Poppins, Inter, Arial)
+- Sidebar: warna neon lebih soft, tiap menu warna berbeda
+- Sidebar: tanpa margin, padding, border, shadow, background
+- Sidebar: semua tombol kotak, tanpa rounded, tanpa gradient
+- Layout dan UI lebih clean, modern, responsif
+
+### Changed
+- Main content: maxWidth responsif (clamp), padding kiri-kanan responsif
+- Scroll dashboard dan main content diperbaiki (tidak terpotong, selalu muncul jika konten banyak)
+- Tinggi main content selalu sama dengan sidebar
+- Penambahan card fitur baru di dashboard
+- Perbaikan layout dan UI agar lebih proporsional di semua ukuran layar
+- Sidebar: warna neon lebih soft, tiap menu warna berbeda
 
 ---
 
@@ -123,66 +160,62 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v1.5] - 2025-09-17
+## [v1.3.8] - 2025-09-16
 ### Changed
-- Default theme sekarang dark/malam (ThemeSwitcher default gelap)
-- Sidebar: font diganti ke modern sans-serif (Poppins, Inter, Arial)
-- Sidebar: warna neon lebih soft, tiap menu warna berbeda
-- Sidebar: tanpa margin, padding, border, shadow, background
-- Sidebar: semua tombol kotak, tanpa rounded, tanpa gradient
-- Layout dan UI lebih clean, modern, responsif
+- Modularisasi ThemeSwitcher: animasi, ikon matahari, dan bulan dipisah ke file/komponen terpisah (ThemeSwitchAnim, ThemeSwitchMoon, ThemeSwitchSun)
+- Penghapusan seluruh animasi transisi moon-to-sun dan sun-to-moon, sekarang hanya render moon statis di kiri (dark) atau sun statis di kanan (light)
+- Perbaikan error import/export, error runtime, dan error boundary
+
+## [v1.3.5] - 2025-09-16
+### Changed
+- Header kini tanpa padding untuk tampilan lebih clean dan minimalis.
 
 ---
 
-### Changed
-- Main content: maxWidth responsif (clamp), padding kiri-kanan responsif
-- Scroll dashboard dan main content diperbaiki (tidak terpotong, selalu muncul jika konten banyak)
-- Tinggi main content selalu sama dengan sidebar
-- Penambahan card fitur baru di dashboard
-- Perbaikan layout dan UI agar lebih proporsional di semua ukuran layar
-- Sidebar: warna neon lebih soft, tiap menu warna berbeda
-
----
-
-## [v1.5.3] - 2025-09-17
-### Changed
-- Perbaikan scroll vertikal main content/dashboard agar selalu muncul
-- Area ungu (overflow) di bawah dashboard dihilangkan (flex dan minHeight diperbaiki)
-- Padding kanan dan bawah pada main content diatur agar konten tidak menempel ke tepi/scrollbar
-- Card "Fitur Baru" dihapus dari dashboard
-- Layout dashboard lebih proporsional dan responsif di semua ukuran layar
-
----
-
-## [v1.5.5] - 2025-09-17
+## [v1.3.2] - 2025-09-16
 ### Added
-- Customers page: full CRUD wiring with API integration (list, detail, create, update, delete)
-  - Table with always-visible headers and in-table empty state
-  - Lazy-loaded customer details on row expand
-  - Add/Edit dialog with validation (nama & no_hp required)
-  - MUI confirmation dialog for delete
-
-### Changed
-- Polishing and small UX improvements around customers table and dialogs
+  - Logout
 
 ---
 
-## [v1.6] - 2025-09-17
-### Added
-- Halaman dan tabel Payments: CRUD dasar, tampilan serupa Customers, validasi input, dan detail lazy-load
-- Halaman dan tabel Piutangs: CRUD dasar, penyesuaian ke skema DB (id_piutang, id_customer, jumlah_piutang, tanggal_piutang, status, keterangan), validasi, dan detail lazy-load
-
+## [v1.3] - 2025-09-16
 ### Changed
-- Perbaikan dan pembersihan komponen Products dan beberapa perbaikan import/exports
-- Build dan validasi produksi dilakukan untuk memastikan tidak ada error sintaks
+- Dashboard/root page benar-benar kosong (clean)
+- Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
+- Perbaikan struktur routes dan pemisahan pages/components
 
 ---
 
-## [v1.6.2] - 2025-09-18
+## [v1.2] - 2025-09-16
 ### Added
-- Dashboard layout: a1/a2 split (overview + finances on left, activity on right)
-- Three compact dashboard charts (Omzet, Orders grouped bars, Payments)
+- Fitur login halaman admin
+- Style login modern (Material UI, warna kuning, dark mode)
+- Validasi login dan notifikasi sukses/gagal
+- Responsive layout login
 
 ### Changed
-- Adjusted main content padding and activity panel sizing
+- Penambahan jarak antar form dan komponen login
+- Border kuning pada TextField saat hover dan focus
+
+
+---
+
+## [v1.3] - 2025-09-16
+### Changed
+- Dashboard/root page benar-benar kosong (clean)
+- Semua komponen layout, header, sidebar, dan tombol dihapus dari dashboard
+- Perbaikan struktur routes dan pemisahan pages/components
+
+---
+
+## [v1.2] - 2025-09-16
+### Added
+- Fitur login halaman admin
+- Style login modern (Material UI, warna kuning, dark mode)
+- Validasi login dan notifikasi sukses/gagal
+- Responsive layout login
+
+### Changed
+- Penambahan jarak antar form dan komponen login
+- Border kuning pada TextField saat hover dan focus
 

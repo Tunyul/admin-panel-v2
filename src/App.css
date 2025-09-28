@@ -34,3 +34,134 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Neon/glow animations for header health indicators */
+@keyframes neonGreen {
+  from { box-shadow: 0 0 0 rgba(16,185,129,0.0); }
+  to   { box-shadow: 0 0 12px rgba(16,185,129,0.28); }
+}
+
+@keyframes neonRed {
+  from { box-shadow: 0 0 0 rgba(239,68,68,0.0); }
+  to   { box-shadow: 0 0 12px rgba(239,68,68,0.28); }
+}
+
+@keyframes neonPulseGreen {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(16,185,129,0.12); }
+  100% { transform: scale(1.12); box-shadow: 0 0 18px rgba(16,185,129,0.22); }
+}
+
+@keyframes neonPulseRed {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(239,68,68,0.12); }
+  100% { transform: scale(1.12); box-shadow: 0 0 18px rgba(239,68,68,0.22); }
+}
+
+/* Utility classes used by Header.jsx indicators */
+.neon-green { animation: neonGreen 2.4s infinite alternate; }
+.neon-red { animation: neonRed 2.4s infinite alternate; }
+.neon-pulse-green { animation: neonPulseGreen 1s ease-out; }
+.neon-pulse-red { animation: neonPulseRed 1s ease-out; }
+
+
+/* Neon text glow variants for status labels */
+@keyframes neonTextPulseGreen {
+  0% { text-shadow: 0 0 6px rgba(16,185,129,0.12); transform: scale(1); }
+  100% { text-shadow: 0 0 18px rgba(16,185,129,0.22); transform: scale(1.02); }
+}
+
+@keyframes neonTextPulseRed {
+  0% { text-shadow: 0 0 6px rgba(239,68,68,0.12); transform: scale(1); }
+  100% { text-shadow: 0 0 18px rgba(239,68,68,0.22); transform: scale(1.02); }
+}
+
+.neon-text-green { color: var(--status-success); text-shadow: 0 0 8px rgba(16,185,129,0.32); }
+.neon-text-red { color: var(--status-error); text-shadow: 0 0 8px rgba(239,68,68,0.32); }
+.neon-text-pulse-green { animation: neonTextPulseGreen 1s ease-out; }
+.neon-text-pulse-red { animation: neonTextPulseRed 1s ease-out; }
+
+
+/* Neon card / login utilities */
+@keyframes neonBorderPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251,191,36, 0.12), 0 0 12px rgba(251,191,36, 0.06);
+  }
+  50% {
+    box-shadow: 0 0 6px 6px rgba(251,191,36, 0.08), 0 0 18px rgba(251,191,36, 0.10);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(251,191,36, 0.06), 0 0 28px rgba(251,191,36, 0.14);
+  }
+}
+
+@keyframes neonRainbow {
+  0% { box-shadow: 0 0 12px rgba(59,130,246,0.18), 0 0 2px rgba(251,191,36,0.06); }
+  50% { box-shadow: 0 0 18px rgba(236,72,153,0.20), 0 0 6px rgba(99,102,241,0.08); }
+  100% { box-shadow: 0 0 12px rgba(16,185,129,0.18), 0 0 2px rgba(245,158,11,0.06); }
+}
+
+.neon-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 2px; /* small space for outer border effect */
+  background-clip: padding-box;
+}
+
+.neon-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  transition: box-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+.neon-card--yellow::before {
+  box-shadow: 0 8px 32px rgba(251,191,36,0.10), 0 0 24px rgba(251,191,36,0.14);
+  animation: neonBorderPulse 3s ease-in-out infinite;
+}
+
+.neon-card--rainbow::before {
+  box-shadow: 0 10px 36px rgba(99,102,241,0.10);
+  animation: neonRainbow 4s ease-in-out infinite;
+}
+
+.neon-inner-glow {
+  position: relative;
+  z-index: 1;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.neon-focus-outline:focus-within::before {
+  opacity: 1;
+  transform: scale(1.01);
+}
+
+/* Toolbar shown at top of app main content */
+.app-main-toolbar{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding-bottom:8px;
+}
+
+.app-crud-toolbar{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 16px;
+}
+
+/* More specific override for MUI-generated toolbar element that also has
+   the project class `app-main-toolbar`. Remove top/left/right padding and
+   keep only bottom padding. */
+.app-main-toolbar.MuiBox-root.css-1e93t3s {
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 8px;
+}
+

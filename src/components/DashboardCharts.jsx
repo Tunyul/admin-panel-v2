@@ -16,7 +16,7 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
               <CartesianGrid strokeDasharray="3 3" stroke="#323447" vertical={false} />
               <XAxis dataKey="name" stroke="#9aa6d6" />
               <YAxis stroke="#9aa6d6" tickFormatter={v => `${(v/1000000).toFixed(0)}jt`} />
-              <Tooltip wrapperStyle={{ background: '#111827', color: '#fff', borderRadius: 6 }} />
+              <Tooltip wrapperStyle={{ background: 'var(--panel)', color: 'var(--text)', borderRadius: 6 }} />
               <Line type="monotone" dataKey="omzet" stroke="#ffe066" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -32,7 +32,7 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#2b2f45" />
               <XAxis dataKey="name" stroke="#9aa6d6" />
               <YAxis stroke="#9aa6d6" />
-              <Tooltip wrapperStyle={{ background: '#111827', color: '#fff', borderRadius: 6, border: 'none' }} contentStyle={{ background: 'transparent', border: 'none' }} itemStyle={{ color: '#fff' }} />
+              <Tooltip wrapperStyle={{ background: 'var(--panel)', color: 'var(--text)', borderRadius: 6, border: 'none' }} contentStyle={{ background: 'transparent', border: 'none' }} itemStyle={{ color: 'var(--text)' }} />
               <Bar dataKey="selesai" fill="#22c55e" barSize={10} />
               <Bar dataKey="pending" fill="#f59e0b" barSize={10} />
               <Bar dataKey="belum" fill="#ef4444" barSize={10} />
@@ -50,7 +50,7 @@ export default function DashboardCharts({ salesData = [], ordersStatusData = [] 
               <CartesianGrid strokeDasharray="3 3" stroke="#323447" vertical={false} />
               <XAxis dataKey="name" stroke="#9aa6d6" />
               <YAxis stroke="#9aa6d6" />
-              <Tooltip wrapperStyle={{ background: '#111827', color: '#fff', borderRadius: 6 }} />
+              <Tooltip wrapperStyle={{ background: 'var(--panel)', color: 'var(--text)', borderRadius: 6 }} />
               <Line type="monotone" dataKey="payments" stroke="#60e7c6" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>

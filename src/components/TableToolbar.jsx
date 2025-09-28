@@ -1,114 +1,193 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Box, TextField, InputAdornment, Select, MenuItem, FormControl, InputLabel, IconButton, Chip } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
+import React, { useState, useEffect } from 'react';
+import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Chip } from '@mui/material';
 
-function useDebouncedValue(value, delay = 300) {
-  const [v, setV] = useState(value);
+export default function TableToolbar({
+  value = '',
+  onChange = () => {},
+  placeholder = 'Search',
+  filterValue = '',
+  onFilterChange = () => {},
+  filterOptions = [],
+  hideSearch = false,
+  hideFilters = false,
+  noWrap = false,
+  statusFilters = [], // Array of status filter objects: [{ label, value, onChange, options }]
+  extraFields = [] // [{ key, value, onChange, placeholder, type, sx }]
+}) {
+  // Local state for search input to debounce user typing
+  const [localSearch, setLocalSearch] = useState(value || '')
+  const [isTyping, setIsTyping] = useState(false)
+  const [stats, setStats] = useState({ displayed: 0, total: 0 })
+  const [activeSearch, setActiveSearch] = useState(false)
+  const [activeFilters, setActiveFilters] = useState(false)
+
   useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
-}
+    // keep localSearch in sync when parent value changes (e.g. URL params changed externally)
+    // Also clear localSearch when parent value becomes empty (e.g., URL cleared)
+    setLocalSearch(value || '')
+    if (!value) {
+      setIsTyping(false) // Clear typing indicator when search is cleared
+    }
+  }, [value])
 
-export default function TableToolbar({ value, onChange, placeholder = 'Search…', filterValue, onFilterChange, filterOptions = [] }) {
-  const inputRef = useRef(null);
-  const [local, setLocal] = useState(value || '');
-  const debounced = useDebouncedValue(local, 300);
-
+  // Emit a global event with debouncing to reduce performance impact
   useEffect(() => {
-    if (debounced !== value) onChange && onChange(debounced);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
-
-  useEffect(() => {
-    setLocal(value || '');
-  }, [value]);
-
-  // focus search when '/' pressed (unless focused on input-like element)
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === '/' && document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.key === '/') {
-        e.preventDefault();
-        inputRef.current && inputRef.current.focus();
+    const timer = setTimeout(() => {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('toolbar:search', { detail: { q: localSearch || '' } }))
+        }
+        setIsTyping(false) // Stop typing indicator after debounce
+      } catch {
+        // ignore
       }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    }, 100) // Very short debounce for responsive feel but reduced events
+    
+    return () => clearTimeout(timer)
+  }, [localSearch])
 
-  const filterChip = useMemo(() => {
-    if (!filterValue) return null;
-    const opt = filterOptions.find((o) => o.value === filterValue);
-    return opt ? opt.label : filterValue;
-  }, [filterValue, filterOptions]);
+  // Listen for reset events from AppMainToolbar
+  useEffect(() => {
+    const handleReset = (e) => {
+      try {
+        if (e?.detail?.resetAll) {
+          setLocalSearch('')
+          setIsTyping(false)
+          setActiveSearch(false)
+          setActiveFilters(false)
+          setStats({ displayed: 0, total: 0 })
+        }
+      } catch {
+        // ignore
+      }
+    }
 
+    const handleStats = (e) => {
+      try {
+        const d = e?.detail || {}
+        setStats({ displayed: d.displayed || 0, total: d.total || 0 })
+      } catch {
+        // ignore
+      }
+    }
+
+    const handleFilter = (e) => {
+      try {
+        const page = e?.detail?.page || null
+        // if toolbar event is for another page, ignore it
+        if (page && !page.startsWith(window.location.pathname)) return
+        const allFilters = e?.detail?.allFilters || {}
+        const has = Object.entries(allFilters).some(([, v]) => v !== undefined && v !== null && String(v) !== '')
+        setActiveFilters(has)
+      } catch {
+        // ignore
+      }
+    }
+
+    window.addEventListener('toolbar:reset', handleReset)
+    window.addEventListener('toolbar:stats', handleStats)
+    window.addEventListener('toolbar:filter', handleFilter)
+    return () => {
+      window.removeEventListener('toolbar:reset', handleReset)
+      window.removeEventListener('toolbar:stats', handleStats)
+      window.removeEventListener('toolbar:filter', handleFilter)
+    }
+  }, [])
   return (
-    <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-      <TextField
-        inputRef={inputRef}
-        size="small"
-        variant="outlined"
-        placeholder={placeholder}
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ color: '#cbd5e1' }} />
-            </InputAdornment>
-          ),
-          endAdornment: local ? (
-            <InputAdornment position="end">
-              <IconButton size="small" onClick={() => setLocal('')} sx={{ color: '#cbd5e1' }} aria-label="clear search"><ClearIcon fontSize="small" /></IconButton>
-            </InputAdornment>
-          ) : null,
-        }}
-        InputLabelProps={{ sx: { color: '#94a3b8' } }}
-        sx={{
-          minWidth: 220,
-          '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.03)', color: '#fff' },
-          '& .MuiOutlinedInput-input': { color: '#fff' },
-          '& .MuiInputLabel-root': { color: '#94a3b8' },
-          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148,163,184,0.08)' },
-        }}
-      />
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: noWrap ? 'nowrap' : 'wrap' }}>
+      {!hideSearch && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            size="small"
+            value={localSearch}
+            onChange={(e) => {
+              const v = e.target.value
+              setLocalSearch(v)
+              setIsTyping(true) // Show typing indicator immediately
+              onChange(v)
+              setActiveSearch(!!v)
+            }}
+            placeholder={placeholder}
+            InputProps={{ sx: { color: 'var(--text)' } }}
+            InputLabelProps={{ sx: { color: 'var(--muted)' } }}
+          />
+          {/* Extra compact search fields (e.g. No Transaksi, Customer, No HP) */}
+          {extraFields && extraFields.length > 0 && extraFields.map((f) => (
+            <TextField
+              key={f.key}
+              size="small"
+              value={f.value || ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              placeholder={f.placeholder || ''}
+              type={f.type || 'text'}
+              sx={{ width: (f.sx && f.sx.width) || 120 }}
+            />
+          ))}
+          {isTyping && localSearch && (
+            <Chip 
+              label="Live" 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ 
+                height: '20px', 
+                fontSize: '0.7rem',
+                animation: 'pulse 1.5s infinite',
+                '@keyframes pulse': {
+                  '0%': { opacity: 0.6 },
+                  '50%': { opacity: 1 },
+                  '100%': { opacity: 0.6 },
+                }
+              }} 
+            />
+          )}
+          {/* stats shown to the right of the search input */}
+          <Box sx={{ ml: 1, color: 'var(--muted)', fontSize: '0.85rem' }}>
+            {stats.total > 0 && (activeSearch || activeFilters) ? `Showing ${stats.displayed} of ${stats.total}` : null}
+          </Box>
+        </Box>
+      )}
 
-      {filterOptions && filterOptions.length > 0 && (
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel id="tbl-filter-label" sx={{ color: '#94a3b8' }}>Filter</InputLabel>
+      {!hideFilters && filterOptions && filterOptions.length > 0 && (
+        <FormControl size="small">
+          <InputLabel sx={{ color: 'var(--muted)' }}>Filter</InputLabel>
           <Select
-            labelId="tbl-filter-label"
             value={filterValue || ''}
             label="Filter"
-            onChange={(e) => onFilterChange && onFilterChange(e.target.value)}
-            MenuProps={{
-              PaperProps: { sx: { bgcolor: 'rgba(15,23,42,0.98)', color: '#cbd5e1' } },
-            }}
-            sx={{
-              '& .MuiSelect-select': { color: '#fff' },
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148,163,184,0.08)' },
-              bgcolor: 'rgba(255,255,255,0.02)'
-            }}
+            onChange={(e) => onFilterChange(e.target.value)}
+            sx={{ minWidth: 140 }}
+            displayEmpty
           >
             <MenuItem value="">(all)</MenuItem>
             {filterOptions.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value} sx={{ color: '#cbd5e1' }}>{opt.label}</MenuItem>
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label || opt.value}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
       )}
 
-      {filterChip && (
-        <Chip
-          label={filterChip}
-          onDelete={() => onFilterChange && onFilterChange('')}
-          size="small"
-          sx={{ bgcolor: 'rgba(96,165,250,0.12)', color: '#e6f0ff', border: '1px solid rgba(96,165,250,0.18)' }}
-        />
-      )}
+      {/* Status Filters (hidden when hideFilters=true) */}
+      {!hideFilters && statusFilters && statusFilters.length > 0 && statusFilters.map((statusFilter, index) => (
+        <FormControl key={index} size="small">
+          <InputLabel sx={{ color: 'var(--muted)' }}>{statusFilter.label}</InputLabel>
+          <Select
+            value={statusFilter.value || ''}
+            label={statusFilter.label}
+            onChange={(e) => statusFilter.onChange(e.target.value)}
+            sx={{ minWidth: 140 }}
+            displayEmpty
+          >
+            <MenuItem value="">(all)</MenuItem>
+            {statusFilter.options.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label || opt.value}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ))}
     </Box>
   );
 }

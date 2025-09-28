@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, CircularProgress } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Box, Typography } from '@mui/material';
 import { getCustomers } from '../api/customers';
 import { getProducts } from '../api/products';
 import { createCustomer } from '../api/customers';
@@ -24,7 +24,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
 
-  // Record Payment form state
+  // Record Payment form state (user-facing label will be 'Verif Payment')
   const [payOrderId, setPayOrderId] = useState('');
   const [payAmount, setPayAmount] = useState('');
 
@@ -73,12 +73,12 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
     setSubmitting(true);
     try {
       await createPayment({ order_id: payOrderId, amount: Number(payAmount) });
-      onNotify('Payment recorded', 'success');
+      onNotify('Payment verified', 'success');
       onSuccess();
       setOpenRecordPayment(false);
       setPayOrderId(''); setPayAmount('');
     } catch {
-      onNotify('Failed to record payment', 'error');
+      onNotify('Failed to verify payment', 'error');
     } finally { setSubmitting(false); }
   };
 
@@ -89,17 +89,15 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         <DialogTitle>New Order</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            {loadingLists ? <CircularProgress /> : (
-              <>
-                <TextField select label="Customer" value={orderCustomer} onChange={(e) => setOrderCustomer(e.target.value)}>
-                  {customers.map((c) => <MenuItem key={c.id} value={c.id}>{c.name || c.username || `#${c.id}`}</MenuItem>)}
-                </TextField>
-                <TextField select label="Product" value={orderProduct} onChange={(e) => setOrderProduct(e.target.value)}>
-                  {products.map((p) => <MenuItem key={p.id} value={p.id}>{p.name || p.title || `#${p.id}`}</MenuItem>)}
-                </TextField>
-                <TextField type="number" label="Quantity" value={orderQty} onChange={(e) => setOrderQty(Math.max(1, Number(e.target.value || 1)))} />
-              </>
-            )}
+            <>
+              <TextField select label="Customer" value={orderCustomer} onChange={(e) => setOrderCustomer(e.target.value)} disabled={loadingLists}>
+                {customers.map((c) => <MenuItem key={c.id} value={c.id}>{c.name || c.username || `#${c.id}`}</MenuItem>)}
+              </TextField>
+              <TextField select label="Product" value={orderProduct} onChange={(e) => setOrderProduct(e.target.value)} disabled={loadingLists}>
+                {products.map((p) => <MenuItem key={p.id} value={p.id}>{p.name || p.title || `#${p.id}`}</MenuItem>)}
+              </TextField>
+              <TextField type="number" label="Quantity" value={orderQty} onChange={(e) => setOrderQty(Math.max(1, Number(e.target.value || 1)))} disabled={loadingLists} />
+            </>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -123,9 +121,9 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         </DialogActions>
       </Dialog>
 
-      {/* Record Payment Dialog */}
+      {/* Record Payment Dialog (labelled 'Verif Payment') */}
       <Dialog open={openRecordPayment} onClose={() => setOpenRecordPayment(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Record Payment</DialogTitle>
+        <DialogTitle>Verif Payment</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField label="Order ID" value={payOrderId} onChange={(e) => setPayOrderId(e.target.value)} />
@@ -134,7 +132,7 @@ export default function QuickActionModals({ onNotify = () => {}, onSuccess = () 
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenRecordPayment(false)} disabled={submitting}>Cancel</Button>
-          <Button onClick={handleRecordPayment} disabled={submitting}>{submitting ? 'Recording…' : 'Record'}</Button>
+          <Button onClick={handleRecordPayment} disabled={submitting}>{submitting ? 'Verifying…' : 'Verify'}</Button>
         </DialogActions>
       </Dialog>
 
