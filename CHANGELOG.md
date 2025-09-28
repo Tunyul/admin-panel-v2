@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [v1.7.14] - 2025-09-28
 ### Added
 - Virtualization: shared table component now virtualizes large datasets (react-window) to improve UI responsiveness across Products, Customers, Piutangs, Payments, and Orders.
+### Patch
+- jackson: inline payments history for Piutangs, table expansion on row click, currency formatting, and unified table cell styling.
 ### Fixed
 - Runtime: resolved several TDZ (temporal dead zone) ReferenceErrors in Orders, Payments, and AddOrderModal components.
 - Polling: background API polling now respects a `silent` flag to avoid noisy console errors during expected 500 responses.
